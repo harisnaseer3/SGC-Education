@@ -1,0 +1,122 @@
+import axios from 'axios';
+
+const API_URL = 'http://localhost:5000/api/v1';
+
+const getAuthHeader = () => {
+  const token = localStorage.getItem('token');
+  return { Authorization: `Bearer ${token}` };
+};
+
+/**
+ * Admission Service - API calls for admission management
+ */
+
+// Get all admissions
+export const getAllAdmissions = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.institution) params.append('institution', filters.institution);
+  if (filters.status) params.append('status', filters.status);
+  if (filters.department) params.append('department', filters.department);
+  if (filters.academicYear) params.append('academicYear', filters.academicYear);
+  if (filters.search) params.append('search', filters.search);
+
+  const response = await axios.get(`${API_URL}/admissions?${params.toString()}`, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Get admission by ID
+export const getAdmissionById = async (id) => {
+  const response = await axios.get(`${API_URL}/admissions/${id}`, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Create admission
+export const createAdmission = async (admissionData) => {
+  const response = await axios.post(`${API_URL}/admissions`, admissionData, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Update admission
+export const updateAdmission = async (id, admissionData) => {
+  const response = await axios.put(`${API_URL}/admissions/${id}`, admissionData, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Update admission status
+export const updateAdmissionStatus = async (id, status, remarks) => {
+  const response = await axios.put(
+    `${API_URL}/admissions/${id}/status`,
+    { status, remarks },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+// Approve and enroll admission
+export const approveAndEnroll = async (id) => {
+  const response = await axios.post(
+    `${API_URL}/admissions/${id}/approve-enroll`,
+    {},
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+// Reject admission
+export const rejectAdmission = async (id, remarks) => {
+  const response = await axios.put(
+    `${API_URL}/admissions/${id}/reject`,
+    { remarks },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
+// Delete admission
+export const deleteAdmission = async (id) => {
+  const response = await axios.delete(`${API_URL}/admissions/${id}`, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Get admission statistics
+export const getAdmissionStats = async (filters = {}) => {
+  const params = new URLSearchParams();
+  if (filters.institution) params.append('institution', filters.institution);
+  if (filters.academicYear) params.append('academicYear', filters.academicYear);
+
+  const response = await axios.get(`${API_URL}/admissions/stats/overview?${params.toString()}`, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Get admissions by department
+export const getAdmissionsByDepartment = async (departmentId) => {
+  const response = await axios.get(`${API_URL}/departments/${departmentId}/admissions`, {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+export default {
+  getAllAdmissions,
+  getAdmissionById,
+  createAdmission,
+  updateAdmission,
+  updateAdmissionStatus,
+  approveAndEnroll,
+  rejectAdmission,
+  deleteAdmission,
+  getAdmissionStats,
+  getAdmissionsByDepartment
+};
