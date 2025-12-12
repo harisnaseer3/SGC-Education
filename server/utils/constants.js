@@ -4,7 +4,8 @@
 
 const USER_ROLES = {
   SUPER_ADMIN: 'super_admin',
-  SCHOOL_ADMIN: 'school_admin',
+  ADMIN: 'admin',
+  SCHOOL_ADMIN: 'school_admin', // Deprecated, use ADMIN
   TEACHER: 'teacher',
   STUDENT: 'student'
 };
@@ -12,6 +13,24 @@ const USER_ROLES = {
 const INSTITUTION_TYPES = {
   SCHOOL: 'school',
   COLLEGE: 'college'
+};
+
+const ADMISSION_STATUS = {
+  PENDING: 'pending',
+  UNDER_REVIEW: 'under_review',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  ENROLLED: 'enrolled',
+  CANCELLED: 'cancelled'
+};
+
+const STUDENT_STATUS = {
+  ACTIVE: 'active',
+  INACTIVE: 'inactive',
+  TRANSFERRED: 'transferred',
+  GRADUATED: 'graduated',
+  EXPELLED: 'expelled',
+  ON_LEAVE: 'on_leave'
 };
 
 const HTTP_STATUS = {
@@ -27,5 +46,7 @@ const HTTP_STATUS = {
 module.exports = {
   USER_ROLES,
   INSTITUTION_TYPES,
+  ADMISSION_STATUS,
+  STUDENT_STATUS,
   HTTP_STATUS
 };

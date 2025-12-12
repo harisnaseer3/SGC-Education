@@ -130,11 +130,11 @@ class UserService {
     }
 
     // Validate permissions
-    if (createdBy.role === 'school_admin' && role === 'super_admin') {
+    if ((createdBy.role === 'admin' || createdBy.role === 'school_admin') && role === 'super_admin') {
       throw new ApiError(403, 'You cannot create super admin users');
     }
 
-    if (createdBy.role === 'school_admin' && institution.toString() !== createdBy.institution.toString()) {
+    if ((createdBy.role === 'admin' || createdBy.role === 'school_admin') && institution.toString() !== createdBy.institution.toString()) {
       throw new ApiError(403, 'You can only create users for your institution');
     }
 
@@ -186,8 +186,11 @@ class UserService {
       }
     }
 
-    // Don't allow updating password through this method
-    delete updateData.password;
+    // Handle password update if provided
+    if (updateData.password) {
+      user.password = updateData.password;
+      delete updateData.password; // Remove from updateData to avoid double assignment
+    }
 
     // Update user
     Object.assign(user, updateData);
