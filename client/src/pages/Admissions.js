@@ -109,7 +109,6 @@ const Admissions = () => {
     if (path === '/admissions/analytics') return 'analytics';
     if (path === '/admissions/students/search') return 'search-student';
     if (path === '/admissions/students/search-all') return 'search-all-data';
-    if (path === '/admissions/students/bulk-signup') return 'bulk-signup';
     return 'list'; // Default
   };
 
@@ -123,7 +122,6 @@ const Admissions = () => {
       'analytics': '/admissions/analytics',
       'search-student': '/admissions/students/search',
       'search-all-data': '/admissions/students/search-all',
-      'bulk-signup': '/admissions/students/bulk-signup',
     };
     return urlMap[section] || '/admissions';
   };
@@ -1052,15 +1050,6 @@ const Admissions = () => {
               </List>
             )}
 
-            {/* Student Bulk SignUp */}
-            <ListItem disablePadding>
-              <ListItemButton onClick={() => navigateToSection('bulk-signup')}>
-                <ListItemIcon>
-                  <GroupAdd />
-                </ListItemIcon>
-                <ListItemText primary="Student Bulk SignUp" />
-              </ListItemButton>
-            </ListItem>
           </List>
         </Drawer>
 
