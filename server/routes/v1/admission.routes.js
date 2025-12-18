@@ -37,6 +37,11 @@ router.get('/stats/overview', admissionController.getAdmissionStats);
 // Define analytics routes first to prevent /:id from matching
 router.get('/analytics/charts', admissionController.getAdmissionAnalytics);
 
+// Reports route - must be before /:id to avoid route conflicts
+router.get('/reports', admissionController.getAdmissionReports);
+router.get('/reports/by-date', admissionController.getAdmissionByDateReport);
+router.get('/reports/by-month-detailed', admissionController.getAdmissionByMonthDetailedReport);
+
 // Parameterized routes (must come after all specific routes)
 // Add validation middleware to ensure only valid ObjectIds match
 router.get('/:id', validateObjectId, admissionController.getAdmissionById);

@@ -188,8 +188,81 @@ function App() {
               </ProtectedRoute>
             }
           />
+          {/* Admissions Routes */}
           <Route
             path="/admissions"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/reports"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/register"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/analytics"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/students/search"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/students/search-all"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/students/search-family"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/students/status"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/students/import"
+            element={
+              <ProtectedRoute>
+                <Admissions />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admissions/students/bulk-signup"
             element={
               <ProtectedRoute>
                 <Admissions />

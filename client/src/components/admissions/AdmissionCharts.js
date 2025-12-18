@@ -54,6 +54,7 @@ const AdmissionCharts = ({ filters = {} }) => {
     try {
       setLoading(true);
       setError(null);
+      
       const analytics = await getAdmissionAnalytics({
         ...filters,
         days,

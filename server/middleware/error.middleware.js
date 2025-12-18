@@ -20,8 +20,20 @@ class ApiError extends Error {
 const errorHandler = (err, req, res, next) => {
   let { statusCode, message } = err;
 
+  // Handle Mongoose validation errors
+  if (err.name === 'ValidationError' && err.errors) {
+    statusCode = 400;
+    // Extract the first validation error message
+    const firstError = Object.values(err.errors)[0];
+    message = firstError?.message || 'Validation error';
+  }
+  // Handle Mongoose cast errors
+  else if (err.name === 'CastError') {
+    statusCode = 400;
+    message = `Invalid ${err.path}: ${err.value}`;
+  }
   // Default error
-  if (!statusCode) {
+  else if (!statusCode) {
     statusCode = 500;
     message = 'Internal server error';
   }

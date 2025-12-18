@@ -16,8 +16,7 @@ const studentSchema = new mongoose.Schema({
   },
   department: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department',
-    required: [true, 'Please provide department']
+    ref: 'Department'
   },
 
   // Student Identification

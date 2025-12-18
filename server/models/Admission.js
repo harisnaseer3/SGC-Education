@@ -12,11 +12,6 @@ const admissionSchema = new mongoose.Schema({
     ref: 'Institution',
     required: [true, 'Please provide institution']
   },
-  department: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department',
-    required: [true, 'Please provide department']
-  },
   academicYear: {
     type: String,
     required: [true, 'Please provide academic year'],
@@ -26,6 +21,14 @@ const admissionSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide program'],
     trim: true
+  },
+  class: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class'
+  },
+  section: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Section'
   },
 
   // Personal Information
@@ -303,7 +306,6 @@ admissionSchema.pre('save', async function() {
 
 // Indexes for better query performance
 admissionSchema.index({ institution: 1 });
-admissionSchema.index({ department: 1 });
 admissionSchema.index({ status: 1 });
 admissionSchema.index({ academicYear: 1 });
 admissionSchema.index({ applicationNumber: 1 }, { unique: true });

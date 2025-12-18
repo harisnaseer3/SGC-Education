@@ -124,8 +124,9 @@ const createInitialFormData = (userCtx) => ({
   },
 
   // Backend required fields (hidden)
-  institution: userCtx.institution || '',
-  department: '',
+  institution: userCtx.institution 
+    ? (typeof userCtx.institution === 'object' ? userCtx.institution._id : userCtx.institution)
+    : '',
   academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
   program: '',
 });
@@ -181,24 +182,48 @@ const AdmissionForm = () => {
   const fetchClasses = async () => {
     try {
       const token = localStorage.getItem('token');
+      const params = {};
+      
+      // For super_admin, include institution filter if available
+      if (isSuperAdmin && user.institution) {
+        const institutionId = typeof user.institution === 'object' ? user.institution._id : user.institution;
+        if (institutionId) {
+          params.institution = institutionId;
+        }
+      }
+      
       const response = await axios.get('http://localhost:5000/api/v1/classes', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params
       });
       setClasses(response.data.data || []);
     } catch (err) {
       console.error('Error fetching classes:', err);
+      setError('Failed to load classes. Please refresh the page.');
     }
   };
 
   const fetchSections = async () => {
     try {
       const token = localStorage.getItem('token');
+      const params = {};
+      
+      // For super_admin, include institution filter if available
+      if (isSuperAdmin && user.institution) {
+        const institutionId = typeof user.institution === 'object' ? user.institution._id : user.institution;
+        if (institutionId) {
+          params.institution = institutionId;
+        }
+      }
+      
       const response = await axios.get('http://localhost:5000/api/v1/sections', {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
+        params
       });
       setSections(response.data.data || []);
     } catch (err) {
       console.error('Error fetching sections:', err);
+      setError('Failed to load sections. Please refresh the page.');
     }
   };
 
@@ -245,7 +270,6 @@ const AdmissionForm = () => {
         gender: admission.personalInfo.gender || 'Male',
         bloodGroup: admission.personalInfo.bloodGroup || 'NA',
         institution: admission.institution._id,
-        department: admission.department._id,
         academicYear: admission.academicYear,
         program: admission.program,
       }));
@@ -257,7 +281,14 @@ const AdmissionForm = () => {
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // Reset section when class changes
+      if (field === 'class') {
+        updated.section = '';
+      }
+      return updated;
+    });
   };
 
   const handleNestedChange = (section, field, value) => {
@@ -291,11 +322,6 @@ const AdmissionForm = () => {
         // For now, we'll use placeholder values or require the user to add them via the Classes page
       };
       
-      // Only include department if it has a valid value
-      if (formData.department && formData.department.length === 24) {
-        payload.department = formData.department;
-      }
-      
       const response = await axios.post(
         'http://localhost:5000/api/v1/classes',
         payload,
@@ -320,7 +346,6 @@ const AdmissionForm = () => {
           code: newSection.code,
           class: formData.class,
           institution: user.institution || undefined,
-          department: formData.department || undefined,
           academicYear: formData.academicYear,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -342,7 +367,6 @@ const AdmissionForm = () => {
         {
           name: newGroup.name,
           institution: user.institution || undefined,
-          department: formData.department || undefined,
           academicYear: formData.academicYear,
         },
         { headers: { Authorization: `Bearer ${token}` } }
@@ -372,15 +396,17 @@ const AdmissionForm = () => {
       setError('');
 
       // Map form data to backend structure
-      const [firstName, ...nameParts] = formData.studentName.split(' ');
-      const lastName = nameParts.pop() || '';
-      const middleName = nameParts.join(' ') || '';
+      const nameParts = formData.studentName.trim().split(/\s+/);
+      const firstName = nameParts[0] || '';
+      const lastName = nameParts.length > 1 ? nameParts[nameParts.length - 1] : firstName; // Use firstName as lastName if only one name provided
+      const middleName = nameParts.length > 2 ? nameParts.slice(1, -1).join(' ') : '';
 
       const admissionData = {
         institution: formData.institution,
-        department: formData.department,
         academicYear: formData.academicYear,
         program: formData.program || 'General',
+        class: formData.class || undefined,
+        section: formData.section || undefined,
         personalInfo: {
           firstName,
           middleName,
@@ -435,7 +461,33 @@ const AdmissionForm = () => {
         navigate('/admissions');
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit admission');
+      // Extract detailed error message from backend
+      let errorMessage = 'Failed to submit admission';
+      
+      if (err.response?.data) {
+        const errorData = err.response.data;
+        
+        if (errorData.message) {
+          errorMessage = errorData.message;
+          
+          // Parse Mongoose validation errors from message
+          // Format: "ValidationError: Admission validation failed: personalInfo.lastName: Please provide last name"
+          if (errorMessage.includes('validation failed')) {
+            // Extract the actual field error message
+            const match = errorMessage.match(/: ([^:]+): (.+)$/);
+            if (match) {
+              const field = match[1].replace(/personalInfo\.|guardianInfo\.|contactInfo\./g, '');
+              errorMessage = `${field}: ${match[2]}`;
+            }
+          }
+        } else if (errorData.error) {
+          errorMessage = errorData.error;
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -531,7 +583,12 @@ const AdmissionForm = () => {
                       >
                         <MenuItem value="">Select Section</MenuItem>
                         {sections
-                          .filter(sec => !formData.class || sec.class === formData.class)
+                          .filter(sec => {
+                            if (!formData.class) return false;
+                            // Handle both populated object and string ID
+                            const sectionClassId = sec.class?._id || sec.class;
+                            return String(sectionClassId) === String(formData.class);
+                          })
                           .map((section) => (
                             <MenuItem key={section._id} value={section._id}>
                               {section.name} ({section.academicYear}) (Stds: {section.stats?.totalStudents || 0}) {section.isActive ? 'Active' : 'Inactive'}
@@ -648,15 +705,21 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                    <Button
-                      variant="contained"
+                    <IconButton
+                      color="primary"
                       size="small"
-                      startIcon={<Add />}
                       onClick={() => setCategoryDialogOpen(true)}
-                      sx={{ minWidth: 'auto', px: 1 }}
+                      sx={{ 
+                        border: '1px solid',
+                        borderColor: 'primary.main',
+                        '&:hover': {
+                          bgcolor: 'primary.main',
+                          color: 'white'
+                        }
+                      }}
                     >
-                      +Add Student Category
-                    </Button>
+                      <Add />
+                    </IconButton>
                   </Box>
                 </Grid>
                 

@@ -177,24 +177,6 @@ const getAdmissionStats = asyncHandler(async (req, res) => {
 });
 
 /**
- * @route   GET /api/v1/departments/:departmentId/admissions
- * @desc    Get admissions by department
- * @access  Private
- */
-const getAdmissionsByDepartment = asyncHandler(async (req, res) => {
-  const admissions = await admissionService.getAdmissionsByDepartment(
-    req.params.departmentId,
-    req.user
-  );
-
-  res.json({
-    success: true,
-    count: admissions.length,
-    data: admissions
-  });
-});
-
-/**
  * @route   GET /api/v1/admissions/analytics/charts
  * @desc    Get detailed admission analytics for charts
  * @access  Private
@@ -219,6 +201,63 @@ const getAdmissionAnalytics = asyncHandler(async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/v1/admissions/reports
+ * @desc    Get admission reports based on report type
+ * @access  Private
+ */
+const getAdmissionReports = asyncHandler(async (req, res) => {
+  const { reportType, startDate, endDate, month, year, institution, class: classId } = req.query;
+
+  const reportData = await admissionService.getAdmissionReports(
+    { reportType, startDate, endDate, month, year, institution, classId },
+    req.user
+  );
+
+  res.json({
+    success: true,
+    data: reportData
+  });
+});
+
+/**
+ * @route   GET /api/v1/admissions/reports/by-date
+ * @desc    Get admission by date report with fee deposit filters
+ * @access  Private
+ */
+const getAdmissionByDateReport = asyncHandler(async (req, res) => {
+  const { institutions, startDate, endDate, reportType } = req.query;
+
+  const reportData = await admissionService.getAdmissionByDateDetailedReport(
+    { institutions, startDate, endDate, reportType },
+    req.user
+  );
+
+  res.json({
+    success: true,
+    data: reportData
+  });
+});
+
+/**
+ * @route   GET /api/v1/admissions/reports/by-month-detailed
+ * @desc    Get detailed admission report by month for export
+ * @access  Private
+ */
+const getAdmissionByMonthDetailedReport = asyncHandler(async (req, res) => {
+  const { month, year } = req.query;
+
+  const reportData = await admissionService.getAdmissionByMonthDetailedReport(
+    { month, year },
+    req.user
+  );
+
+  res.json({
+    success: true,
+    data: reportData
+  });
+});
+
 module.exports = {
   getAdmissions,
   getAdmissionById,
@@ -229,6 +268,8 @@ module.exports = {
   rejectAdmission,
   deleteAdmission,
   getAdmissionStats,
-  getAdmissionsByDepartment,
-  getAdmissionAnalytics
+  getAdmissionAnalytics,
+  getAdmissionReports,
+  getAdmissionByDateReport,
+  getAdmissionByMonthDetailedReport
 };
