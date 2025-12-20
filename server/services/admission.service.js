@@ -6,6 +6,7 @@ const Class = require('../models/Class');
 const Section = require('../models/Section');
 const { ApiError } = require('../middleware/error.middleware');
 const mongoose = require('mongoose');
+const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
 /**
  * Admission Service - Handles admission-related business logic
@@ -19,7 +20,10 @@ class AdmissionService {
 
     // Apply institution filter based on role
     if (currentUser.role !== 'super_admin') {
-      query.institution = currentUser.institution;
+      const institutionId = getInstitutionId(currentUser);
+      if (institutionId) {
+        query.institution = institutionId;
+      }
     } else if (filters.institution) {
       query.institution = filters.institution;
     }
@@ -66,7 +70,7 @@ class AdmissionService {
 
     // Check access permissions
     if (currentUser.role !== 'super_admin' &&
-        admission.institution._id.toString() !== currentUser.institution?.toString()) {
+        admission.institution._id.toString() !== getInstitutionId(currentUser)?.toString()) {
       throw new ApiError(403, 'Access denied to this admission');
     }
 
@@ -126,7 +130,7 @@ class AdmissionService {
 
     // Check permissions
     if (currentUser.role !== 'super_admin' &&
-        admission.institution.toString() !== currentUser.institution?.toString()) {
+        admission.institution.toString() !== getInstitutionId(currentUser)?.toString()) {
       throw new ApiError(403, 'You can only update admissions in your institution');
     }
 
@@ -162,7 +166,7 @@ class AdmissionService {
     }
 
     if (currentUser.role !== 'super_admin' &&
-        admission.institution.toString() !== currentUser.institution?.toString()) {
+        admission.institution.toString() !== getInstitutionId(currentUser)?.toString()) {
       throw new ApiError(403, 'You can only update admissions in your institution');
     }
 
@@ -207,7 +211,7 @@ class AdmissionService {
     }
 
     if (currentUser.role !== 'super_admin' &&
-        admission.institution._id.toString() !== currentUser.institution?.toString()) {
+        admission.institution._id.toString() !== getInstitutionId(currentUser)?.toString()) {
       throw new ApiError(403, 'Access denied');
     }
 
@@ -303,7 +307,7 @@ class AdmissionService {
 
     // Check permissions
     if (currentUser.role !== 'super_admin' &&
-        admission.institution.toString() !== currentUser.institution?.toString()) {
+        admission.institution.toString() !== getInstitutionId(currentUser)?.toString()) {
       throw new ApiError(403, 'You can only delete admissions in your institution');
     }
 
@@ -327,7 +331,10 @@ class AdmissionService {
 
     // Apply institution filter based on role
     if (currentUser.role !== 'super_admin') {
-      query.institution = currentUser.institution;
+      const institutionId = getInstitutionId(currentUser);
+      if (institutionId) {
+        query.institution = institutionId;
+      }
     } else if (filters.institution) {
       query.institution = filters.institution;
     }
@@ -382,13 +389,8 @@ class AdmissionService {
         institutionId = filters.institution;
       } 
       // Otherwise, use user's institution
-      else if (currentUser.institution) {
-        // Extract _id if it's an object
-        if (typeof currentUser.institution === 'object') {
-          institutionId = currentUser.institution._id || currentUser.institution;
-        } else {
-          institutionId = currentUser.institution;
-        }
+      else {
+        institutionId = getInstitutionId(currentUser);
       }
       
       // Only set query if we have a valid institution
@@ -533,7 +535,10 @@ class AdmissionService {
     // Build institution filter for class/section queries
     const institutionFilter = {};
     if (currentUser.role !== 'super_admin') {
-      institutionFilter.institution = currentUser.institution;
+      const institutionId = getInstitutionId(currentUser);
+      if (institutionId) {
+        institutionFilter.institution = institutionId;
+      }
     } else if (filters.institution) {
       institutionFilter.institution = new mongoose.Types.ObjectId(filters.institution);
     }

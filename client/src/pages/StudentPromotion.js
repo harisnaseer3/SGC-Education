@@ -76,6 +76,20 @@ const StudentPromotion = () => {
   const [selectedStudents, setSelectedStudents] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Auto-populate TO school when promotion type changes or FROM school changes
+  useEffect(() => {
+    if (promotionType === 'promote' && fromData.school) {
+      // For promote, auto-set TO school to same as FROM school
+      setToData(prev => ({ ...prev, school: fromData.school }));
+    } else if (promotionType === 'transfer' && fromData.school) {
+      // For transfer, clear TO school to force selection of different institution
+      setToData(prev => ({ ...prev, school: '', schoolClass: '', section: '' }));
+    } else if (promotionType === 'passout') {
+      // For passout, clear TO section
+      setToData(prev => ({ ...prev, school: '', schoolClass: '', section: '', group: '' }));
+    }
+  }, [promotionType, fromData.school]);
+
   // Fetch institutions
   useEffect(() => {
     const fetchInstitutions = async () => {
@@ -99,7 +113,12 @@ const StudentPromotion = () => {
         }
       } catch (err) {
         console.error('Error fetching institutions:', err);
-        setError(err.response?.data?.message || 'Failed to load institutions');
+        const errorMessage = err.response?.data?.message || err.message || 'Failed to load institutions';
+        setError(errorMessage);
+        // Log full error for debugging
+        if (err.response) {
+          console.error('API Error Response:', err.response.data);
+        }
       }
     };
 
@@ -256,7 +275,8 @@ const StudentPromotion = () => {
         rollNumber: admission.studentId?.rollNumber || admission.rollNumber || '',
         name: `${capitalizeFirstOnly(admission.personalInfo?.firstName || '')} ${capitalizeFirstOnly(admission.personalInfo?.middleName || '')} ${capitalizeFirstOnly(admission.personalInfo?.lastName || '')}`.trim(),
         fatherName: capitalizeFirstOnly(admission.guardianInfo?.fatherName || ''),
-        status: admission.status || 'enrolled',
+        // Use student status if available, otherwise use admission status
+        status: admission.studentId?.status || admission.status || 'enrolled',
         category: admission.personalInfo?.category || 'Default',
         gender: admission.personalInfo?.gender || 'Male',
         admission: admission,
@@ -296,14 +316,39 @@ const StudentPromotion = () => {
       return;
     }
 
-    // For promote and transfer, TO section is required
-    if (promotionType === 'promote' || promotionType === 'transfer') {
+    // Validation based on promotion type
+    if (promotionType === 'promote') {
+      // Promote: Same institution, different class
       if (!toData.school || !toData.schoolClass || !toData.section) {
         setError('Please fill all required fields in TO section');
         return;
       }
+      if (fromData.school !== toData.school) {
+        setError('For promotion, students must stay in the same institution. Use Transfer mode to move between institutions.');
+        return;
+      }
+      if (fromData.schoolClass === toData.schoolClass) {
+        setError('For promotion, students must move to a different class.');
+        return;
+      }
+    } else if (promotionType === 'transfer') {
+      // Transfer: Different institution
+      if (!toData.school || !toData.schoolClass || !toData.section) {
+        setError('Please fill all required fields in TO section');
+        return;
+      }
+      if (fromData.school === toData.school) {
+        setError('For transfer, students must move to a different institution. Use Promote mode to move within the same institution.');
+        return;
+      }
+    } else if (promotionType === 'passout') {
+      // Pass Out: Student completes last class, TO section not required
+      if (!fromData.school || !fromData.schoolClass || !fromData.section) {
+        setError('Please select School, Class, and Section in FROM section');
+        return;
+      }
+      // TO section is optional for pass out
     }
-    // For passout, TO section is optional
 
     try {
       setLoading(true);
@@ -311,10 +356,61 @@ const StudentPromotion = () => {
       setSuccess('');
       const token = localStorage.getItem('token');
 
-      // TODO: Implement backend API call for promotion/transfer/passout
-      // For now, just show success message
+      // Get current academic year from first student's admission
+      let academicYear = '';
+      if (students.length > 0 && students[0].admission) {
+        academicYear = students[0].admission.academicYear || '';
+      }
+
+      // Prepare payload based on promotion type
+      const payload = {
+        promotionType,
+        studentIds: selectedStudents,
+        from: {
+          institution: fromData.school,
+          class: fromData.schoolClass,
+          section: fromData.section,
+          group: fromData.group || null,
+          academicYear: academicYear,
+        },
+        remarks: fromData.remarks || '',
+      };
+
+      // Add TO data only for promote and transfer
+      if (promotionType === 'promote' || promotionType === 'transfer') {
+        payload.to = {
+          institution: toData.school,
+          class: toData.schoolClass,
+          section: toData.section,
+          group: toData.group || null,
+          academicYear: academicYear, // Same academic year for promote, can be updated for transfer
+        };
+      }
+
+      // Call backend API for promotion/transfer/passout
+      const response = await axios.post(
+        'http://localhost:5000/api/v1/student-promotions',
+        payload,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      const result = response.data.data;
       const action = promotionType === 'promote' ? 'Promote' : promotionType === 'transfer' ? 'Transfer' : 'Pass Out';
-      setSuccess(`${action} action will be implemented. ${selectedStudents.length} student(s) selected.`);
+      
+      if (result.errors && result.errors.length > 0) {
+        const errorMessages = result.errors.map(e => `Student ${e.admissionId}: ${e.error}`).join(', ');
+        setError(`Some students failed: ${errorMessages}`);
+        if (result.processed > 0) {
+          setSuccess(`${result.processed} student(s) ${action.toLowerCase()}ed successfully. ${result.errors.length} failed.`);
+        }
+      } else {
+        setSuccess(`${action} completed successfully! ${result.processed} student(s) processed.`);
+      }
+
+      // Refresh students list to show updated statuses
+      if (result.processed > 0) {
+        await handleGetStudents();
+      }
 
       // Reset selections
       setSelectedStudents([]);
@@ -470,7 +566,7 @@ const StudentPromotion = () => {
                         <MenuItem value="">Select Section</MenuItem>
                         {sections.map((sec) => (
                           <MenuItem key={sec._id} value={sec._id}>
-                            {sec.name} {sec.academicYear ? `(${sec.academicYear})` : ''} {sec.isActive ? 'Active' : 'Inactive'}
+                            {capitalizeFirstOnly(sec.name || '')} {sec.academicYear ? `(${sec.academicYear})` : ''} {sec.isActive ? 'Active' : 'Inactive'}
                           </MenuItem>
                         ))}
                       </Select>
@@ -496,7 +592,7 @@ const StudentPromotion = () => {
               <Paper sx={{ p: 2, bgcolor: '#f9f9f9' }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" fontWeight="bold">
-                    TO
+                    TO {promotionType === 'passout' && '(Optional)'}
                   </Typography>
                   <Button
                     variant="contained"
@@ -510,9 +606,24 @@ const StudentPromotion = () => {
                     {getActionButtonLabel()}
                   </Button>
                 </Box>
+                {promotionType === 'passout' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Pass Out: Students completing the last class. TO section is optional.
+                  </Alert>
+                )}
+                {promotionType === 'promote' && fromData.school && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Promote: Students will move to the next class in the same institution.
+                  </Alert>
+                )}
+                {promotionType === 'transfer' && (
+                  <Alert severity="info" sx={{ mb: 2 }}>
+                    Transfer: Students will move to a different institution.
+                  </Alert>
+                )}
                   <Grid container spacing={2}>
                     <Grid item xs={12}>
-                      <FormControl fullWidth>
+                      <FormControl fullWidth required={promotionType !== 'passout'}>
                         <InputLabel>Schools</InputLabel>
                         <Select
                           value={toData.school}
@@ -520,69 +631,89 @@ const StudentPromotion = () => {
                             setToData({ ...toData, school: e.target.value, schoolClass: '', section: '' });
                           }}
                           label="Schools"
+                          disabled={promotionType === 'promote' && fromData.school !== ''}
                         >
                           <MenuItem value="">Select School</MenuItem>
-                          {institutions.map((inst) => (
-                            <MenuItem key={inst._id} value={inst._id}>
-                              {inst.name} ({inst.code || ''})
-                            </MenuItem>
-                          ))}
+                          {institutions
+                            .filter(inst => {
+                              // For promote, only show same institution
+                              if (promotionType === 'promote') {
+                                return inst._id === fromData.school;
+                              }
+                              // For transfer, only show different institutions
+                              if (promotionType === 'transfer') {
+                                return inst._id !== fromData.school;
+                              }
+                              // For passout, show all
+                              return true;
+                            })
+                            .map((inst) => (
+                              <MenuItem key={inst._id} value={inst._id}>
+                                {capitalizeFirstOnly(inst.name || '')} ({inst.code || ''})
+                              </MenuItem>
+                            ))}
                         </Select>
                       </FormControl>
                     </Grid>
-                    <Grid item xs={12}>
-                      <FormControl fullWidth>
-                        <InputLabel>School Class</InputLabel>
-                        <Select
-                          value={toData.schoolClass}
-                          onChange={(e) => {
-                            setToData({ ...toData, schoolClass: e.target.value, section: '' });
-                          }}
-                          label="School Class"
-                        >
-                          <MenuItem value="">Select Class</MenuItem>
-                          {classes.map((cls) => (
-                            <MenuItem key={cls._id} value={cls._id}>
-                              {capitalizeFirstOnly(cls.name || '')} ({cls.code || ''})
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <FormControl fullWidth>
-                        <InputLabel>Section</InputLabel>
-                        <Select
-                          value={toData.section}
-                          onChange={(e) => setToData({ ...toData, section: e.target.value })}
-                          label="Section"
-                        >
-                          <MenuItem value="">Select Section</MenuItem>
-                          {sections.map((sec) => (
-                            <MenuItem key={sec._id} value={sec._id}>
-                              {sec.name} {sec.academicYear ? `(${sec.academicYear})` : ''} {sec.isActive ? 'Active' : 'Inactive'}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-                    <Grid item xs={12}>
-                      <FormControl fullWidth>
-                        <InputLabel>Group*</InputLabel>
-                        <Select
-                          value={toData.group}
-                          onChange={(e) => setToData({ ...toData, group: e.target.value })}
-                          label="Group*"
-                        >
-                          <MenuItem value="">Select Groups</MenuItem>
-                          {groups.map((grp) => (
-                            <MenuItem key={grp._id} value={grp._id}>
-                              {grp.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
+                    {promotionType !== 'passout' && (
+                      <>
+                        <Grid item xs={12}>
+                          <FormControl fullWidth required>
+                            <InputLabel>School Class</InputLabel>
+                            <Select
+                              value={toData.schoolClass}
+                              onChange={(e) => {
+                                setToData({ ...toData, schoolClass: e.target.value, section: '' });
+                              }}
+                              label="School Class"
+                              disabled={!toData.school}
+                            >
+                              <MenuItem value="">Select Class</MenuItem>
+                              {classes.map((cls) => (
+                                <MenuItem key={cls._id} value={cls._id}>
+                                  {capitalizeFirstOnly(cls.name || '')} ({cls.code || ''})
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <FormControl fullWidth required>
+                            <InputLabel>Section</InputLabel>
+                            <Select
+                              value={toData.section}
+                              onChange={(e) => setToData({ ...toData, section: e.target.value })}
+                              label="Section"
+                              disabled={!toData.schoolClass}
+                            >
+                              <MenuItem value="">Select Section</MenuItem>
+                              {sections.map((sec) => (
+                                <MenuItem key={sec._id} value={sec._id}>
+                                  {capitalizeFirstOnly(sec.name || '')} {sec.academicYear ? `(${sec.academicYear})` : ''} {sec.isActive ? 'Active' : 'Inactive'}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                        <Grid item xs={12}>
+                          <FormControl fullWidth>
+                            <InputLabel>Group*</InputLabel>
+                            <Select
+                              value={toData.group}
+                              onChange={(e) => setToData({ ...toData, group: e.target.value })}
+                              label="Group*"
+                            >
+                              <MenuItem value="">Select Groups</MenuItem>
+                              {groups.map((grp) => (
+                                <MenuItem key={grp._id} value={grp._id}>
+                                  {capitalizeFirstOnly(grp.name || '')}
+                                </MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Grid>
+                      </>
+                    )}
                   </Grid>
                 </Paper>
               </Grid>
@@ -672,9 +803,17 @@ const StudentPromotion = () => {
                           <TableCell>{capitalizeFirstOnly(student.fatherName || 'N/A')}</TableCell>
                           <TableCell>
                             <Chip
-                              label={student.status}
+                              label={capitalizeFirstOnly(student.status || 'enrolled')}
                               size="small"
-                              color={student.status === 'enrolled' ? 'success' : 'default'}
+                              color={
+                                student.status === 'enrolled' || student.status === 'active' 
+                                  ? 'success' 
+                                  : student.status === 'transferred' 
+                                  ? 'warning' 
+                                  : student.status === 'graduated' 
+                                  ? 'info' 
+                                  : 'default'
+                              }
                             />
                           </TableCell>
                           <TableCell>{student.category}</TableCell>

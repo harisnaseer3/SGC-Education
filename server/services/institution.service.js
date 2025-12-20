@@ -15,7 +15,17 @@ class InstitutionService {
     const query = {};
 
     if (currentUser.role !== 'super_admin') {
-      query._id = currentUser.institution;
+      // Handle institution as object or string
+      const institutionId = currentUser.institution 
+        ? (typeof currentUser.institution === 'object' ? currentUser.institution._id : currentUser.institution)
+        : null;
+      
+      if (!institutionId) {
+        // Return empty array if user has no institution
+        return [];
+      }
+      
+      query._id = institutionId;
     }
 
     // Apply filters

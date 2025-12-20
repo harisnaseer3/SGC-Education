@@ -5,6 +5,7 @@ const ActivityLog = require('../models/ActivityLog');
 const { asyncHandler } = require('../middleware/error.middleware');
 const { ApiError } = require('../middleware/error.middleware');
 const { buildInstitutionQuery } = require('../middleware/institution.middleware');
+const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
 /**
  * Dashboard Controller - Handles dashboard statistics
@@ -23,15 +24,20 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
   // For super admin viewing specific institution
   if (req.user.role === 'super_admin' && req.query.institution) {
-    institutionQuery = { _id: req.query.institution };
-    userQuery = { institution: req.query.institution };
-    departmentQuery = { institution: req.query.institution };
+    const institutionId = extractInstitutionId(req.query.institution);
+    institutionQuery = { _id: institutionId };
+    userQuery = { institution: institutionId };
+    departmentQuery = { institution: institutionId };
   }
   // For regular admin (scoped to their institution)
-  else if (req.user.role === 'admin' && req.user.institution) {
-    institutionQuery = { _id: req.user.institution };
-    userQuery = { institution: req.user.institution };
-    departmentQuery = { institution: req.user.institution };
+  else if (req.user.role === 'admin') {
+    const institutionId = getInstitutionId(req.user);
+    if (!institutionId) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any institution.');
+    }
+    institutionQuery = { _id: institutionId };
+    userQuery = { institution: institutionId };
+    departmentQuery = { institution: institutionId };
   }
   // For super admin viewing all (global view)
   else if (req.user.role === 'super_admin') {
@@ -153,15 +159,20 @@ const getAnalytics = asyncHandler(async (req, res) => {
 
   // For super admin viewing specific institution
   if (req.user.role === 'super_admin' && req.query.institution) {
-    institutionMatch._id = req.query.institution;
-    userMatch.institution = req.query.institution;
-    departmentMatch.institution = req.query.institution;
+    const institutionId = extractInstitutionId(req.query.institution);
+    institutionMatch._id = institutionId;
+    userMatch.institution = institutionId;
+    departmentMatch.institution = institutionId;
   }
   // For regular admin (scoped to their institution)
-  else if (req.user.role === 'admin' && req.user.institution) {
-    institutionMatch._id = req.user.institution;
-    userMatch.institution = req.user.institution;
-    departmentMatch.institution = req.user.institution;
+  else if (req.user.role === 'admin') {
+    const institutionId = getInstitutionId(req.user);
+    if (!institutionId) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any institution.');
+    }
+    institutionMatch._id = institutionId;
+    userMatch.institution = institutionId;
+    departmentMatch.institution = institutionId;
   }
   // For super admin viewing all (global view)
   else if (req.user.role === 'super_admin') {

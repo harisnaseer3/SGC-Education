@@ -1,5 +1,6 @@
 const financialService = require('../services/financial.service');
 const { asyncHandler } = require('../middleware/error.middleware');
+const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
 /**
  * @route   GET /api/v1/financial/overview
@@ -11,7 +12,9 @@ const getFinancialOverview = asyncHandler(async (req, res) => {
 
   // Filter by institution if provided (for super admin)
   // Regular admins should have institution from their user object
-  const institutionFilter = institution || (req.user.role !== 'super_admin' ? req.user.institution : null);
+  const institutionFilter = institution 
+    ? extractInstitutionId(institution)
+    : (req.user.role !== 'super_admin' ? getInstitutionId(req.user) : null);
 
   const overview = await financialService.getFinancialOverview(institutionFilter);
 

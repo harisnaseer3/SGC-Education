@@ -1,6 +1,7 @@
 const Class = require('../models/Class');
 const Department = require('../models/Department');
 const { ApiError } = require('../middleware/error.middleware');
+const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
 /**
  * Class Service - Handles class-related business logic
@@ -14,9 +15,12 @@ class ClassService {
 
     // Apply institution filter based on role
     if (currentUser.role !== 'super_admin') {
-      query.institution = currentUser.institution;
+      const institutionId = getInstitutionId(currentUser);
+      if (institutionId) {
+        query.institution = institutionId;
+      }
     } else if (filters.institution) {
-      query.institution = filters.institution;
+      query.institution = extractInstitutionId(filters.institution);
     }
 
     // Apply additional filters
@@ -59,8 +63,11 @@ class ClassService {
     }
 
     // Check access
-    if (currentUser.role !== 'super_admin' && classDoc.institution.toString() !== currentUser.institution.toString()) {
-      throw new ApiError(403, 'Access denied');
+    if (currentUser.role !== 'super_admin') {
+      const userInstitutionId = getInstitutionId(currentUser);
+      if (!userInstitutionId || classDoc.institution.toString() !== userInstitutionId.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
     }
 
     return classDoc;
@@ -72,8 +79,9 @@ class ClassService {
   async createClass(classData, currentUser) {
     // Ensure institution is set (for non-super-admins, default to their institution)
     if (!classData.institution) {
-      if (currentUser && currentUser.institution) {
-        classData.institution = currentUser.institution;
+      const institutionId = getInstitutionId(currentUser);
+      if (institutionId) {
+        classData.institution = institutionId;
       } else {
         throw new ApiError(400, 'Institution is required');
       }
@@ -111,7 +119,7 @@ class ClassService {
         classData.department = undefined;
       } else if (
         currentUser.role !== 'super_admin' &&
-        String(department.institution) !== String(currentUser.institution)
+        String(department.institution) !== String(getInstitutionId(currentUser))
       ) {
         throw new ApiError(403, 'Access denied');
       } else {
@@ -164,8 +172,11 @@ class ClassService {
     }
 
     // Check access
-    if (currentUser.role !== 'super_admin' && classDoc.institution.toString() !== currentUser.institution.toString()) {
-      throw new ApiError(403, 'Access denied');
+    if (currentUser.role !== 'super_admin') {
+      const userInstitutionId = getInstitutionId(currentUser);
+      if (!userInstitutionId || classDoc.institution.toString() !== userInstitutionId.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
     }
 
     // If code is being updated, check for duplicates
@@ -204,8 +215,11 @@ class ClassService {
     }
 
     // Check access
-    if (currentUser.role !== 'super_admin' && classDoc.institution.toString() !== currentUser.institution.toString()) {
-      throw new ApiError(403, 'Access denied');
+    if (currentUser.role !== 'super_admin') {
+      const userInstitutionId = getInstitutionId(currentUser);
+      if (!userInstitutionId || classDoc.institution.toString() !== userInstitutionId.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
     }
 
     // Update department stats
@@ -227,8 +241,11 @@ class ClassService {
     }
 
     // Check access
-    if (currentUser.role !== 'super_admin' && classDoc.institution.toString() !== currentUser.institution.toString()) {
-      throw new ApiError(403, 'Access denied');
+    if (currentUser.role !== 'super_admin') {
+      const userInstitutionId = getInstitutionId(currentUser);
+      if (!userInstitutionId || classDoc.institution.toString() !== userInstitutionId.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
     }
 
     classDoc.isActive = !classDoc.isActive;
