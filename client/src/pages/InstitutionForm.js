@@ -28,10 +28,12 @@ const InstitutionForm = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  const [organizations, setOrganizations] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     type: 'school',
     code: '',
+    organization: '',
     email: '',
     phone: '',
     address: {
@@ -51,10 +53,23 @@ const InstitutionForm = () => {
   });
 
   useEffect(() => {
+    fetchOrganizations();
     if (isEditMode) {
       fetchInstitution();
     }
   }, [id]);
+
+  const fetchOrganizations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get('http://localhost:5000/api/v1/organizations', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrganizations(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching organizations:', err);
+    }
+  };
 
   const fetchInstitution = async () => {
     try {
@@ -67,7 +82,14 @@ const InstitutionForm = () => {
         }
       );
 
-      setFormData(response.data.data);
+      const institutionData = response.data.data;
+      // Handle organization - it might be an object (populated) or just an ID
+      const organizationId = institutionData.organization?._id || institutionData.organization;
+      
+      setFormData({
+        ...institutionData,
+        organization: organizationId || ''
+      });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch institution');
     } finally {
@@ -223,6 +245,25 @@ const InstitutionForm = () => {
                 onChange={handleChange}
                 inputProps={{ style: { textTransform: 'uppercase' } }}
               />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Organization</InputLabel>
+                <Select
+                  name="organization"
+                  value={formData.organization}
+                  onChange={handleChange}
+                  label="Organization"
+                >
+                  <MenuItem value="">Select Organization</MenuItem>
+                  {organizations.map((org) => (
+                    <MenuItem key={org._id} value={org._id}>
+                      {org.name} ({org.code})
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
             </Grid>
 
             <Grid item xs={12} md={6}>

@@ -142,6 +142,7 @@ const Dashboard = () => {
     { name: 'Library', icon: <LocalLibrary />, color: '#f093fb', route: null },
     { name: 'Assets Management', icon: <Inventory />, color: '#4facfe', route: null },
     { name: 'Finance Management', icon: <AccountBalance />, color: '#43e97b', route: '/financial' },
+    { name: 'Organizations', icon: <Business />, color: '#4facfe', route: '/organizations' },
     { name: 'User & Privilege', icon: <SupervisorAccount />, color: '#feca57', route: '/users' },
     { name: 'Configuration', icon: <Settings />, color: '#fa709a', route: '/settings' },
     { name: 'Transport', icon: <DirectionsBus />, color: '#ee5a6f', route: null },
@@ -660,6 +661,22 @@ const Dashboard = () => {
                   <Divider sx={{ mb: { xs: 2, sm: 2 } }} />
 
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      onClick={() => navigate('/organizations')}
+                      startIcon={<Business sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                      sx={{
+                        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                        py: { xs: 1.2, sm: 1.5 },
+                        fontSize: { xs: '0.875rem', sm: '1rem' },
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #3d8fe0 0%, #00d9e0 100%)',
+                        }
+                      }}
+                    >
+                      Manage Organizations
+                    </Button>
                     <Button
                       variant="contained"
                       fullWidth

@@ -4,6 +4,8 @@ import { ThemeProvider, createTheme } from '@mui/material';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
+import Organizations from './pages/Organizations';
+import OrganizationForm from './pages/OrganizationForm';
 import Institutions from './pages/Institutions';
 import InstitutionForm from './pages/InstitutionForm';
 import Departments from './pages/Departments';
@@ -68,6 +70,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations"
+            element={
+              <ProtectedRoute>
+                <Organizations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/new"
+            element={
+              <ProtectedRoute>
+                <OrganizationForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/edit/:id"
+            element={
+              <ProtectedRoute>
+                <OrganizationForm />
               </ProtectedRoute>
             }
           />
