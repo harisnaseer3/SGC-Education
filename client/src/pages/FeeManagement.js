@@ -231,19 +231,12 @@ const FeeManagement = () => {
       setError('');
       const token = localStorage.getItem('token');
       
-      // Debug logging
-      console.log('Fetching fee heads - User:', user);
-      console.log('Is Super Admin:', isSuperAdmin);
-      console.log('User institution:', user.institution);
-      
       // For admin users, ensure we have their institution
       if (!isSuperAdmin) {
         // Check if user has institution in the user object
         const userInstitutionId = user.institution 
           ? (typeof user.institution === 'object' ? user.institution._id : user.institution)
           : null;
-        
-        console.log('Admin user institution ID:', userInstitutionId);
         
         if (!userInstitutionId) {
           setError('No institution found for your account. Please contact administrator.');
@@ -255,7 +248,6 @@ const FeeManagement = () => {
       // For super admin, ensure institution is selected
       if (isSuperAdmin) {
         const institutionId = getInstitutionId();
-        console.log('Super admin institution ID:', institutionId);
         if (!institutionId) {
           setError('Please select an institution first');
           setFeeHeadsLoading(false);
@@ -275,16 +267,12 @@ const FeeManagement = () => {
       
       if (feeHeadSearchTerm) params.search = feeHeadSearchTerm;
 
-      console.log('Fetching fee heads with params:', params);
       const response = await axios.get(`${API_URL}/fee-heads`, {
         headers: { Authorization: `Bearer ${token}` },
         params
       });
-      console.log('Fee heads response:', response.data);
       setFeeHeads(response.data.data || []);
     } catch (err) {
-      console.error('Error fetching fee heads:', err);
-      console.error('Error response:', err.response?.data);
       setError(err.response?.data?.message || 'Failed to fetch fee heads');
     } finally {
       setFeeHeadsLoading(false);
@@ -347,11 +335,6 @@ const FeeManagement = () => {
         params
       });
       const matrix = response.data.data || {};
-      
-      // Debug: Log the matrix to see what we're getting
-      console.log('Fee Structure Matrix:', matrix);
-      console.log('Fee Heads:', matrix.feeHeads);
-      console.log('Classes:', matrix.classes);
       
       setFeeStructureMatrix(matrix);
       

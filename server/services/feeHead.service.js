@@ -12,7 +12,7 @@ class FeeHeadService {
     const mongoose = require('mongoose');
     
     // Show both active and inactive fee heads, but prioritize active ones
-    const query = {};
+    let query = {};
     
     // If showInactive filter is not explicitly set, default to showing all
     // But we can add a filter option later if needed
@@ -31,7 +31,6 @@ class FeeHeadService {
         institutionFilter = institutionId;
       } else {
         // If admin has no institution, return empty array
-        console.log('FeeHead Service - Admin user has no institution');
         return [];
       }
     } else if (filters.institution) {
@@ -67,38 +66,51 @@ class FeeHeadService {
       }
     }
 
-    console.log('FeeHead Service - Query:', JSON.stringify(query, null, 2));
-    console.log('FeeHead Service - Current User Role:', currentUser.role);
-    console.log('FeeHead Service - Current User Institution:', currentUser.institution);
-    console.log('FeeHead Service - Filters:', filters);
-    
-    // Debug: Check all fee heads in database to see their institution IDs
-    const allFeeHeads = await FeeHead.find({}).select('name institution isActive').lean();
-    console.log('FeeHead Service - All fee heads in DB:', allFeeHeads.map(fh => ({
-      name: fh.name,
-      institution: fh.institution ? fh.institution.toString() : 'null',
-      isActive: fh.isActive
-    })));
-    
+    // First, update fee heads with null institution to the current institution
+    // This ensures fee heads belong to the institution they're being viewed from
+    let targetInstitutionId = null;
+    if (currentUser.role !== 'super_admin') {
+      if (currentUser.institution) {
+        targetInstitutionId = typeof currentUser.institution === 'object' 
+          ? currentUser.institution._id 
+          : currentUser.institution;
+      }
+    } else if (filters.institution) {
+      targetInstitutionId = filters.institution;
+    }
+
+    if (targetInstitutionId) {
+      // Update fee heads with null institution to the target institution
+      await FeeHead.updateMany(
+        { institution: null, isActive: { $ne: false } },
+        { $set: { institution: targetInstitutionId } }
+      );
+      
+      // Rebuild query from scratch to avoid Mongoose validation issues
+      const finalQuery = {};
+      if (query.isActive !== undefined) {
+        finalQuery.isActive = query.isActive;
+      }
+      finalQuery.institution = targetInstitutionId;
+      
+      // If there's a search filter, add it back
+      if (filters.search) {
+        finalQuery.$or = [
+          { name: { $regex: filters.search, $options: 'i' } },
+          { glAccount: { $regex: filters.search, $options: 'i' } },
+          { frequencyType: { $regex: filters.search, $options: 'i' } }
+        ];
+      }
+      
+      // Use the final query
+      query = finalQuery;
+    }
+
     const feeHeads = await FeeHead.find(query)
       .populate('institution', 'name type code')
       .populate('createdBy', 'name')
       .sort({ isActive: -1, priority: 1 }); // Active first, then by priority
 
-    console.log('FeeHead Service - Found fee heads with query:', feeHeads.length);
-    if (feeHeads.length > 0) {
-      console.log('FeeHead Service - First fee head:', {
-        _id: feeHeads[0]._id,
-        name: feeHeads[0].name,
-        institution: feeHeads[0].institution
-      });
-    } else {
-      console.log('FeeHead Service - No fee heads found with query:', query);
-      // Try querying without institution filter to see if any exist
-      const withoutInstitution = await FeeHead.countDocuments({ isActive: { $exists: true } });
-      console.log('FeeHead Service - Total fee heads (any institution):', withoutInstitution);
-    }
-    
     return feeHeads;
   }
 
@@ -137,21 +149,28 @@ class FeeHeadService {
   async createFeeHead(feeHeadData, currentUser) {
     feeHeadData.createdBy = currentUser._id;
 
-    // If not super admin, set institution from user
-    if (currentUser.role !== 'super_admin' && currentUser.institution) {
-      feeHeadData.institution = typeof currentUser.institution === 'object'
+    // Get the final institution ID - prioritize from feeHeadData, then from user
+    let institutionId = feeHeadData.institution;
+    
+    // If not provided in feeHeadData, get from user
+    if (!institutionId && currentUser.institution) {
+      institutionId = typeof currentUser.institution === 'object'
         ? currentUser.institution._id
         : currentUser.institution;
     }
 
-    // Get the final institution ID
-    const institutionId = feeHeadData.institution || 
-      (currentUser.institution ? 
-        (typeof currentUser.institution === 'object' ? currentUser.institution._id : currentUser.institution) 
-        : null);
-
-    if (!institutionId) {
-      throw new ApiError(400, 'Institution is required');
+    // For super admin, institution must be provided in feeHeadData
+    // For admin, use their institution
+    if (currentUser.role !== 'super_admin') {
+      // Admin users must have an institution
+      if (!institutionId) {
+        throw new ApiError(400, 'Institution is required for admin users');
+      }
+    } else {
+      // Super admin must provide institution in feeHeadData
+      if (!institutionId) {
+        throw new ApiError(400, 'Institution is required');
+      }
     }
 
     // Ensure institution is set in feeHeadData
@@ -249,8 +268,21 @@ class FeeHeadService {
       }
     }
 
-    // Check if priority is already used by another fee head
+    // If fee head has null institution, set it from feeHeadData or current user
+    if (!feeHead.institution) {
+      if (feeHeadData.institution) {
+        feeHeadData.institution = feeHeadData.institution;
+      } else if (currentUser.role !== 'super_admin' && currentUser.institution) {
+        feeHeadData.institution = typeof currentUser.institution === 'object'
+          ? currentUser.institution._id
+          : currentUser.institution;
+      }
+    }
+
+    // Get the final institution ID for validation
     const institutionId = feeHeadData.institution || feeHead.institution;
+    
+    // Check if priority is already used by another fee head
     if (institutionId && feeHeadData.priority && feeHeadData.priority !== feeHead.priority) {
       const existingFeeHead = await FeeHead.findOne({
         _id: { $ne: feeHeadId },

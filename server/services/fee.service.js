@@ -197,14 +197,38 @@ class FeeService {
     }).sort({ name: 1 });
 
     // Get all fee heads for the institution (these will be the columns)
-    const feeHeads = await FeeHead.find({ 
-      institution: institutionId, 
+    // Include fee heads with matching institution OR null (for backward compatibility)
+    let feeHeads = await FeeHead.find({ 
+      $or: [
+        { institution: institutionId },
+        { institution: null }
+      ],
       isActive: true 
     }).sort({ priority: 1 });
 
+    // Update fee heads with null institution to the current institution
+    const feeHeadsToUpdate = feeHeads.filter(fh => !fh.institution);
+    if (feeHeadsToUpdate.length > 0) {
+      const feeHeadIds = feeHeadsToUpdate.map(fh => fh._id.toString());
+      await FeeHead.updateMany(
+        { _id: { $in: feeHeadIds }, institution: null },
+        { $set: { institution: institutionId } }
+      );
+      
+      // Re-fetch to get updated fee heads
+      feeHeads = await FeeHead.find({ 
+        institution: institutionId,
+        isActive: true 
+      }).sort({ priority: 1 });
+    }
+
     // Get all fee types for the institution (FeeStructure uses feeType)
+    // Include fee types with matching institution OR null (for backward compatibility)
     const feeTypes = await FeeType.find({ 
-      institution: institutionId, 
+      $or: [
+        { institution: institutionId },
+        { institution: null }
+      ],
       isActive: true 
     }).sort({ name: 1 });
 
