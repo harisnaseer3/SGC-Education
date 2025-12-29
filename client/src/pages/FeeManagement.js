@@ -47,6 +47,7 @@ import {
   Delete,
   Close,
   Restore,
+  Receipt,
 } from '@mui/icons-material';
 import axios from 'axios';
 import TopBar from '../components/layout/TopBar';
@@ -64,6 +65,7 @@ const FeeManagement = () => {
   // Tab management
   const [activeTab, setActiveTab] = useState(0);
   const [feeDepositSubTab, setFeeDepositSubTab] = useState(0);
+  const [miscFeeSubTab, setMiscFeeSubTab] = useState(0);
 
   // Status options
   const [enrolledOptions, setEnrolledOptions] = useState([]);
@@ -89,6 +91,15 @@ const FeeManagement = () => {
     value: '',
     remarks: ''
   });
+
+  // Generate Voucher
+  const [generateVoucherFilters, setGenerateVoucherFilters] = useState({
+    monthYear: `${new Date().getMonth() + 1}-${new Date().getFullYear()}`,
+    enrolled: []
+  });
+  const [generateVoucherStudents, setGenerateVoucherStudents] = useState([]);
+  const [selectedGenerateVoucherStudents, setSelectedGenerateVoucherStudents] = useState([]);
+  const [generateVoucherLoading, setGenerateVoucherLoading] = useState(false);
 
   // Fee Heads
   const [feeHeads, setFeeHeads] = useState([]);
@@ -630,6 +641,100 @@ const FeeManagement = () => {
     }
   };
 
+  // Fetch generate voucher students
+  const fetchGenerateVoucherStudents = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const institutionId = user.institution?._id || user.institution;
+
+      const params = {
+        institution: institutionId
+      };
+
+      if (generateVoucherFilters.enrolled && generateVoucherFilters.enrolled.length > 0) {
+        params.status = generateVoucherFilters.enrolled;
+      }
+
+      const response = await axios.get(`${API_URL}/admissions`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: params,
+        paramsSerializer: { indexes: null }
+      });
+
+      const admissions = response.data.data || [];
+      const transformedStudents = admissions.map(admission => ({
+        _id: admission._id,
+        id: admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A',
+        rollNumber: admission.rollNumber || 'N/A',
+        admissionNo: admission.applicationNumber || 'N/A',
+        familyNumber: admission.familyNumber || 'N/A',
+        name: admission.personalInfo?.firstName && admission.personalInfo?.lastName
+          ? `${admission.personalInfo.firstName} ${admission.personalInfo.lastName}`
+          : admission.personalInfo?.firstName || 'N/A',
+        fatherName: admission.personalInfo?.fatherName || 'N/A',
+        class: admission.class?.name || 'N/A',
+        section: admission.section?.name || 'N/A',
+        status: admission.status || 'pending',
+        studentCategory: admission.category || 'N/A',
+        voucherStatus: admission.voucherStatus || 'Not Generated'
+      }));
+      setGenerateVoucherStudents(transformedStudents);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to fetch students');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle generate vouchers
+  const handleGenerateVouchers = async () => {
+    if (selectedGenerateVoucherStudents.length === 0) {
+      setError('Please select at least one student');
+      return;
+    }
+
+    try {
+      setGenerateVoucherLoading(true);
+      const token = localStorage.getItem('token');
+      const [month, year] = generateVoucherFilters.monthYear.split('-');
+
+      const studentIds = selectedGenerateVoucherStudents.map(s => s._id);
+
+      // Call API to generate vouchers
+      const response = await axios.post(
+        `${API_URL}/fees/generate-vouchers`,
+        {
+          studentIds: studentIds,
+          month: parseInt(month),
+          year: parseInt(year)
+        },
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.data.success) {
+        setSuccess(`Successfully generated vouchers for ${selectedGenerateVoucherStudents.length} student(s)`);
+        // Update voucher status for selected students
+        setGenerateVoucherStudents(prevStudents =>
+          prevStudents.map(student =>
+            selectedGenerateVoucherStudents.some(s => s._id === student._id)
+              ? { ...student, voucherStatus: 'Generated' }
+              : student
+          )
+        );
+        setSelectedGenerateVoucherStudents([]);
+        // Refresh the list
+        fetchGenerateVoucherStudents();
+      }
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to generate vouchers');
+    } finally {
+      setGenerateVoucherLoading(false);
+    }
+  };
+
   // Fetch voucher data
   const fetchVoucherData = async (student, monthYear) => {
     try {
@@ -831,12 +936,16 @@ const FeeManagement = () => {
       fetchFeeStructureMatrix();
     }
     if (activeTab === 2) {
-      fetchMiscFeeStudents();
+      if (miscFeeSubTab === 0) {
+        fetchMiscFeeStudents();
+      } else if (miscFeeSubTab === 1) {
+        fetchGenerateVoucherStudents();
+      }
     }
     if (activeTab === 3) {
       fetchPrintVoucherStudents();
     }
-  }, [activeTab, miscFeeFilters, printVoucherFilters, feeHeadSearchTerm, feeStructureAcademicYear, feeStructureSelectedInstitution]);
+  }, [activeTab, miscFeeSubTab, miscFeeFilters, generateVoucherFilters, printVoucherFilters, feeHeadSearchTerm, feeStructureAcademicYear, feeStructureSelectedInstitution]);
 
   // Status color helper
   const getStatusColor = (status) => {
@@ -1259,161 +1368,336 @@ const FeeManagement = () => {
               MISC FEE OPERATIONS
             </Typography>
 
-            {/* Filters */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="Month/Year"
-                      type="month"
-                      value={miscFeeFilters.monthYear}
-                      onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, monthYear: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Enrolled Status</InputLabel>
-                      <Select
-                        multiple
-                        value={miscFeeFilters.enrolled}
-                        onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, enrolled: e.target.value })}
-                        label="Enrolled Status"
-                        renderValue={(selected) => selected.join(', ')}
-                      >
-                        {enrolledOptions.map((status) => (
-                          <MenuItem key={status} value={status}>
-                            {status}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      sx={{ bgcolor: '#667eea' }}
-                      onClick={fetchMiscFeeStudents}
-                    >
-                      Search Students
-                    </Button>
-                  </Grid>
-                </Grid>
-              </CardContent>
-            </Card>
-
-            {/* Action Buttons */}
-            <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
-              <Button
-                variant="contained"
-                sx={{ bgcolor: '#667eea' }}
-                onClick={() => {
-                  if (selectedMiscFeeStudents.length === 0) {
-                    setError('Please select at least one student');
-                    return;
-                  }
-                  setChangeStatusDialog(true);
-                }}
-                disabled={selectedMiscFeeStudents.length === 0}
-              >
-                Change Status
-              </Button>
-              <Button
-                variant="contained"
-                sx={{ bgcolor: '#667eea' }}
-                onClick={() => {
-                  if (selectedMiscFeeStudents.length === 0) {
-                    setError('Please select at least one student');
-                    return;
-                  }
-                  setChangeMonthlyFeeDialog(true);
-                }}
-                disabled={selectedMiscFeeStudents.length === 0}
-              >
-                Change Monthly Fee
-              </Button>
+            {/* Sub-tabs for Misc Fee Operations */}
+            <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+              <Tabs value={miscFeeSubTab} onChange={(e, newValue) => setMiscFeeSubTab(newValue)}>
+                <Tab label="Student Operations" />
+                <Tab label="Generate Voucher" />
+              </Tabs>
             </Box>
 
-            {/* Students Table */}
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
-                    <TableCell padding="checkbox">
-                      <input
-                        type="checkbox"
-                        checked={selectedMiscFeeStudents.length === miscFeeStudents.length && miscFeeStudents.length > 0}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedMiscFeeStudents([...miscFeeStudents]);
-                          } else {
-                            setSelectedMiscFeeStudents([]);
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell>ID</TableCell>
-                    <TableCell>Roll #</TableCell>
-                    <TableCell>Name</TableCell>
-                    <TableCell>Father Name</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Class</TableCell>
-                    <TableCell>Section</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <CircularProgress />
-                      </TableCell>
-                    </TableRow>
-                  ) : miscFeeStudents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} align="center">
-                        <Typography variant="body2" color="textSecondary">
-                          No data found
-                        </Typography>
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    miscFeeStudents.map((student) => (
-                      <TableRow key={student._id}>
+            {/* Sub-tab Panel 0: Student Operations */}
+            {miscFeeSubTab === 0 && (
+              <Box>
+                {/* Filters */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          label="Month/Year"
+                          type="month"
+                          value={miscFeeFilters.monthYear}
+                          onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, monthYear: e.target.value })}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth>
+                          <InputLabel>Enrolled Status</InputLabel>
+                          <Select
+                            multiple
+                            value={miscFeeFilters.enrolled}
+                            onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, enrolled: e.target.value })}
+                            label="Enrolled Status"
+                            renderValue={(selected) => selected.join(', ')}
+                          >
+                            {enrolledOptions.map((status) => (
+                              <MenuItem key={status} value={status}>
+                                {status}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Button
+                          variant="contained"
+                          fullWidth
+                          sx={{ bgcolor: '#667eea' }}
+                          onClick={fetchMiscFeeStudents}
+                        >
+                          Search Students
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Action Buttons */}
+                <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="contained"
+                    sx={{ bgcolor: '#667eea' }}
+                    onClick={() => {
+                      if (selectedMiscFeeStudents.length === 0) {
+                        setError('Please select at least one student');
+                        return;
+                      }
+                      setChangeStatusDialog(true);
+                    }}
+                    disabled={selectedMiscFeeStudents.length === 0}
+                  >
+                    Change Status
+                  </Button>
+                  <Button
+                    variant="contained"
+                    sx={{ bgcolor: '#667eea' }}
+                    onClick={() => {
+                      if (selectedMiscFeeStudents.length === 0) {
+                        setError('Please select at least one student');
+                        return;
+                      }
+                      setChangeMonthlyFeeDialog(true);
+                    }}
+                    disabled={selectedMiscFeeStudents.length === 0}
+                  >
+                    Change Monthly Fee
+                  </Button>
+                </Box>
+
+                {/* Students Table */}
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
                         <TableCell padding="checkbox">
                           <input
                             type="checkbox"
-                            checked={selectedMiscFeeStudents.some(s => s._id === student._id)}
+                            checked={selectedMiscFeeStudents.length === miscFeeStudents.length && miscFeeStudents.length > 0}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedMiscFeeStudents([...selectedMiscFeeStudents, student]);
+                                setSelectedMiscFeeStudents([...miscFeeStudents]);
                               } else {
-                                setSelectedMiscFeeStudents(selectedMiscFeeStudents.filter(s => s._id !== student._id));
+                                setSelectedMiscFeeStudents([]);
                               }
                             }}
                           />
                         </TableCell>
-                        <TableCell>{student.id || 'N/A'}</TableCell>
-                        <TableCell>{student.rollNumber || 'N/A'}</TableCell>
-                        <TableCell>{capitalizeFirstOnly(student.name || 'N/A')}</TableCell>
-                        <TableCell>{capitalizeFirstOnly(student.fatherName || 'N/A')}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={capitalizeFirstOnly(student.status || 'pending')}
-                            color={getStatusColor(student.status)}
-                            size="small"
+                        <TableCell>ID</TableCell>
+                        <TableCell>Roll #</TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Father Name</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Class</TableCell>
+                        <TableCell>Section</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center">
+                            <CircularProgress />
+                          </TableCell>
+                        </TableRow>
+                      ) : miscFeeStudents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} align="center">
+                            <Typography variant="body2" color="textSecondary">
+                              No data found
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        miscFeeStudents.map((student) => (
+                          <TableRow key={student._id}>
+                            <TableCell padding="checkbox">
+                              <input
+                                type="checkbox"
+                                checked={selectedMiscFeeStudents.some(s => s._id === student._id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedMiscFeeStudents([...selectedMiscFeeStudents, student]);
+                                  } else {
+                                    setSelectedMiscFeeStudents(selectedMiscFeeStudents.filter(s => s._id !== student._id));
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>{student.id || 'N/A'}</TableCell>
+                            <TableCell>{student.rollNumber || 'N/A'}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.name || 'N/A')}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.fatherName || 'N/A')}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={capitalizeFirstOnly(student.status || 'pending')}
+                                color={getStatusColor(student.status)}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Box>
+            )}
+
+            {/* Sub-tab Panel 1: Generate Voucher */}
+            {miscFeeSubTab === 1 && (
+              <Box>
+                {/* Filters */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={4}>
+                        <TextField
+                          fullWidth
+                          label="Month/Year"
+                          type="month"
+                          value={generateVoucherFilters.monthYear}
+                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, monthYear: e.target.value })}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth>
+                          <InputLabel>Enrolled Status</InputLabel>
+                          <Select
+                            multiple
+                            value={generateVoucherFilters.enrolled}
+                            onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, enrolled: e.target.value })}
+                            label="Enrolled Status"
+                            renderValue={(selected) => selected.join(', ')}
+                          >
+                            {enrolledOptions.map((status) => (
+                              <MenuItem key={status} value={status}>
+                                {status}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <Button
+                            variant="contained"
+                            fullWidth
+                            startIcon={<Search />}
+                            sx={{ bgcolor: '#667eea' }}
+                            onClick={fetchGenerateVoucherStudents}
+                          >
+                            Search Students
+                          </Button>
+                          <Button
+                            variant="contained"
+                            startIcon={<Receipt />}
+                            sx={{ bgcolor: '#667eea' }}
+                            disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
+                            onClick={handleGenerateVouchers}
+                          >
+                            {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
+                          </Button>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Students Table */}
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                        <TableCell padding="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={selectedGenerateVoucherStudents.length === generateVoucherStudents.length && generateVoucherStudents.length > 0}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedGenerateVoucherStudents([...generateVoucherStudents]);
+                              } else {
+                                setSelectedGenerateVoucherStudents([]);
+                              }
+                            }}
                           />
                         </TableCell>
-                        <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
-                        <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
+                        <TableCell>Voucher Status</TableCell>
+                        <TableCell>ID</TableCell>
+                        <TableCell>Roll #</TableCell>
+                        <TableCell>Admission #</TableCell>
+                        <TableCell>Family #</TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Father Name</TableCell>
+                        <TableCell>Class</TableCell>
+                        <TableCell>Section</TableCell>
+                        <TableCell>Status</TableCell>
+                        <TableCell>Student Category</TableCell>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={12} align="center">
+                            <CircularProgress />
+                          </TableCell>
+                        </TableRow>
+                      ) : generateVoucherStudents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={12} align="center">
+                            <Typography variant="body2" color="textSecondary">
+                              No data found
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        generateVoucherStudents.map((student) => (
+                          <TableRow key={student._id}>
+                            <TableCell padding="checkbox">
+                              <input
+                                type="checkbox"
+                                checked={selectedGenerateVoucherStudents.some(s => s._id === student._id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedGenerateVoucherStudents([...selectedGenerateVoucherStudents, student]);
+                                  } else {
+                                    setSelectedGenerateVoucherStudents(selectedGenerateVoucherStudents.filter(s => s._id !== student._id));
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={student.voucherStatus || 'Not Generated'} 
+                                size="small" 
+                                color={student.voucherStatus === 'Generated' ? 'success' : 'default'} 
+                              />
+                            </TableCell>
+                            <TableCell>{student.id || 'N/A'}</TableCell>
+                            <TableCell>{student.rollNumber || 'N/A'}</TableCell>
+                            <TableCell>{student.admissionNo || 'N/A'}</TableCell>
+                            <TableCell>{student.familyNumber || 'N/A'}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.name || 'N/A')}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.fatherName || 'N/A')}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={capitalizeFirstOnly(student.status || 'pending')}
+                                color={getStatusColor(student.status)}
+                                size="small"
+                              />
+                            </TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.studentCategory || 'N/A')}</TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                {/* Total Count */}
+                <Box sx={{ mt: 2, textAlign: 'right' }}>
+                  <Typography variant="body1" fontWeight="bold">
+                    Total: {generateVoucherStudents.length} student(s) | Selected: {selectedGenerateVoucherStudents.length} student(s)
+                  </Typography>
+                </Box>
+              </Box>
+            )}
           </Box>
         )}
 

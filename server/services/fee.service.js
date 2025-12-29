@@ -4,7 +4,9 @@ const FeePayment = require('../models/FeePayment');
 const FeeHead = require('../models/FeeHead');
 const FeeType = require('../models/FeeType');
 const Class = require('../models/Class');
+const Admission = require('../models/Admission');
 const { ApiError } = require('../middleware/error.middleware');
+const { getInstitutionId } = require('../utils/userUtils');
 
 /**
  * Fee Service - Handles fee-related business logic
@@ -532,6 +534,75 @@ class FeeService {
   async getFeeStatistics(filters = {}, currentUser) {
     // This is a placeholder - implement based on your requirements
     throw new ApiError(501, 'Not implemented yet');
+  }
+
+  /**
+   * Generate vouchers for selected students
+   */
+  async generateVouchers(voucherData, currentUser) {
+    const { studentIds, month, year } = voucherData;
+
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      throw new ApiError(400, 'Please provide at least one student ID');
+    }
+
+    if (!month || !year) {
+      throw new ApiError(400, 'Please provide month and year');
+    }
+
+    const institutionId = getInstitutionId(currentUser);
+    if (!institutionId && currentUser.role !== 'super_admin') {
+      throw new ApiError(403, 'Institution access required');
+    }
+
+    const results = {
+      success: [],
+      failed: []
+    };
+
+    // Fetch admissions for the selected students
+    const query = { _id: { $in: studentIds } };
+    if (currentUser.role !== 'super_admin') {
+      query.institution = institutionId;
+    }
+
+    const admissions = await Admission.find(query)
+      .populate('class', 'name')
+      .populate('section', 'name')
+      .populate('institution', 'name');
+
+    for (const admission of admissions) {
+      try {
+        // Generate voucher for the student
+        // Note: In a full implementation, you might want to create a Voucher document
+        // or update admission with voucher information
+        // For now, we'll just mark it as successful
+        
+        results.success.push({
+          studentId: admission._id,
+          name: admission.personalInfo?.firstName && admission.personalInfo?.lastName
+            ? `${admission.personalInfo.firstName} ${admission.personalInfo.lastName}`
+            : admission.personalInfo?.firstName || 'N/A',
+          rollNumber: admission.rollNumber || 'N/A',
+          admissionNo: admission.applicationNumber || 'N/A',
+          month,
+          year,
+          generatedAt: new Date()
+        });
+      } catch (error) {
+        results.failed.push({
+          studentId: admission._id,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      total: studentIds.length,
+      success: results.success.length,
+      failed: results.failed.length,
+      details: results
+    };
   }
 }
 

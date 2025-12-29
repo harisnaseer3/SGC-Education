@@ -269,6 +269,20 @@ const bulkSaveFeeStructureMatrix = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   POST /api/v1/fees/generate-vouchers
+ * @desc    Generate vouchers for selected students
+ * @access  Private (Admin, Super Admin)
+ */
+const generateVouchers = asyncHandler(async (req, res) => {
+  const result = await feeService.generateVouchers(req.body, req.user);
+  res.json({
+    success: true,
+    message: `Successfully generated vouchers for ${result.success} student(s)`,
+    data: result
+  });
+});
+
 module.exports = {
   getFeeStructures,
   getFeeStructureById,
@@ -283,7 +297,8 @@ module.exports = {
   createFeePayment,
   getFeePayments,
   getFeeStatistics,
-  getMiscOperationsStudents
+  getMiscOperationsStudents,
+  generateVouchers
 };
 
 

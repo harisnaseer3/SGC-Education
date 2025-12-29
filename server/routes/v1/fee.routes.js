@@ -14,7 +14,8 @@ const {
   createFeePayment,
   getFeePayments,
   getFeeStatistics,
-  getMiscOperationsStudents
+  getMiscOperationsStudents,
+  generateVouchers
 } = require('../../controllers/fee.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { authorize, isAdmin } = require('../../middleware/rbac.middleware');
@@ -55,6 +56,11 @@ router.get('/statistics', getFeeStatistics);
  * Misc Operations Routes
  */
 router.get('/misc-operations/students', getMiscOperationsStudents);
+
+/**
+ * Voucher Generation Routes
+ */
+router.post('/generate-vouchers', isAdmin, generateVouchers);
 
 module.exports = router;
 
