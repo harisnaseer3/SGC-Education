@@ -1704,11 +1704,6 @@ const FeeManagement = () => {
                             <TableCell>{student.rollNumber || 'N/A'}</TableCell>
                             <TableCell>
                               {capitalizeFirstOnly(student.name || 'N/A')}
-                              {student.fatherName && (
-                                <Typography component="span" variant="body2" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.875rem' }}>
-                                  {capitalizeFirstOnly(student.fatherName)}
-                                </Typography>
-                              )}
                             </TableCell>
                             <TableCell>
                               <Chip
@@ -1860,11 +1855,6 @@ const FeeManagement = () => {
                             <TableCell>{student.admissionNo || 'N/A'}</TableCell>
                             <TableCell>
                               {capitalizeFirstOnly(student.name || 'N/A')}
-                              {student.fatherName && (
-                                <Typography component="span" variant="body2" sx={{ display: 'block', color: 'text.secondary', fontSize: '0.875rem' }}>
-                                  {capitalizeFirstOnly(student.fatherName)}
-                                </Typography>
-                              )}
                             </TableCell>
                             <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
                             <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
