@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Paper,
@@ -588,6 +588,56 @@ const Admissions = () => {
     alert('Excel export coming soon!');
   };
 
+  const sidebarWidth = 280;
+  const [appBarHeight, setAppBarHeight] = useState(64);
+
+  // Measure AppBar height when it changes (e.g., when wrapping)
+  const appBarRef = useRef(null);
+
+  useEffect(() => {
+    const updateAppBarHeight = () => {
+      if (appBarRef.current) {
+        // Use requestAnimationFrame to ensure DOM is fully rendered
+        requestAnimationFrame(() => {
+          if (appBarRef.current) {
+            const height = appBarRef.current.offsetHeight;
+            setAppBarHeight(height);
+          }
+        });
+      }
+    };
+
+    // Initial measurement with delays to ensure AppBar is fully rendered
+    const timeoutId1 = setTimeout(updateAppBarHeight, 0);
+    const timeoutId2 = setTimeout(updateAppBarHeight, 100);
+    const timeoutId3 = setTimeout(updateAppBarHeight, 300);
+    
+    window.addEventListener('resize', updateAppBarHeight);
+    
+    // Use MutationObserver to detect when AppBar content changes
+    const observer = new MutationObserver(() => {
+      // Debounce the update
+      setTimeout(updateAppBarHeight, 50);
+    });
+    
+    if (appBarRef.current) {
+      observer.observe(appBarRef.current, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class']
+      });
+    }
+
+    return () => {
+      clearTimeout(timeoutId1);
+      clearTimeout(timeoutId2);
+      clearTimeout(timeoutId3);
+      window.removeEventListener('resize', updateAppBarHeight);
+      observer.disconnect();
+    };
+  }, [isSuperAdmin]);
+
   const filteredAdmissions = admissions.filter((admission) => {
     // Apply status filter first
     if (selectedStatus && admission.status !== selectedStatus) {
@@ -648,13 +698,18 @@ const Admissions = () => {
     );
   }
 
-  const sidebarWidth = 280;
-
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
       {/* Top Navigation Bar */}
-      <AppBar position="fixed" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: 1300 }}>
-        <Toolbar sx={{ px: { xs: 2, sm: 3 }, flexWrap: 'wrap', gap: 2 }}>
+      <AppBar 
+        ref={appBarRef}
+        position="fixed" 
+        sx={{ 
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+          zIndex: 1300 
+        }}
+      >
+        <Toolbar sx={{ px: { xs: 2, sm: 3 }, flexWrap: 'wrap', gap: 2, minHeight: { xs: '56px !important', sm: '64px !important' } }}>
           <School sx={{ mr: { xs: 1, sm: 2 }, display: { xs: 'none', sm: 'block' } }} />
           <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: { xs: '0.9rem', sm: '1.25rem' } }}>
             Admissions Management
@@ -823,9 +878,9 @@ const Admissions = () => {
               width: sidebarWidth,
               boxSizing: 'border-box',
               position: 'fixed',
-              top: 64,
+              top: `${appBarHeight}px`,
               left: 0,
-              height: 'calc(100vh - 64px)',
+              height: `calc(100vh - ${appBarHeight}px)`,
               borderRight: '1px solid #e0e0e0',
               overflowY: 'auto',
               bgcolor: 'white',
@@ -1024,15 +1079,15 @@ const Admissions = () => {
         <Box 
           sx={{ 
             flexGrow: 1, 
-            pt: '80px',
+            pt: `${Math.max(appBarHeight, 64) + 32}px`,
             pr: 3,
             pb: 3,
-            minHeight: '100vh',
+            minHeight: `calc(100vh - ${Math.max(appBarHeight, 64)}px)`,
             bgcolor: '#f5f5f5',
           }}
         >
       {/* Quick Links for Academic Setup */}
-      <Paper sx={{ p: 2, mb: 3, mx: 3, background: 'linear-gradient(135deg, #667eea15 0%, #764ba205 100%)', border: '1px solid #667eea30' }}>
+      <Paper sx={{ p: 2, mb: 3, mx: 3, mt: 2, background: 'linear-gradient(135deg, #667eea15 0%, #764ba205 100%)', border: '1px solid #667eea30' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 600, color: '#667eea' }}>
             Academic Setup
@@ -1497,13 +1552,13 @@ const Admissions = () => {
               <TableContainer>
                 <Table size="small">
                   <TableHead>
-                    <TableRow>
-                      <TableCell><strong>Sr</strong></TableCell>
+                    <TableRow sx={{ bgcolor: '#667eea' }}>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Sr</TableCell>
                       {allDataFieldOptions
                         .filter((field) => selectedAllDataFields.includes(field.id))
                         .map((field) => (
-                          <TableCell key={field.id}>
-                            <strong>{field.label}</strong>
+                          <TableCell key={field.id} sx={{ color: 'white', fontWeight: 'bold' }}>
+                            {field.label}
                           </TableCell>
                         ))}
                     </TableRow>
@@ -2334,7 +2389,7 @@ const Admissions = () => {
               <TableContainer>
                 <Table>
                   <TableHead>
-                    <TableRow sx={{ bgcolor: '#0d6efd' }}>
+                    <TableRow sx={{ bgcolor: '#667eea' }}>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Roll #</TableCell>

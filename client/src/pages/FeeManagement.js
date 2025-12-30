@@ -1216,8 +1216,8 @@ const FeeManagement = () => {
               <Tab label="Fee Heads" />
               <Tab label="Fee Structure" />
               <Tab label="Misc Fee Operations" />
-              <Tab label="Print Voucher" />
               <Tab label="Fee Deposit" />
+              <Tab label="Print Voucher" />
             </Tabs>
           </Box>
 
