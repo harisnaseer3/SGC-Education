@@ -32,10 +32,6 @@ const userSchema = new mongoose.Schema({
       return this.role !== 'super_admin';
     }
   },
-  department: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department'
-  },
   phone: {
     type: String,
     trim: true

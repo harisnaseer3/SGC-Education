@@ -118,7 +118,6 @@ class ReportService {
 
     const users = await User.find(query)
       .populate('institution', 'name')
-      .populate('department', 'name code')
       .sort({ createdAt: -1 });
 
     const summary = {

@@ -52,14 +52,14 @@ const changePassword = asyncHandler(async (req, res) => {
 
 /**
  * @route   GET /api/v1/users
- * @desc    Get all users (filtered by role/institution/department/search)
+ * @desc    Get all users (filtered by role/institution/search)
  * @access  Private (Admin)
  */
 const getUsers = asyncHandler(async (req, res) => {
-  const { role, institution, department, isActive, search } = req.query;
+  const { role, institution, isActive, search } = req.query;
 
   const users = await userService.getUsers(
-    { role, institution, department, isActive, search },
+    { role, institution, isActive, search },
     req.user
   );
 

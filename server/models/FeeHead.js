@@ -56,15 +56,14 @@ feeHeadSchema.pre('save', function() {
 });
 
 // Generate GL Account if not provided
-feeHeadSchema.pre('save', function(next) {
-  if (!this.glAccount && this.accountType && this.name) {
+feeHeadSchema.pre('save', function() {
+  if (!this.glAccount && this.accountType && this.name && this.priority) {
     // Generate GL Account code based on account type and name
     const accountTypeCode = this.accountType === 'Liabilities' ? 'L' : 
                            this.accountType === 'Income' ? 'I' : 'OI';
     const nameCode = this.name.substring(0, 3).toUpperCase().replace(/\s/g, '');
     this.glAccount = `${accountTypeCode}-${nameCode}-${this.priority}`;
   }
-  next();
 });
 
 // Indexes for better query performance

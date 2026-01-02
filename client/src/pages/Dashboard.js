@@ -336,15 +336,6 @@ const Dashboard = () => {
               </Grid>
               <Grid item xs={12} sm={6} lg={3}>
                 <StatCard
-                  title="Total Departments"
-                  value={dashboardData.overview.totalDepartments}
-                  icon={<AccountBalance />}
-                  color="#f093fb"
-                  trend={dashboardData.growth.departmentsLast30Days}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} lg={3}>
-                <StatCard
                   title="Total Users"
                   value={dashboardData.overview.totalUsers}
                   icon={<People />}
@@ -674,22 +665,6 @@ const Dashboard = () => {
                       }}
                     >
                       Manage Institutions
-                    </Button>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      onClick={() => navigate('/departments')}
-                      startIcon={<AccountBalance sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                      sx={{
-                        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                        py: { xs: 1.2, sm: 1.5 },
-                        fontSize: { xs: '0.875rem', sm: '1rem' },
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #d97ee4 0%, #de4455 100%)',
-                        }
-                      }}
-                    >
-                      Manage Departments
                     </Button>
                     <Button
                       variant="outlined"

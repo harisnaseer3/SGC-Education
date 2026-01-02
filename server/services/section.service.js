@@ -1,6 +1,5 @@
 const Section = require('../models/Section');
 const Class = require('../models/Class');
-const Department = require('../models/Department');
 const { ApiError } = require('../middleware/error.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
@@ -25,7 +24,6 @@ class SectionService {
     }
 
     // Apply additional filters
-    if (filters.department) query.department = filters.department;
     if (filters.class) query.class = filters.class;
     if (filters.academicYear) query.academicYear = filters.academicYear;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
@@ -38,7 +36,6 @@ class SectionService {
 
     const sections = await Section.find(query)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate({
         path: 'class',
         select: 'name code level'
@@ -56,7 +53,6 @@ class SectionService {
   async getSectionById(sectionId, currentUser) {
     const section = await Section.findById(sectionId)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate({
         path: 'class',
         select: 'name code level'
@@ -97,15 +93,8 @@ class SectionService {
       }
     }
 
-    // Set institution and department from class
+    // Set institution from class
     sectionData.institution = classDoc.institution;
-    // Only set department if the class has one
-    if (classDoc.department) {
-      sectionData.department = classDoc.department;
-    } else {
-      // Remove department if not provided to avoid validation errors
-      delete sectionData.department;
-    }
     sectionData.createdBy = currentUser._id;
 
     // Check for duplicate code
@@ -128,7 +117,6 @@ class SectionService {
 
     return await Section.findById(newSection._id)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate({
         path: 'class',
         select: 'name code level'
@@ -172,7 +160,6 @@ class SectionService {
 
     return await Section.findById(sectionId)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate({
         path: 'class',
         select: 'name code level'

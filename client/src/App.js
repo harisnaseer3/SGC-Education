@@ -6,8 +6,6 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Institutions from './pages/Institutions';
 import InstitutionForm from './pages/InstitutionForm';
-import Departments from './pages/Departments';
-import DepartmentForm from './pages/DepartmentForm';
 import Classes from './pages/Classes';
 import ClassForm from './pages/ClassForm';
 import Sections from './pages/Sections';
@@ -89,30 +87,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <InstitutionForm />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/departments"
-            element={
-              <ProtectedRoute>
-                <Departments />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/departments/new"
-            element={
-              <ProtectedRoute>
-                <DepartmentForm />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/departments/edit/:id"
-            element={
-              <ProtectedRoute>
-                <DepartmentForm />
               </ProtectedRoute>
             }
           />

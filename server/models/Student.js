@@ -8,15 +8,11 @@ const studentSchema = new mongoose.Schema({
     required: [true, 'Please provide user reference']
   },
 
-  // Institution & Department
+  // Institution
   institution: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Institution',
     required: [true, 'Please provide institution']
-  },
-  department: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department'
   },
 
   // Student Identification
@@ -298,7 +294,6 @@ studentSchema.pre('save', async function() {
 // Indexes for better query performance
 studentSchema.index({ user: 1 }, { unique: true });
 studentSchema.index({ institution: 1 });
-studentSchema.index({ department: 1 });
 studentSchema.index({ enrollmentNumber: 1 }, { unique: true });
 studentSchema.index({ rollNumber: 1 });
 studentSchema.index({ status: 1 });

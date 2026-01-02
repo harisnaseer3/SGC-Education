@@ -185,7 +185,6 @@ class AdmissionService {
 
     return await Admission.findById(admission._id)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('reviewedBy', 'name email');
   }
 

@@ -49,7 +49,6 @@ class MessageService {
     const message = await Message.findById(messageId)
       .populate('createdBy', 'name email')
       .populate('targetAudience.institutions', 'name')
-      .populate('targetAudience.departments', 'name code');
 
     if (!message) {
       throw new ApiError(404, 'Message not found');
@@ -152,12 +151,6 @@ class MessageService {
       case 'institution':
         if (targetAudience.institutions && targetAudience.institutions.length > 0) {
           query.institution = { $in: targetAudience.institutions };
-        }
-        break;
-
-      case 'department':
-        if (targetAudience.departments && targetAudience.departments.length > 0) {
-          query.department = { $in: targetAudience.departments };
         }
         break;
 

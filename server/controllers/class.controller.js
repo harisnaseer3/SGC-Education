@@ -7,7 +7,6 @@ const { asyncHandler } = require('../middleware/error.middleware');
 const getClasses = asyncHandler(async (req, res) => {
   const filters = {
     institution: req.query.institution,
-    department: req.query.department,
     academicYear: req.query.academicYear,
     isActive: req.query.isActive,
     search: req.query.search

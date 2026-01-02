@@ -12,7 +12,7 @@ class UserService {
     const user = await User.findById(userId)
       .select('-password')
       .populate('institution', 'name type')
-      .populate('department', 'name code');
+;
 
     if (!user) {
       throw new ApiError(404, 'User not found');
@@ -99,7 +99,6 @@ class UserService {
 
     // Apply additional filters
     if (filters.role) query.role = filters.role;
-    if (filters.department) query.department = filters.department;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
     if (filters.search) {
       query.$or = [
@@ -111,7 +110,6 @@ class UserService {
     const users = await User.find(query)
       .select('-password')
       .populate('institution', 'name type')
-      .populate('department', 'name code')
       .sort({ createdAt: -1 });
 
     return users;
@@ -121,7 +119,7 @@ class UserService {
    * Create user (by admin)
    */
   async createUser(userData, createdBy) {
-    const { name, email, password, role, institution, department, phone, address, dateOfBirth, gender } = userData;
+    const { name, email, password, role, institution, phone, address, dateOfBirth, gender } = userData;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -145,7 +143,6 @@ class UserService {
       password,
       role,
       institution,
-      department,
       phone,
       address,
       dateOfBirth,
@@ -155,7 +152,7 @@ class UserService {
     const populatedUser = await User.findById(user._id)
       .select('-password')
       .populate('institution', 'name type')
-      .populate('department', 'name code');
+;
 
     return populatedUser;
   }
@@ -199,7 +196,7 @@ class UserService {
     return await User.findById(user._id)
       .select('-password')
       .populate('institution', 'name type')
-      .populate('department', 'name code');
+;
   }
 
   /**
@@ -244,7 +241,7 @@ class UserService {
     return await User.findById(user._id)
       .select('-password')
       .populate('institution', 'name type')
-      .populate('department', 'name code');
+;
   }
 }
 

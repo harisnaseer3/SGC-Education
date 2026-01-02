@@ -17,10 +17,6 @@ const sectionSchema = new mongoose.Schema({
     ref: 'Institution',
     required: [true, 'Please provide institution']
   },
-  department: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department'
-  },
   class: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Class',
@@ -94,7 +90,7 @@ sectionSchema.pre('save', function() {
 sectionSchema.index({ code: 1, class: 1, academicYear: 1 }, { unique: true });
 
 // Index for faster queries
-sectionSchema.index({ institution: 1, department: 1, class: 1, academicYear: 1 });
+sectionSchema.index({ institution: 1, class: 1, academicYear: 1 });
 sectionSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Section', sectionSchema);

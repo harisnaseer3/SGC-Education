@@ -17,10 +17,6 @@ const classSchema = new mongoose.Schema({
     ref: 'Institution',
     required: [true, 'Please provide institution']
   },
-  department: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department'
-  },
   academicYear: {
     type: String,
     required: [true, 'Please provide academic year'],
@@ -104,11 +100,11 @@ classSchema.pre('save', function() {
   this.updatedAt = Date.now();
 });
 
-// Compound index for unique class code per department and academic year
-classSchema.index({ code: 1, department: 1, academicYear: 1 }, { unique: true });
+// Compound index for unique class code per institution and academic year
+classSchema.index({ code: 1, institution: 1, academicYear: 1 }, { unique: true });
 
 // Index for faster queries
-classSchema.index({ institution: 1, department: 1, academicYear: 1 });
+classSchema.index({ institution: 1, academicYear: 1 });
 classSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Class', classSchema);

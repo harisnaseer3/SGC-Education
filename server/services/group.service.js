@@ -1,7 +1,6 @@
 const Group = require('../models/Group');
 const Section = require('../models/Section');
 const Class = require('../models/Class');
-const Department = require('../models/Department');
 const { ApiError } = require('../middleware/error.middleware');
 
 /**
@@ -22,7 +21,6 @@ class GroupService {
     }
 
     // Apply additional filters
-    if (filters.department) query.department = filters.department;
     if (filters.class) query.class = filters.class;
     if (filters.section) query.section = filters.section;
     if (filters.type) query.type = filters.type;
@@ -37,7 +35,6 @@ class GroupService {
 
     const groups = await Group.find(query)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('class', 'name code level')
       .populate('section', 'name code')
       .populate('leader.userId', 'name email')
@@ -55,7 +52,6 @@ class GroupService {
   async getGroupById(groupId, currentUser) {
     const group = await Group.findById(groupId)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('class', 'name code level')
       .populate('section', 'name code')
       .populate('leader.userId', 'name email')
@@ -91,9 +87,8 @@ class GroupService {
         throw new ApiError(403, 'Access denied');
       }
 
-      // Set institution, department, and class from section
+      // Set institution and class from section
       groupData.institution = section.institution;
-      groupData.department = section.department;
       groupData.class = section.class;
     } else if (groupData.class) {
       // If only class is provided
@@ -108,20 +103,6 @@ class GroupService {
       }
 
       groupData.institution = classDoc.institution;
-      groupData.department = classDoc.department;
-    } else if (groupData.department) {
-      // If only department is provided
-      const department = await Department.findById(groupData.department);
-      if (!department) {
-        throw new ApiError(404, 'Department not found');
-      }
-
-      // Check access
-      if (currentUser.role !== 'super_admin' && department.institution.toString() !== currentUser.institution.toString()) {
-        throw new ApiError(403, 'Access denied');
-      }
-
-      groupData.institution = department.institution;
     }
 
     groupData.createdBy = currentUser._id;
@@ -148,7 +129,6 @@ class GroupService {
 
     return await Group.findById(newGroup._id)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('class', 'name code level')
       .populate('section', 'name code')
       .populate('leader.userId', 'name email')
@@ -188,7 +168,6 @@ class GroupService {
 
     return await Group.findById(groupId)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('class', 'name code level')
       .populate('section', 'name code')
       .populate('leader.userId', 'name email')

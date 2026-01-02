@@ -80,7 +80,6 @@ const institutionSchema = new mongoose.Schema({
   stats: {
     totalStudents: { type: Number, default: 0 },
     totalTeachers: { type: Number, default: 0 },
-    totalDepartments: { type: Number, default: 0 },
     totalClasses: { type: Number, default: 0 }
   },
   isActive: {

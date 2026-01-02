@@ -22,11 +22,6 @@ const groupSchema = new mongoose.Schema({
     ref: 'Institution',
     required: [true, 'Please provide institution']
   },
-  department: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Department',
-    required: [true, 'Please provide department']
-  },
   class: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Class'
@@ -139,7 +134,7 @@ groupSchema.pre('save', function() {
 groupSchema.index({ code: 1, section: 1, academicYear: 1 }, { unique: true });
 
 // Index for faster queries
-groupSchema.index({ institution: 1, department: 1, section: 1, academicYear: 1 });
+groupSchema.index({ institution: 1, section: 1, academicYear: 1 });
 groupSchema.index({ isActive: 1 });
 groupSchema.index({ type: 1 });
 

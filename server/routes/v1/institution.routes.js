@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const institutionController = require('../../controllers/institution.controller');
-const departmentController = require('../../controllers/department.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { isSuperAdmin } = require('../../middleware/rbac.middleware');
 
@@ -17,8 +16,6 @@ router.use(authenticate);
 router.get('/', institutionController.getInstitutions);
 router.get('/:id', institutionController.getInstitutionById);
 router.get('/:id/stats', institutionController.getStats);
-router.get('/:institutionId/departments', departmentController.getDepartmentsByInstitution);
-
 // Super Admin only routes
 router.post('/', isSuperAdmin, institutionController.createInstitution);
 router.put('/:id', isSuperAdmin, institutionController.updateInstitution);

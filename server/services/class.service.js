@@ -1,5 +1,4 @@
 const Class = require('../models/Class');
-const Department = require('../models/Department');
 const { ApiError } = require('../middleware/error.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
@@ -24,7 +23,6 @@ class ClassService {
     }
 
     // Apply additional filters
-    if (filters.department) query.department = filters.department;
     if (filters.academicYear) query.academicYear = filters.academicYear;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
     if (filters.search) {
@@ -36,7 +34,6 @@ class ClassService {
 
     const classes = await Class.find(query)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('group', 'name code')
       .populate('feeType', 'name code amount')
       .populate('classTeacher.userId', 'name email')
@@ -52,7 +49,6 @@ class ClassService {
   async getClassById(classId, currentUser) {
     const classDoc = await Class.findById(classId)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('group', 'name code')
       .populate('feeType', 'name code amount')
       .populate('classTeacher.userId', 'name email')
@@ -111,51 +107,24 @@ class ClassService {
     // Convert to string if it's not already
     classData.institution = String(classData.institution);
 
-    let department = null;
-    if (classData.department) {
-      // Try to load the department; if it doesn't exist, just drop the reference
-      department = await Department.findById(classData.department);
-      if (!department) {
-        classData.department = undefined;
-      } else if (
-        currentUser.role !== 'super_admin' &&
-        String(department.institution) !== String(getInstitutionId(currentUser))
-      ) {
-        throw new ApiError(403, 'Access denied');
-      } else {
-        // Keep institution in sync with department if available
-        classData.institution = department.institution;
-      }
-    }
-
     classData.createdBy = currentUser._id;
 
-    // Prevent duplicate class codes within same department & academic year (if department provided)
+    // Prevent duplicate class codes within same institution & academic year
     const duplicateFilter = {
       code: classData.code.toUpperCase(),
+      institution: classData.institution,
       academicYear: classData.academicYear
     };
-    if (classData.department) {
-      duplicateFilter.department = classData.department;
-    }
 
     const existing = await Class.findOne(duplicateFilter);
     if (existing) {
-      throw new ApiError(400, 'Class code already exists for this academic year/department');
+      throw new ApiError(400, 'Class code already exists for this academic year');
     }
 
     const newClass = await Class.create(classData);
 
-    // If linked to a department, update its stats
-    if (department) {
-      await Department.findByIdAndUpdate(department._id, {
-        $inc: { 'stats.totalClasses': 1 }
-      });
-    }
-
     return await Class.findById(newClass._id)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('group', 'name code')
       .populate('feeType', 'name code amount')
       .populate('classTeacher.userId', 'name email')
@@ -183,13 +152,13 @@ class ClassService {
     if (updateData.code) {
       const existingClass = await Class.findOne({
         code: updateData.code.toUpperCase(),
-        department: classDoc.department,
+        institution: classDoc.institution,
         academicYear: updateData.academicYear || classDoc.academicYear,
         _id: { $ne: classId }
       });
 
       if (existingClass) {
-        throw new ApiError(400, 'Class code already exists for this department and academic year');
+        throw new ApiError(400, 'Class code already exists for this academic year');
       }
     }
 
@@ -198,7 +167,6 @@ class ClassService {
 
     return await Class.findById(classId)
       .populate('institution', 'name type code')
-      .populate('department', 'name code')
       .populate('group', 'name code')
       .populate('feeType', 'name code amount')
       .populate('classTeacher.userId', 'name email')
@@ -221,11 +189,6 @@ class ClassService {
         throw new ApiError(403, 'Access denied');
       }
     }
-
-    // Update department stats
-    await Department.findByIdAndUpdate(classDoc.department, {
-      $inc: { 'stats.totalClasses': -1 }
-    });
 
     await Class.findByIdAndDelete(classId);
     return { message: 'Class deleted successfully' };

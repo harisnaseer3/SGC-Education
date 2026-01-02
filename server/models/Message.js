@@ -23,7 +23,7 @@ const messageSchema = new mongoose.Schema({
   targetAudience: {
     type: {
       type: String,
-      enum: ['all', 'role', 'institution', 'department', 'custom'],
+      enum: ['all', 'role', 'institution', 'custom'],
       required: true
     },
     roles: [{
@@ -33,10 +33,6 @@ const messageSchema = new mongoose.Schema({
     institutions: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Institution'
-    }],
-    departments: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Department'
     }],
     users: [{
       type: mongoose.Schema.Types.ObjectId,

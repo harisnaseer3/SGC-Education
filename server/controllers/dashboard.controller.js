@@ -1,6 +1,5 @@
 const Institution = require('../models/Institution');
 const User = require('../models/User');
-const Department = require('../models/Department');
 const ActivityLog = require('../models/ActivityLog');
 const { asyncHandler } = require('../middleware/error.middleware');
 const { ApiError } = require('../middleware/error.middleware');
@@ -20,14 +19,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   // Build institution filter based on user role
   let institutionQuery = {};
   let userQuery = {};
-  let departmentQuery = {};
 
   // For super admin viewing specific institution
   if (req.user.role === 'super_admin' && req.query.institution) {
     const institutionId = extractInstitutionId(req.query.institution);
     institutionQuery = { _id: institutionId };
     userQuery = { institution: institutionId };
-    departmentQuery = { institution: institutionId };
   }
   // For regular admin (scoped to their institution)
   else if (req.user.role === 'admin') {
@@ -37,7 +34,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }
     institutionQuery = { _id: institutionId };
     userQuery = { institution: institutionId };
-    departmentQuery = { institution: institutionId };
   }
   // For super admin viewing all (global view)
   else if (req.user.role === 'super_admin') {
@@ -55,7 +51,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     inactiveInstitutions,
     totalSchools,
     totalColleges,
-    totalDepartments,
     totalUsers,
     totalStudents,
     totalTeachers,
@@ -67,7 +62,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     Institution.countDocuments({ ...institutionQuery, isActive: false }),
     Institution.countDocuments({ ...institutionQuery, type: 'school' }),
     Institution.countDocuments({ ...institutionQuery, type: 'college' }),
-    Department.countDocuments(departmentQuery),
     User.countDocuments(userQuery),
     User.countDocuments({ ...userQuery, role: 'student' }),
     User.countDocuments({ ...userQuery, role: 'teacher' }),
@@ -103,10 +97,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [recentInstitutionsCount, recentUsersCount, recentDepartmentsCount] = await Promise.all([
+  const [recentInstitutionsCount, recentUsersCount] = await Promise.all([
     Institution.countDocuments({ ...institutionQuery, createdAt: { $gte: thirtyDaysAgo } }),
     User.countDocuments({ ...userQuery, createdAt: { $gte: thirtyDaysAgo } }),
-    Department.countDocuments({ ...departmentQuery, createdAt: { $gte: thirtyDaysAgo } })
   ]);
 
   res.json({
@@ -116,7 +109,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         totalInstitutions,
         activeInstitutions,
         inactiveInstitutions,
-        totalDepartments,
         totalUsers
       },
       institutions: {
@@ -133,7 +125,6 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       growth: {
         institutionsLast30Days: recentInstitutionsCount,
         usersLast30Days: recentUsersCount,
-        departmentsLast30Days: recentDepartmentsCount
       },
       recentInstitutions
     }
@@ -155,14 +146,12 @@ const getAnalytics = asyncHandler(async (req, res) => {
   // Build match filters based on user role and institution
   let institutionMatch = { createdAt: { $gte: startDate } };
   let userMatch = { createdAt: { $gte: startDate } };
-  let departmentMatch = { createdAt: { $gte: startDate } };
 
   // For super admin viewing specific institution
   if (req.user.role === 'super_admin' && req.query.institution) {
     const institutionId = extractInstitutionId(req.query.institution);
     institutionMatch._id = institutionId;
     userMatch.institution = institutionId;
-    departmentMatch.institution = institutionId;
   }
   // For regular admin (scoped to their institution)
   else if (req.user.role === 'admin') {
@@ -172,7 +161,6 @@ const getAnalytics = asyncHandler(async (req, res) => {
     }
     institutionMatch._id = institutionId;
     userMatch.institution = institutionId;
-    departmentMatch.institution = institutionId;
   }
   // For super admin viewing all (global view)
   else if (req.user.role === 'super_admin') {
@@ -183,7 +171,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
   }
 
   // Get daily growth trends
-  const [institutionTrends, userTrends, departmentTrends] = await Promise.all([
+  const [institutionTrends, userTrends] = await Promise.all([
     Institution.aggregate([
       { $match: institutionMatch },
       {
@@ -209,16 +197,6 @@ const getAnalytics = asyncHandler(async (req, res) => {
       { $sort: { '_id.date': 1 } }
     ]),
 
-    Department.aggregate([
-      { $match: departmentMatch },
-      {
-        $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: 1 } }
-    ])
   ]);
 
   // Get activity trends if available
@@ -244,7 +222,6 @@ const getAnalytics = asyncHandler(async (req, res) => {
     data: {
       institutionTrends,
       userTrends,
-      departmentTrends,
       activityTrends,
       period: {
         days: daysNum,
