@@ -90,10 +90,26 @@ const getStudentFees = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   POST /api/v1/fees/generate-vouchers
+ * @desc    Generate vouchers for selected students
+ * @access  Private (Admin)
+ */
+const generateVouchers = asyncHandler(async (req, res) => {
+  const result = await feeService.generateVouchers(req.body, req.user);
+
+  res.json({
+    success: true,
+    message: `Successfully generated ${result.totalGenerated} voucher(s)`,
+    data: result
+  });
+});
+
 module.exports = {
   getFeeStructureMatrix,
   bulkSaveFeeStructure,
   getStudentsWithoutFeeStructure,
   assignFeeStructure,
-  getStudentFees
+  getStudentFees,
+  generateVouchers
 };

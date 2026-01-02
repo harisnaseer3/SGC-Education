@@ -20,5 +20,6 @@ router.post('/structures/bulk-save', isAdmin, feeController.bulkSaveFeeStructure
 router.get('/students/without-fee-structure', feeController.getStudentsWithoutFeeStructure);
 router.post('/assign-structure', isAdmin, feeController.assignFeeStructure);
 router.get('/student-fees', feeController.getStudentFees);
+router.post('/generate-vouchers', isAdmin, feeController.generateVouchers);
 
 module.exports = router;

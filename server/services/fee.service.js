@@ -407,6 +407,121 @@ class FeeService {
 
     return studentFees;
   }
+
+  /**
+   * Generate vouchers for students
+   * Creates voucher records for all StudentFee records of the selected students
+   * Note: studentIds can be either student IDs or admission IDs (frontend sends admission IDs)
+   */
+  async generateVouchers(voucherData, currentUser) {
+    const { studentIds, month, year } = voucherData;
+
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      throw new ApiError(400, 'Student IDs are required');
+    }
+
+    if (!month || month < 1 || month > 12) {
+      throw new ApiError(400, 'Valid month (1-12) is required');
+    }
+
+    if (!year || year < 2000) {
+      throw new ApiError(400, 'Valid year is required');
+    }
+
+    // First, try to find students by ID directly
+    let students = await Student.find({
+      _id: { $in: studentIds },
+      isActive: true
+    })
+      .populate('institution');
+
+    // If not found, try to find by admission ID
+    if (students.length === 0) {
+      const Admission = require('../models/Admission');
+      const admissions = await Admission.find({
+        _id: { $in: studentIds },
+        isActive: true
+      })
+        .populate('studentId');
+
+      const actualStudentIds = admissions
+        .filter(adm => adm.studentId)
+        .map(adm => adm.studentId._id || adm.studentId);
+
+      if (actualStudentIds.length > 0) {
+        students = await Student.find({
+          _id: { $in: actualStudentIds },
+          isActive: true
+        })
+          .populate('institution');
+      }
+    }
+
+    if (students.length === 0) {
+      throw new ApiError(404, 'No active students found');
+    }
+
+    const actualStudentIds = students.map(s => s._id);
+
+    // Get all StudentFee records for these students
+    const studentFeeRecords = await StudentFee.find({
+      student: { $in: actualStudentIds },
+      isActive: true
+    })
+      .populate('feeHead', 'name priority frequencyType');
+
+    if (studentFeeRecords.length === 0) {
+      throw new ApiError(400, 'No fee structures found for the selected students');
+    }
+
+    // Generate vouchers for each StudentFee
+    const updatedStudentFees = [];
+    const errors = [];
+
+    for (const studentFee of studentFeeRecords) {
+      try {
+        // Check if voucher already exists for this month/year
+        const existingVoucher = studentFee.vouchers && studentFee.vouchers.find(
+          v => v.month === month && v.year === year
+        );
+
+        if (existingVoucher) {
+          // Skip if voucher already exists
+          continue;
+        }
+
+        // Generate voucher number
+        const voucherNumber = `VCH-${year}-${String(month).padStart(2, '0')}-${studentFee._id.toString().substring(0, 8).toUpperCase()}`;
+
+        // Add voucher to the array
+        if (!studentFee.vouchers) {
+          studentFee.vouchers = [];
+        }
+
+        studentFee.vouchers.push({
+          month: month,
+          year: year,
+          generatedAt: new Date(),
+          generatedBy: currentUser._id,
+          voucherNumber: voucherNumber
+        });
+
+        await studentFee.save();
+        updatedStudentFees.push(studentFee);
+      } catch (error) {
+        errors.push({
+          studentFeeId: studentFee._id,
+          error: error.message
+        });
+      }
+    }
+
+    return {
+      totalGenerated: updatedStudentFees.length,
+      totalErrors: errors.length,
+      errors: errors.length > 0 ? errors : undefined
+    };
+  }
 }
 
 module.exports = new FeeService();
