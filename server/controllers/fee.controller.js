@@ -24,6 +24,22 @@ const getFeeStructureMatrix = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @route   GET /api/v1/fees/structures/class/:classId
+ * @desc    Get fee structure by class ID
+ * @access  Private
+ */
+const getFeeStructureByClass = asyncHandler(async (req, res) => {
+  const { classId } = req.params;
+
+  const feeStructure = await feeService.getFeeStructureByClass(classId, req.user);
+
+  res.json({
+    success: true,
+    data: feeStructure
+  });
+});
+
+/**
  * @route   POST /api/v1/fees/structures/bulk-save
  * @desc    Bulk save fee structures
  * @access  Private (Admin)
@@ -107,6 +123,7 @@ const generateVouchers = asyncHandler(async (req, res) => {
 
 module.exports = {
   getFeeStructureMatrix,
+  getFeeStructureByClass,
   bulkSaveFeeStructure,
   getStudentsWithoutFeeStructure,
   assignFeeStructure,

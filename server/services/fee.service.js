@@ -86,6 +86,62 @@ class FeeService {
   }
 
   /**
+   * Get fee structure by class ID
+   * Returns all fee structures for a specific class with fee head details
+   */
+  async getFeeStructureByClass(classId, currentUser) {
+    if (!classId) {
+      throw new ApiError(400, 'Class ID is required');
+    }
+
+    // Verify class exists and check access
+    const classDoc = await Class.findById(classId)
+      .populate('institution', 'name type code');
+    
+    if (!classDoc) {
+      throw new ApiError(404, 'Class not found');
+    }
+
+    // Check access for non-super-admin users
+    if (currentUser.role !== 'super_admin') {
+      const userInstitutionId = getInstitutionId(currentUser);
+      const classInstitutionId = (classDoc.institution._id || classDoc.institution).toString();
+      if (!userInstitutionId || classInstitutionId !== userInstitutionId.toString()) {
+        throw new ApiError(403, 'Access denied');
+      }
+    }
+
+    // Get all fee structures for this class
+    const feeStructures = await FeeStructure.find({
+      class: classId,
+      isActive: true
+    })
+      .populate('feeHead', 'name code priority')
+      .sort({ 'feeHead.priority': 1 });
+
+    // Format response
+    const formattedStructures = feeStructures.map(fs => ({
+      _id: fs._id,
+      feeHead: {
+        _id: fs.feeHead._id || fs.feeHead,
+        name: fs.feeHead.name,
+        code: fs.feeHead.code,
+        priority: fs.feeHead.priority
+      },
+      amount: fs.amount || 0
+    }));
+
+    return {
+      class: {
+        _id: classDoc._id,
+        name: classDoc.name,
+        code: classDoc.code
+      },
+      feeStructures: formattedStructures
+    };
+  }
+
+  /**
    * Bulk save fee structures
    * Fee structures are shared globally (same for all institutions)
    * Data format: { [classId]: { fees: { [feeHeadId]: amount } } }
@@ -242,9 +298,17 @@ class FeeService {
   /**
    * Assign fee structure to a student
    * Creates StudentFee records for all fee structures in the selected class
+   * Supports both global discount (for backward compatibility) and per-fee-head discounts
    */
   async assignFeeStructure(assignmentData, currentUser) {
-    const { studentId, classId, discount = 0, discountType = 'amount', discountReason = '' } = assignmentData;
+    const { 
+      studentId, 
+      classId, 
+      discount = 0, 
+      discountType = 'amount', 
+      discountReason = '',
+      feeHeadDiscounts = {} // New: { feeHeadId: { discount, discountType, discountReason } }
+    } = assignmentData;
 
     if (!studentId || !classId) {
       throw new ApiError(400, 'Student ID and Class ID are required');
@@ -297,13 +361,31 @@ class FeeService {
     for (const feeStructure of feeStructures) {
       const baseAmount = feeStructure.amount || 0;
       let finalAmount = baseAmount;
+      let appliedDiscount = 0;
+      let appliedDiscountType = discountType;
+      let appliedDiscountReason = discountReason;
+
+      const feeHeadId = (feeStructure.feeHead._id || feeStructure.feeHead).toString();
+
+      // Check if there's a per-fee-head discount
+      if (feeHeadDiscounts && feeHeadDiscounts[feeHeadId]) {
+        const feeHeadDiscount = feeHeadDiscounts[feeHeadId];
+        appliedDiscount = parseFloat(feeHeadDiscount.discount) || 0;
+        appliedDiscountType = feeHeadDiscount.discountType || 'amount';
+        appliedDiscountReason = feeHeadDiscount.discountReason || discountReason;
+      } else if (discount > 0) {
+        // Fall back to global discount for backward compatibility
+        appliedDiscount = parseFloat(discount) || 0;
+        appliedDiscountType = discountType;
+        appliedDiscountReason = discountReason;
+      }
 
       // Apply discount
-      if (discount > 0) {
-        if (discountType === 'percentage') {
-          finalAmount = baseAmount - (baseAmount * discount / 100);
+      if (appliedDiscount > 0) {
+        if (appliedDiscountType === 'percentage') {
+          finalAmount = baseAmount - (baseAmount * appliedDiscount / 100);
         } else {
-          finalAmount = baseAmount - discount;
+          finalAmount = baseAmount - appliedDiscount;
         }
         if (finalAmount < 0) {
           finalAmount = 0;
@@ -315,11 +397,11 @@ class FeeService {
         student: studentId,
         feeStructure: feeStructure._id,
         class: classId,
-        feeHead: feeStructure.feeHead._id || feeStructure.feeHead,
+        feeHead: feeHeadId,
         baseAmount: baseAmount,
-        discountAmount: discount,
-        discountType: discountType,
-        discountReason: discountReason,
+        discountAmount: appliedDiscount,
+        discountType: appliedDiscountType,
+        discountReason: appliedDiscountReason,
         finalAmount: finalAmount,
         academicYear: student.academicYear || '',
         isActive: true,
@@ -412,9 +494,10 @@ class FeeService {
    * Generate vouchers for students
    * Creates voucher records for all StudentFee records of the selected students
    * Note: studentIds can be either student IDs or admission IDs (frontend sends admission IDs)
+   * feeHeadIds (optional): Array of fee head IDs to filter by. If provided, only vouchers for these fee heads will be generated.
    */
   async generateVouchers(voucherData, currentUser) {
-    const { studentIds, month, year } = voucherData;
+    const { studentIds, month, year, feeHeadIds } = voucherData;
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       throw new ApiError(400, 'Student IDs are required');
@@ -463,15 +546,26 @@ class FeeService {
 
     const actualStudentIds = students.map(s => s._id);
 
-    // Get all StudentFee records for these students
-    const studentFeeRecords = await StudentFee.find({
+    // Build query for StudentFee records
+    const studentFeeQuery = {
       student: { $in: actualStudentIds },
       isActive: true
-    })
+    };
+
+    // Filter by fee head IDs if provided
+    if (feeHeadIds && Array.isArray(feeHeadIds) && feeHeadIds.length > 0) {
+      studentFeeQuery.feeHead = { $in: feeHeadIds };
+    }
+
+    // Get StudentFee records for these students (optionally filtered by fee heads)
+    const studentFeeRecords = await StudentFee.find(studentFeeQuery)
       .populate('feeHead', 'name priority frequencyType');
 
     if (studentFeeRecords.length === 0) {
-      throw new ApiError(400, 'No fee structures found for the selected students');
+      const errorMsg = feeHeadIds && feeHeadIds.length > 0
+        ? 'No fee structures found for the selected students and fee heads'
+        : 'No fee structures found for the selected students';
+      throw new ApiError(400, errorMsg);
     }
 
     // Generate vouchers for each StudentFee

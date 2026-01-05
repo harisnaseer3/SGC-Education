@@ -14,6 +14,7 @@ router.use(authenticate);
 
 // Fee structure routes
 router.get('/structures/matrix', feeController.getFeeStructureMatrix);
+router.get('/structures/class/:classId', feeController.getFeeStructureByClass);
 router.post('/structures/bulk-save', isAdmin, feeController.bulkSaveFeeStructure);
 
 // Student fee assignment routes

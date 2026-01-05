@@ -184,12 +184,15 @@ const FeeManagement = () => {
 
   // Generate Voucher
   const [generateVoucherFilters, setGenerateVoucherFilters] = useState({
-    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // Format: YYYY-MM for month input
-    enrolled: []
+    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` // Format: YYYY-MM for month input
   });
   const [generateVoucherStudents, setGenerateVoucherStudents] = useState([]);
   const [selectedGenerateVoucherStudents, setSelectedGenerateVoucherStudents] = useState([]);
   const [generateVoucherLoading, setGenerateVoucherLoading] = useState(false);
+  const [feeHeadSelectionDialogOpen, setFeeHeadSelectionDialogOpen] = useState(false);
+  const [selectedFeeHeadIds, setSelectedFeeHeadIds] = useState([]);
+  const [feeHeadAmounts, setFeeHeadAmounts] = useState({}); // { feeHeadId: amount }
+  const [loadingFeeHeadAmounts, setLoadingFeeHeadAmounts] = useState(false);
 
   // Fee Heads
   const [feeHeads, setFeeHeads] = useState([]);
@@ -214,8 +217,7 @@ const FeeManagement = () => {
 
   // Print Voucher
   const [printVoucherFilters, setPrintVoucherFilters] = useState({
-    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // Format: YYYY-MM for month input
-    enrolled: []
+    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` // Format: YYYY-MM for month input
   });
   const [printVoucherStudents, setPrintVoucherStudents] = useState([]);
   const [voucherDialogOpen, setVoucherDialogOpen] = useState(false);
@@ -229,11 +231,14 @@ const FeeManagement = () => {
   const [assignFeeStructureDialog, setAssignFeeStructureDialog] = useState(false);
   const [selectedStudentForAssignment, setSelectedStudentForAssignment] = useState(null);
   const [availableClasses, setAvailableClasses] = useState([]);
+  const [selectedClassFeeStructure, setSelectedClassFeeStructure] = useState(null);
+  const [fetchingFeeStructure, setFetchingFeeStructure] = useState(false);
   const [assignFeeStructureForm, setAssignFeeStructureForm] = useState({
     classId: '',
     discount: 0,
     discountType: 'amount',
-    discountReason: ''
+    discountReason: '',
+    feeHeadDiscounts: {} // { feeHeadId: { discount, discountType, discountReason } }
   });
 
   // Manual Fee Deposit
@@ -917,10 +922,138 @@ const FeeManagement = () => {
     }
   };
 
-  // Handle generate vouchers
-  const handleGenerateVouchers = async () => {
+  // Fetch fee head amounts for selected students
+  const fetchFeeHeadAmounts = async () => {
+    if (selectedGenerateVoucherStudents.length === 0) return;
+
+    try {
+      setLoadingFeeHeadAmounts(true);
+      const token = localStorage.getItem('token');
+      const institutionId = getInstitutionId();
+
+      // Get actual student IDs (not admission IDs)
+      const studentIds = selectedGenerateVoucherStudents
+        .map(s => s.studentId || s._id)
+        .filter(id => id);
+
+      if (studentIds.length === 0) {
+        setFeeHeadAmounts({});
+        setLoadingFeeHeadAmounts(false);
+        return;
+      }
+
+      // Fetch student fees for all selected students
+      const feeResponse = await axios.get(`${API_URL}/fees/student-fees`, {
+        headers: { Authorization: `Bearer ${token}` },
+        params: {
+          institution: institutionId
+        }
+      });
+
+      const allStudentFees = feeResponse.data.data || [];
+      
+      // Filter fees for selected students only
+      const selectedStudentFees = allStudentFees.filter(sf => {
+        const studentId = sf.student?._id || sf.student;
+        if (!studentId) return false;
+        return studentIds.some(id => {
+          const idStr = typeof id === 'object' ? id._id || id.toString() : id.toString();
+          return studentId.toString() === idStr;
+        });
+      });
+
+      // Calculate amounts per fee head
+      // If multiple students have the same fee head, we'll use the first one's amount
+      // (or we could average them, but for now using first is simpler)
+      const amountsMap = {};
+      selectedStudentFees.forEach(sf => {
+        const feeHeadId = (sf.feeHead?._id || sf.feeHead)?.toString();
+        if (feeHeadId) {
+          // Use finalAmount (after discount) if available, otherwise baseAmount
+          const amount = sf.finalAmount || sf.baseAmount || 0;
+          // Only set if not already set (to use first occurrence)
+          if (!amountsMap[feeHeadId]) {
+            amountsMap[feeHeadId] = amount;
+          }
+        }
+      });
+
+      setFeeHeadAmounts(amountsMap);
+    } catch (err) {
+      console.error('Error fetching fee head amounts:', err);
+      setFeeHeadAmounts({});
+    } finally {
+      setLoadingFeeHeadAmounts(false);
+    }
+  };
+
+  // Handle open fee head selection dialog
+  const handleOpenFeeHeadSelectionDialog = async () => {
     if (selectedGenerateVoucherStudents.length === 0) {
       setError('Please select at least one student');
+      return;
+    }
+    
+    // Fetch fee heads if not already loaded
+    let headsToUse = feeHeads;
+    if (headsToUse.length === 0) {
+      try {
+        setFeeHeadsLoading(true);
+        const token = localStorage.getItem('token');
+        const response = await axios.get(`${API_URL}/fee-heads`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        headsToUse = response.data?.data || response.data || [];
+        setFeeHeads(headsToUse);
+      } catch (err) {
+        console.error('Error fetching fee heads:', err);
+        setError(err.response?.data?.message || 'Failed to fetch fee heads');
+        setFeeHeadsLoading(false);
+        return;
+      } finally {
+        setFeeHeadsLoading(false);
+      }
+    }
+    
+    // Fetch fee head amounts for selected students
+    await fetchFeeHeadAmounts();
+    
+    // Select all fee heads by default
+    setSelectedFeeHeadIds(headsToUse.map(fh => fh._id));
+    setFeeHeadSelectionDialogOpen(true);
+  };
+
+  // Handle close fee head selection dialog
+  const handleCloseFeeHeadSelectionDialog = () => {
+    setFeeHeadSelectionDialogOpen(false);
+    setSelectedFeeHeadIds([]);
+    setFeeHeadAmounts({});
+  };
+
+  // Handle fee head selection toggle
+  const handleFeeHeadToggle = (feeHeadId) => {
+    setSelectedFeeHeadIds(prev => {
+      if (prev.includes(feeHeadId)) {
+        return prev.filter(id => id !== feeHeadId);
+      } else {
+        return [...prev, feeHeadId];
+      }
+    });
+  };
+
+  // Handle select all fee heads
+  const handleSelectAllFeeHeads = () => {
+    if (selectedFeeHeadIds.length === feeHeads.length) {
+      setSelectedFeeHeadIds([]);
+    } else {
+      setSelectedFeeHeadIds(feeHeads.map(fh => fh._id));
+    }
+  };
+
+  // Handle generate vouchers (actual generation after fee head selection)
+  const handleGenerateVouchersConfirm = async () => {
+    if (selectedFeeHeadIds.length === 0) {
+      setError('Please select at least one fee head');
       return;
     }
 
@@ -944,13 +1077,14 @@ const FeeManagement = () => {
 
       const studentIds = selectedGenerateVoucherStudents.map(s => s._id);
 
-      // Call API to generate vouchers
+      // Call API to generate vouchers with selected fee heads
       const response = await axios.post(
         `${API_URL}/fees/generate-vouchers`,
         {
           studentIds: studentIds,
           month: month,
-          year: year
+          year: year,
+          feeHeadIds: selectedFeeHeadIds
         },
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -968,6 +1102,7 @@ const FeeManagement = () => {
           )
         );
         setSelectedGenerateVoucherStudents([]);
+        handleCloseFeeHeadSelectionDialog();
         // Refresh the list
         fetchGenerateVoucherStudents();
       }
@@ -976,6 +1111,11 @@ const FeeManagement = () => {
     } finally {
       setGenerateVoucherLoading(false);
     }
+  };
+
+  // Handle generate vouchers button click (opens dialog)
+  const handleGenerateVouchers = () => {
+    handleOpenFeeHeadSelectionDialog();
   };
 
   // Fetch manual deposit students with search filters
@@ -1137,76 +1277,59 @@ const FeeManagement = () => {
 
         studentFees = feeResponse.data.data || [];
         
-        // Filter fees for the selected month/year based on due date
-        // Include fees that are due in the selected month OR fees that don't have a specific due date (one-time/annual fees)
-        const monthFees = studentFees.filter(fee => {
-          if (!fee.dueDate) {
-            // Include fees without due date (they might be annual/one-time fees)
-            return true;
+        // Filter to only include StudentFee records that have vouchers for the selected month/year
+        // This ensures we only show fee heads that were selected during voucher generation
+        const feesWithVouchers = studentFees.filter(fee => {
+          if (!fee.vouchers || !Array.isArray(fee.vouchers)) {
+            return false;
           }
-          const feeDate = new Date(fee.dueDate);
-          // Include fees due in the selected month/year
-          return feeDate >= startDate && feeDate <= endDate;
+          // Check if this fee has a voucher for the selected month/year
+          return fee.vouchers.some(v => v.month === month && v.year === year);
         });
 
-        // Group fees by fee type and calculate totals
+        // Group fees by fee head and calculate totals
+        // Use feeHead name instead of feeType
         const feeHeadMap = {};
-        monthFees.forEach(fee => {
-          const feeTypeName = fee.feeType?.name || 'Fee';
-          if (!feeHeadMap[feeTypeName]) {
-            feeHeadMap[feeTypeName] = 0;
+        feesWithVouchers.forEach(fee => {
+          const feeHeadName = fee.feeHead?.name || 'Fee';
+          if (!feeHeadMap[feeHeadName]) {
+            feeHeadMap[feeHeadName] = 0;
           }
-          // Use finalAmount (after discount) if available, otherwise use amount
-          feeHeadMap[feeTypeName] += fee.finalAmount || fee.amount || 0;
-        });
-        
-        // Also check if there are any fees that might be due in a different month but should be shown
-        // For example, transport fee might be annual or have a different due date
-        // Let's include all active fees for the student that haven't been paid
-        const allUnpaidFees = studentFees.filter(f => 
-          f.status !== 'paid' && 
-          (f.status === 'pending' || f.status === 'overdue' || f.status === 'partial')
-        );
-        
-        // Add any fees that weren't already included (like transport fee with different due date)
-        allUnpaidFees.forEach(fee => {
-          const feeTypeName = fee.feeType?.name || 'Fee';
-          // Only add if not already in the map (to avoid duplicates)
-          if (!feeHeadMap[feeTypeName]) {
-            feeHeadMap[feeTypeName] = 0;
-          }
-          // Add the fee amount if it's not already counted
-          const alreadyIncluded = monthFees.some(mf => 
-            mf._id?.toString() === fee._id?.toString()
-          );
-          if (!alreadyIncluded) {
-            feeHeadMap[feeTypeName] += fee.finalAmount || fee.amount || 0;
-          }
+          // Use finalAmount (after discount) if available, otherwise baseAmount
+          feeHeadMap[feeHeadName] += fee.finalAmount || fee.baseAmount || 0;
         });
 
-        // Convert to array
+        // Convert to array and sort by fee head priority if available
         feeHeads = Object.entries(feeHeadMap)
-          .map(([name, amount]) => ({
-            name: name,
-            amount: amount || 0
-          }))
+          .map(([name, amount]) => {
+            // Find the fee head to get its priority for sorting
+            const feeHead = feesWithVouchers.find(f => (f.feeHead?.name || 'Fee') === name)?.feeHead;
+            return {
+              name: name,
+              amount: amount || 0,
+              priority: feeHead?.priority || 999
+            };
+          })
+          .sort((a, b) => a.priority - b.priority)
+          .map(({ name, amount }) => ({ name, amount }))
           .filter(h => h.amount > 0);
 
-        // Get due date from first fee
-        if (monthFees.length > 0) {
-          const firstFee = monthFees[0];
+        // Get due date from first fee with voucher
+        if (feesWithVouchers.length > 0) {
+          const firstFee = feesWithVouchers[0];
           if (firstFee.dueDate) {
             dueDate = new Date(firstFee.dueDate);
           }
         }
 
         // Calculate arrears (unpaid fees before the selected month)
-        const unpaidFees = studentFees.filter(f => {
+        // Only consider fees that have vouchers generated
+        const unpaidFees = feesWithVouchers.filter(f => {
           if (!f.dueDate || f.status === 'paid') return false;
           const feeDate = new Date(f.dueDate);
           return feeDate < startDate && (f.status === 'pending' || f.status === 'overdue' || f.status === 'partial');
         });
-        arrears = unpaidFees.reduce((sum, f) => sum + (f.dueAmount || 0), 0);
+        arrears = unpaidFees.reduce((sum, f) => sum + (f.finalAmount || f.baseAmount || 0), 0);
 
         // Calculate late fee fine if due date has passed
         const now = new Date();
@@ -1343,14 +1466,68 @@ const FeeManagement = () => {
     }
   };
 
+  // Fetch fee structure by class ID
+  const fetchFeeStructureByClass = async (classId) => {
+    if (!classId) {
+      setSelectedClassFeeStructure(null);
+      return;
+    }
+
+    try {
+      setFetchingFeeStructure(true);
+      setError('');
+      const token = localStorage.getItem('token');
+
+      const response = await axios.get(`${API_URL}/fees/structures/class/${classId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      const feeStructure = response.data.data;
+      setSelectedClassFeeStructure(feeStructure);
+
+      // Initialize fee head discounts
+      const feeHeadDiscounts = {};
+      if (feeStructure && feeStructure.feeStructures) {
+        feeStructure.feeStructures.forEach(fs => {
+          feeHeadDiscounts[fs.feeHead._id] = {
+            discount: 0,
+            discountType: 'amount',
+            discountReason: ''
+          };
+        });
+      }
+      setAssignFeeStructureForm(prev => ({
+        ...prev,
+        feeHeadDiscounts
+      }));
+    } catch (err) {
+      console.error('Error fetching fee structure:', err);
+      setError(err.response?.data?.message || 'Failed to fetch fee structure');
+      setSelectedClassFeeStructure(null);
+    } finally {
+      setFetchingFeeStructure(false);
+    }
+  };
+
+  // Handle class selection change
+  const handleClassSelectionChange = async (classId) => {
+    setAssignFeeStructureForm(prev => ({
+      ...prev,
+      classId
+    }));
+    await fetchFeeStructureByClass(classId);
+  };
+
   // Handle open assign fee structure dialog
   const handleOpenAssignFeeStructureDialog = async (student) => {
     setSelectedStudentForAssignment(student);
+    setSelectedClassFeeStructure(null);
     setAssignFeeStructureForm({
       classId: '',
       discount: 0,
       discountType: 'amount',
-      discountReason: ''
+      discountReason: '',
+      feeHeadDiscounts: {}
     });
     await fetchAvailableClasses();
     setAssignFeeStructureDialog(true);
@@ -1360,12 +1537,41 @@ const FeeManagement = () => {
   const handleCloseAssignFeeStructureDialog = () => {
     setAssignFeeStructureDialog(false);
     setSelectedStudentForAssignment(null);
+    setSelectedClassFeeStructure(null);
     setAssignFeeStructureForm({
       classId: '',
       discount: 0,
       discountType: 'amount',
-      discountReason: ''
+      discountReason: '',
+      feeHeadDiscounts: {}
     });
+  };
+
+  // Handle fee head discount change
+  const handleFeeHeadDiscountChange = (feeHeadId, field, value) => {
+    setAssignFeeStructureForm(prev => ({
+      ...prev,
+      feeHeadDiscounts: {
+        ...prev.feeHeadDiscounts,
+        [feeHeadId]: {
+          ...prev.feeHeadDiscounts[feeHeadId],
+          [field]: value
+        }
+      }
+    }));
+  };
+
+  // Calculate final amount for a fee head
+  const calculateFinalAmount = (baseAmount, discount, discountType) => {
+    if (!discount || discount <= 0) return baseAmount;
+    
+    let finalAmount = baseAmount;
+    if (discountType === 'percentage') {
+      finalAmount = baseAmount - (baseAmount * discount / 100);
+    } else {
+      finalAmount = baseAmount - discount;
+    }
+    return Math.max(0, finalAmount);
   };
 
   // Handle assign fee structure
@@ -1385,7 +1591,8 @@ const FeeManagement = () => {
         classId: assignFeeStructureForm.classId,
         discount: parseFloat(assignFeeStructureForm.discount) || 0,
         discountType: assignFeeStructureForm.discountType,
-        discountReason: assignFeeStructureForm.discountReason
+        discountReason: assignFeeStructureForm.discountReason,
+        feeHeadDiscounts: assignFeeStructureForm.feeHeadDiscounts || {}
       };
 
       const response = await axios.post(`${API_URL}/fees/assign-structure`, payload, {
@@ -2106,7 +2313,7 @@ const FeeManagement = () => {
                 <Card sx={{ mb: 3 }}>
                   <CardContent>
                     <Grid container spacing={2}>
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} md={6}>
                         <TextField
                           fullWidth
                           label="Month/Year"
@@ -2116,25 +2323,7 @@ const FeeManagement = () => {
                           InputLabelProps={{ shrink: true }}
                         />
                       </Grid>
-                      <Grid item xs={12} md={4}>
-                        <FormControl fullWidth>
-                          <InputLabel>Enrolled Status</InputLabel>
-                          <Select
-                            multiple
-                            value={generateVoucherFilters.enrolled}
-                            onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, enrolled: e.target.value })}
-                            label="Enrolled Status"
-                            renderValue={(selected) => selected.join(', ')}
-                          >
-                            {enrolledOptions.map((status) => (
-                              <MenuItem key={status} value={status}>
-                                {status}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
+                      <Grid item xs={12} md={6}>
                         <Box sx={{ display: 'flex', gap: 2 }}>
                           <Button
                             variant="contained"
@@ -2271,7 +2460,7 @@ const FeeManagement = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={6}>
                     <TextField
                       fullWidth
                       label="Month/Year"
@@ -2285,25 +2474,7 @@ const FeeManagement = () => {
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>Enrolled Status</InputLabel>
-                      <Select
-                        multiple
-                        value={printVoucherFilters.enrolled}
-                        onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, enrolled: e.target.value })}
-                        label="Enrolled Status"
-                        renderValue={(selected) => selected.join(', ')}
-                      >
-                        {enrolledOptions.map((status) => (
-                          <MenuItem key={status} value={status}>
-                            {status}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={6}>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                       <Button
                         variant="contained"
@@ -3313,8 +3484,9 @@ const FeeManagement = () => {
                   <InputLabel>Class *</InputLabel>
                   <Select
                     value={assignFeeStructureForm.classId}
-                    onChange={(e) => setAssignFeeStructureForm({ ...assignFeeStructureForm, classId: e.target.value })}
+                    onChange={(e) => handleClassSelectionChange(e.target.value)}
                     label="Class *"
+                    disabled={fetchingFeeStructure}
                   >
                     {availableClasses.map((cls) => (
                       <MenuItem key={cls._id} value={cls._id}>
@@ -3327,41 +3499,115 @@ const FeeManagement = () => {
                   All fee structures for the selected class will be assigned to the student
                 </Typography>
               </Grid>
-              <Grid item xs={6}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Discount"
-                  value={assignFeeStructureForm.discount}
-                  onChange={(e) => setAssignFeeStructureForm({ ...assignFeeStructureForm, discount: e.target.value })}
-                  InputProps={{
-                    inputProps: { min: 0, step: 0.01 }
-                  }}
-                />
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl fullWidth>
-                  <InputLabel>Discount Type</InputLabel>
-                  <Select
-                    value={assignFeeStructureForm.discountType}
-                    onChange={(e) => setAssignFeeStructureForm({ ...assignFeeStructureForm, discountType: e.target.value })}
-                    label="Discount Type"
-                  >
-                    <MenuItem value="amount">Amount (Rs.)</MenuItem>
-                    <MenuItem value="percentage">Percentage (%)</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Discount Reason (Optional)"
-                  value={assignFeeStructureForm.discountReason}
-                  onChange={(e) => setAssignFeeStructureForm({ ...assignFeeStructureForm, discountReason: e.target.value })}
-                  multiline
-                  rows={2}
-                />
-              </Grid>
+
+              {/* Fee Structure Display */}
+              {fetchingFeeStructure && (
+                <Grid item xs={12}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress size={24} />
+                  </Box>
+                </Grid>
+              )}
+
+              {selectedClassFeeStructure && selectedClassFeeStructure.feeStructures && selectedClassFeeStructure.feeStructures.length > 0 && (
+                <Grid item xs={12}>
+                  <Box sx={{ mt: 2, mb: 2 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 2 }}>
+                      Fee Structure for {selectedClassFeeStructure.class.name}
+                    </Typography>
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                            <TableCell sx={{ fontWeight: 'bold' }}>Fee Head</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Base Amount</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Discount</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Type</TableCell>
+                            <TableCell align="right" sx={{ fontWeight: 'bold' }}>Final Amount</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {selectedClassFeeStructure.feeStructures.map((fs) => {
+                            const feeHeadDiscount = assignFeeStructureForm.feeHeadDiscounts[fs.feeHead._id] || {
+                              discount: 0,
+                              discountType: 'amount',
+                              discountReason: ''
+                            };
+                            const finalAmount = calculateFinalAmount(fs.amount, parseFloat(feeHeadDiscount.discount) || 0, feeHeadDiscount.discountType);
+                            
+                            return (
+                              <TableRow key={fs._id}>
+                                <TableCell>{fs.feeHead.name}</TableCell>
+                                <TableCell align="right">Rs. {fs.amount.toLocaleString()}</TableCell>
+                                <TableCell align="right">
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={feeHeadDiscount.discount || 0}
+                                    onChange={(e) => handleFeeHeadDiscountChange(fs.feeHead._id, 'discount', e.target.value)}
+                                    InputProps={{
+                                      inputProps: { min: 0, step: 0.01 },
+                                      sx: { width: '100px' }
+                                    }}
+                                  />
+                                </TableCell>
+                                <TableCell align="right">
+                                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                                    <Select
+                                      value={feeHeadDiscount.discountType || 'amount'}
+                                      onChange={(e) => handleFeeHeadDiscountChange(fs.feeHead._id, 'discountType', e.target.value)}
+                                    >
+                                      <MenuItem value="amount">Amount</MenuItem>
+                                      <MenuItem value="percentage">%</MenuItem>
+                                    </Select>
+                                  </FormControl>
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', color: finalAmount < fs.amount ? 'success.main' : 'inherit' }}>
+                                  Rs. {finalAmount.toLocaleString()}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    {/* Discount Reason for each fee head */}
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                        Discount Reasons (Optional)
+                      </Typography>
+                      {selectedClassFeeStructure.feeStructures.map((fs) => {
+                        const feeHeadDiscount = assignFeeStructureForm.feeHeadDiscounts[fs.feeHead._id] || {
+                          discount: 0,
+                          discountType: 'amount',
+                          discountReason: ''
+                        };
+                        const hasDiscount = parseFloat(feeHeadDiscount.discount) > 0;
+                        
+                        return (
+                          <Box key={`reason-${fs._id}`} sx={{ mb: 1, display: hasDiscount ? 'block' : 'none' }}>
+                            <TextField
+                              fullWidth
+                              size="small"
+                              label={`Reason for ${fs.feeHead.name} discount`}
+                              value={feeHeadDiscount.discountReason || ''}
+                              onChange={(e) => handleFeeHeadDiscountChange(fs.feeHead._id, 'discountReason', e.target.value)}
+                              placeholder="Enter discount reason (optional)"
+                            />
+                          </Box>
+                        );
+                      })}
+                    </Box>
+                  </Box>
+                </Grid>
+              )}
+
+              {selectedClassFeeStructure && selectedClassFeeStructure.feeStructures && selectedClassFeeStructure.feeStructures.length === 0 && (
+                <Grid item xs={12}>
+                  <Alert severity="info">No fee structure found for this class. Please create fee structure first.</Alert>
+                </Grid>
+              )}
+
             </Grid>
           </DialogContent>
           <DialogActions>
@@ -3373,6 +3619,112 @@ const FeeManagement = () => {
               sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5568d3' } }}
             >
               {assignFeeStructureLoading ? <CircularProgress size={24} /> : 'Assign Fee Structure'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Fee Head Selection Dialog for Generate Voucher */}
+        <Dialog
+          open={feeHeadSelectionDialogOpen}
+          onClose={handleCloseFeeHeadSelectionDialog}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" fontWeight="bold">
+                Select Fee Heads for Voucher Generation
+              </Typography>
+              <IconButton onClick={handleCloseFeeHeadSelectionDialog} size="small">
+                <Close />
+              </IconButton>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Selected Students: {selectedGenerateVoucherStudents.length}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Month/Year: {generateVoucherFilters.monthYear}
+              </Typography>
+            </Box>
+            <Divider sx={{ my: 2 }} />
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                Fee Heads ({selectedFeeHeadIds.length} of {feeHeads.length} selected)
+              </Typography>
+              <Button
+                size="small"
+                onClick={handleSelectAllFeeHeads}
+                variant="outlined"
+              >
+                {selectedFeeHeadIds.length === feeHeads.length ? 'Deselect All' : 'Select All'}
+              </Button>
+            </Box>
+            {feeHeadsLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : feeHeads.length === 0 ? (
+              <Alert severity="info">No fee heads found. Please create fee heads first.</Alert>
+            ) : (
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow sx={{ bgcolor: '#f5f5f5' }}>
+                      <TableCell padding="checkbox">
+                        <Checkbox
+                          checked={selectedFeeHeadIds.length === feeHeads.length && feeHeads.length > 0}
+                          indeterminate={selectedFeeHeadIds.length > 0 && selectedFeeHeadIds.length < feeHeads.length}
+                          onChange={handleSelectAllFeeHeads}
+                        />
+                      </TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Fee Head Name</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Amount</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 'bold' }}>Priority</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Frequency</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {feeHeads
+                      .sort((a, b) => (a.priority || 0) - (b.priority || 0))
+                      .map((feeHead) => (
+                        <TableRow key={feeHead._id} hover>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              checked={selectedFeeHeadIds.includes(feeHead._id)}
+                              onChange={() => handleFeeHeadToggle(feeHead._id)}
+                            />
+                          </TableCell>
+                          <TableCell>{feeHead.name}</TableCell>
+                          <TableCell align="right">
+                            {loadingFeeHeadAmounts ? (
+                              <CircularProgress size={16} />
+                            ) : feeHeadAmounts[feeHead._id] !== undefined ? (
+                              `Rs. ${feeHeadAmounts[feeHead._id].toLocaleString()}`
+                            ) : (
+                              'N/A'
+                            )}
+                          </TableCell>
+                          <TableCell align="right">{feeHead.priority || 'N/A'}</TableCell>
+                          <TableCell>{feeHead.frequencyType || 'N/A'}</TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseFeeHeadSelectionDialog}>Cancel</Button>
+            <Button
+              variant="contained"
+              onClick={handleGenerateVouchersConfirm}
+              disabled={generateVoucherLoading || selectedFeeHeadIds.length === 0}
+              sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5568d3' } }}
+            >
+              {generateVoucherLoading ? <CircularProgress size={24} /> : 'Generate Vouchers'}
             </Button>
           </DialogActions>
         </Dialog>
