@@ -67,7 +67,7 @@ const FeeManagement = () => {
 
   // Tab name mappings
   const tabNames = ['fee-heads', 'fee-structure', 'assign-fee-structure', 'misc-operations', 'print-voucher', 'fee-deposit'];
-  const miscSubTabNames = ['student-operations', 'generate-voucher'];
+  const miscSubTabNames = ['generate-voucher', 'student-operations'];
 
   // Tab management - initialize from URL or default
   const getTabFromURL = () => {
@@ -1300,21 +1300,116 @@ const FeeManagement = () => {
         _id: admission._id,
         id: admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A',
         rollNumber: admission.rollNumber || admission.studentId?.rollNumber || 'N/A',
-        name: admission.personalInfo?.firstName && admission.personalInfo?.lastName
-          ? `${admission.personalInfo.firstName} ${admission.personalInfo.lastName}`
-          : admission.personalInfo?.firstName || 'N/A',
-        fatherName: admission.personalInfo?.fatherName || 'N/A',
+        name: admission.personalInfo?.name || admission.studentId?.user?.name || 'N/A',
+        fatherName: admission.guardianInfo?.fatherName || 'N/A',
         status: admission.status || 'pending',
         school: admission.institution?.name || 'N/A',
         class: admission.class?.name || 'N/A',
         section: admission.section?.name || 'N/A',
-        mobileNumber: admission.personalInfo?.phone || admission.contactInfo?.phone || 'N/A',
+        mobileNumber: admission.contactInfo?.phone || admission.contactInfo?.mobileNumber || 'N/A',
         admissionNo: admission.applicationNumber || 'N/A',
-        admissionDate: admission.admissionDate ? new Date(admission.admissionDate).toLocaleDateString() : 'N/A',
-        admissionEffectiveDate: admission.effectiveDate ? new Date(admission.effectiveDate).toLocaleDateString() : 'N/A',
+        admissionDate: admission.studentId?.admissionDate 
+          ? new Date(admission.studentId.admissionDate).toLocaleDateString() 
+          : admission.createdAt 
+          ? new Date(admission.createdAt).toLocaleDateString() 
+          : 'N/A',
+        admissionEffectiveDate: admission.studentId?.admissionDate 
+          ? new Date(admission.studentId.admissionDate).toLocaleDateString() 
+          : admission.createdAt 
+          ? new Date(admission.createdAt).toLocaleDateString() 
+          : 'N/A',
         advanceFee: '0',
-        lastVoucher: 'N/A'
+        lastVoucher: 'N/A',
+        voucherAmount: 0,
+        studentId: admission.studentId?._id || admission.studentId || null
       }));
+
+      // Fetch last voucher for each student who has a studentId
+      const studentsWithIds = transformedStudents.filter(s => s.studentId);
+      if (studentsWithIds.length > 0) {
+        try {
+          const token = localStorage.getItem('token');
+          const institutionId = getInstitutionId();
+          
+          // Fetch student fees for each student in parallel
+          const feesPromises = studentsWithIds.map(async (student) => {
+            try {
+              const feesResponse = await axios.get(`${API_URL}/fees/student-fees`, {
+                headers: { Authorization: `Bearer ${token}` },
+                params: {
+                  institution: institutionId,
+                  student: student.studentId
+                }
+              });
+              return { studentId: student.studentId, fees: feesResponse.data.data || [] };
+            } catch (err) {
+              console.error(`Error fetching fees for student ${student.studentId}:`, err);
+              return { studentId: student.studentId, fees: [] };
+            }
+          });
+
+          const feesResults = await Promise.all(feesPromises);
+          
+          // Create a map of studentId -> latest voucher info (number and amount)
+          const lastVoucherMap = new Map();
+          feesResults.forEach(({ studentId, fees }) => {
+            let latestVoucher = null;
+            let latestDate = null;
+            let latestVoucherNumber = null;
+            
+            // Find the latest voucher by generatedAt date
+            fees.forEach(studentFee => {
+              if (studentFee.vouchers && Array.isArray(studentFee.vouchers) && studentFee.vouchers.length > 0) {
+                const vouchers = studentFee.vouchers.filter(v => v && v.generatedAt && v.voucherNumber);
+                vouchers.forEach(voucher => {
+                  const voucherDate = new Date(voucher.generatedAt);
+                  if (!latestDate || voucherDate > latestDate) {
+                    latestDate = voucherDate;
+                    latestVoucher = voucher;
+                    latestVoucherNumber = voucher.voucherNumber;
+                  }
+                });
+              }
+            });
+            
+            // Calculate voucher amount for the latest voucher
+            if (latestVoucherNumber) {
+              let voucherAmount = 0;
+              fees.forEach(studentFee => {
+                if (studentFee.vouchers && Array.isArray(studentFee.vouchers)) {
+                  // Check if this fee has a voucher with the latest voucher number
+                  const hasLatestVoucher = studentFee.vouchers.some(v => 
+                    v && v.voucherNumber === latestVoucherNumber
+                  );
+                  if (hasLatestVoucher) {
+                    voucherAmount += parseFloat(studentFee.finalAmount || 0);
+                  }
+                }
+              });
+              
+              lastVoucherMap.set(studentId.toString(), {
+                voucherNumber: latestVoucherNumber,
+                voucherAmount: voucherAmount
+              });
+            }
+          });
+
+          // Update lastVoucher and voucherAmount for each student
+          transformedStudents.forEach(student => {
+            if (student.studentId) {
+              const sid = student.studentId.toString();
+              const voucherInfo = lastVoucherMap.get(sid);
+              if (voucherInfo) {
+                student.lastVoucher = voucherInfo.voucherNumber;
+                student.voucherAmount = voucherInfo.voucherAmount;
+              }
+            }
+          });
+        } catch (err) {
+          console.error('Error fetching last vouchers:', err);
+          // Continue even if voucher fetch fails
+        }
+      }
 
       setManualDepositStudents(transformedStudents);
       
@@ -2050,9 +2145,9 @@ const FeeManagement = () => {
     }
     if (activeTab === 3) {
       if (miscFeeSubTab === 0) {
-        fetchMiscFeeStudents();
-      } else if (miscFeeSubTab === 1) {
         fetchGenerateVoucherStudents();
+      } else if (miscFeeSubTab === 1) {
+        fetchMiscFeeStudents();
       }
     }
     if (activeTab === 4) {
@@ -2522,13 +2617,172 @@ const FeeManagement = () => {
             {/* Sub-tabs for Misc Fee Operations */}
             <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
               <Tabs value={miscFeeSubTab} onChange={handleMiscFeeSubTabChange}>
-                <Tab label="Student Operations" />
                 <Tab label="Generate Voucher" />
+                <Tab label="Student Operations" />
               </Tabs>
             </Box>
 
-            {/* Sub-tab Panel 0: Student Operations */}
+            {/* Sub-tab Panel 0: Generate Voucher */}
             {miscFeeSubTab === 0 && (
+              <Box>
+                {/* Filters */}
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} md={6}>
+                        <TextField
+                          fullWidth
+                          label="Month/Year"
+                          type="month"
+                          value={generateVoucherFilters.monthYear}
+                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, monthYear: e.target.value })}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                          <Button
+                            variant="contained"
+                            fullWidth
+                            startIcon={<Search />}
+                            sx={{ bgcolor: '#667eea' }}
+                            onClick={fetchGenerateVoucherStudents}
+                          >
+                            Search Students
+                          </Button>
+                          <Button
+                            variant="contained"
+                            startIcon={<Receipt />}
+                            sx={{ bgcolor: '#667eea' }}
+                            disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
+                            onClick={handleGenerateVouchers}
+                          >
+                            {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
+                          </Button>
+                        </Box>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+
+                {/* Students Table */}
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                        <TableCell padding="checkbox">
+                          <input
+                            type="checkbox"
+                            checked={
+                              generateVoucherStudents.length > 0 &&
+                              generateVoucherStudents
+                                .filter(s => s.voucherStatus !== 'Generated')
+                                .every(s => selectedGenerateVoucherStudents.some(sel => sel._id === s._id))
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                // Only select students without Generated status
+                                const selectableStudents = generateVoucherStudents.filter(s => s.voucherStatus !== 'Generated');
+                                setSelectedGenerateVoucherStudents(selectableStudents);
+                              } else {
+                                setSelectedGenerateVoucherStudents([]);
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>Voucher Status</TableCell>
+                        <TableCell>ID</TableCell>
+                        <TableCell>Roll #</TableCell>
+                        <TableCell>Admission #</TableCell>
+                        <TableCell>Name</TableCell>
+                        <TableCell>Class</TableCell>
+                        <TableCell>Section</TableCell>
+                        <TableCell>Status</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={9} align="center">
+                            <CircularProgress />
+                          </TableCell>
+                        </TableRow>
+                      ) : generateVoucherStudents.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={9} align="center">
+                            <Typography variant="body2" color="textSecondary">
+                              {error ? error : 'No students found with fee structures assigned. Please assign fee structures to students first.'}
+                            </Typography>
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        generateVoucherStudents.map((student) => {
+                          const isGenerated = student.voucherStatus === 'Generated';
+                          const isSelected = selectedGenerateVoucherStudents.some(s => s._id === student._id);
+                          
+                          return (
+                          <TableRow 
+                            key={student._id}
+                            sx={{
+                              opacity: isGenerated ? 0.6 : 1,
+                              bgcolor: isGenerated ? 'action.hover' : 'inherit'
+                            }}
+                          >
+                            <TableCell padding="checkbox">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                disabled={isGenerated}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedGenerateVoucherStudents([...selectedGenerateVoucherStudents, student]);
+                                  } else {
+                                    setSelectedGenerateVoucherStudents(selectedGenerateVoucherStudents.filter(s => s._id !== student._id));
+                                  }
+                                }}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Chip 
+                                label={student.voucherStatus || 'Not Generated'} 
+                                size="small" 
+                                color={student.voucherStatus === 'Generated' ? 'success' : 'default'} 
+                              />
+                            </TableCell>
+                            <TableCell>{student.id || 'N/A'}</TableCell>
+                            <TableCell>{student.rollNumber || 'N/A'}</TableCell>
+                            <TableCell>{student.admissionNo || 'N/A'}</TableCell>
+                            <TableCell>
+                              {capitalizeFirstOnly(student.name || 'N/A')}
+                            </TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
+                            <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={capitalizeFirstOnly(student.status || 'pending')}
+                                color={getStatusColor(student.status)}
+                                size="small"
+                              />
+                            </TableCell>
+                          </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                {/* Total Count */}
+                <Box sx={{ mt: 2, textAlign: 'right' }}>
+                  <Typography variant="body1" fontWeight="bold">
+                    Total: {generateVoucherStudents.length} student(s) | Selected: {selectedGenerateVoucherStudents.length} student(s)
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
+            {/* Sub-tab Panel 1: Student Operations */}
+            {miscFeeSubTab === 1 && (
               <Box>
                 {/* Filters */}
                 <Card sx={{ mb: 3 }}>
@@ -2685,165 +2939,6 @@ const FeeManagement = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
-              </Box>
-            )}
-
-            {/* Sub-tab Panel 1: Generate Voucher */}
-            {miscFeeSubTab === 1 && (
-              <Box>
-                {/* Filters */}
-                <Card sx={{ mb: 3 }}>
-                  <CardContent>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          label="Month/Year"
-                          type="month"
-                          value={generateVoucherFilters.monthYear}
-                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, monthYear: e.target.value })}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={6}>
-                        <Box sx={{ display: 'flex', gap: 2 }}>
-                          <Button
-                            variant="contained"
-                            fullWidth
-                            startIcon={<Search />}
-                            sx={{ bgcolor: '#667eea' }}
-                            onClick={fetchGenerateVoucherStudents}
-                          >
-                            Search Students
-                          </Button>
-                          <Button
-                            variant="contained"
-                            startIcon={<Receipt />}
-                            sx={{ bgcolor: '#667eea' }}
-                            disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
-                            onClick={handleGenerateVouchers}
-                          >
-                            {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
-                          </Button>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
-
-                {/* Students Table */}
-                <TableContainer component={Paper}>
-                  <Table>
-                    <TableHead>
-                      <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
-                        <TableCell padding="checkbox">
-                          <input
-                            type="checkbox"
-                            checked={
-                              generateVoucherStudents.length > 0 &&
-                              generateVoucherStudents
-                                .filter(s => s.voucherStatus !== 'Generated')
-                                .every(s => selectedGenerateVoucherStudents.some(sel => sel._id === s._id))
-                            }
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                // Only select students without Generated status
-                                const selectableStudents = generateVoucherStudents.filter(s => s.voucherStatus !== 'Generated');
-                                setSelectedGenerateVoucherStudents(selectableStudents);
-                              } else {
-                                setSelectedGenerateVoucherStudents([]);
-                              }
-                            }}
-                          />
-                        </TableCell>
-                        <TableCell>Voucher Status</TableCell>
-                        <TableCell>ID</TableCell>
-                        <TableCell>Roll #</TableCell>
-                        <TableCell>Admission #</TableCell>
-                        <TableCell>Name</TableCell>
-                        <TableCell>Class</TableCell>
-                        <TableCell>Section</TableCell>
-                        <TableCell>Status</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {loading ? (
-                        <TableRow>
-                          <TableCell colSpan={9} align="center">
-                            <CircularProgress />
-                          </TableCell>
-                        </TableRow>
-                      ) : generateVoucherStudents.length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={9} align="center">
-                            <Typography variant="body2" color="textSecondary">
-                              {error ? error : 'No students found with fee structures assigned. Please assign fee structures to students first.'}
-                            </Typography>
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        generateVoucherStudents.map((student) => {
-                          const isGenerated = student.voucherStatus === 'Generated';
-                          const isSelected = selectedGenerateVoucherStudents.some(s => s._id === student._id);
-                          
-                          return (
-                          <TableRow 
-                            key={student._id}
-                            sx={{
-                              opacity: isGenerated ? 0.6 : 1,
-                              bgcolor: isGenerated ? 'action.hover' : 'inherit'
-                            }}
-                          >
-                            <TableCell padding="checkbox">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                disabled={isGenerated}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedGenerateVoucherStudents([...selectedGenerateVoucherStudents, student]);
-                                  } else {
-                                    setSelectedGenerateVoucherStudents(selectedGenerateVoucherStudents.filter(s => s._id !== student._id));
-                                  }
-                                }}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Chip 
-                                label={student.voucherStatus || 'Not Generated'} 
-                                size="small" 
-                                color={student.voucherStatus === 'Generated' ? 'success' : 'default'} 
-                              />
-                            </TableCell>
-                            <TableCell>{student.id || 'N/A'}</TableCell>
-                            <TableCell>{student.rollNumber || 'N/A'}</TableCell>
-                            <TableCell>{student.admissionNo || 'N/A'}</TableCell>
-                            <TableCell>
-                              {capitalizeFirstOnly(student.name || 'N/A')}
-                            </TableCell>
-                            <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
-                            <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={capitalizeFirstOnly(student.status || 'pending')}
-                                color={getStatusColor(student.status)}
-                                size="small"
-                              />
-                            </TableCell>
-                          </TableRow>
-                          );
-                        })
-                      )}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-
-                {/* Total Count */}
-                <Box sx={{ mt: 2, textAlign: 'right' }}>
-                  <Typography variant="body1" fontWeight="bold">
-                    Total: {generateVoucherStudents.length} student(s) | Selected: {selectedGenerateVoucherStudents.length} student(s)
-                  </Typography>
-                </Box>
               </Box>
             )}
           </Box>
@@ -3081,28 +3176,25 @@ const FeeManagement = () => {
                             <TableCell>ID</TableCell>
                             <TableCell>Roll #</TableCell>
                             <TableCell>Name</TableCell>
-                            <TableCell>Status</TableCell>
-                            <TableCell>School</TableCell>
                             <TableCell>Class</TableCell>
                             <TableCell>Section</TableCell>
-                            <TableCell>Mobile #</TableCell>
-                            <TableCell>Admission #</TableCell>
                             <TableCell>Admission Date</TableCell>
                             <TableCell>Admission Effective Date</TableCell>
                             <TableCell>Adv. Fee</TableCell>
-                            <TableCell>Last Voucher</TableCell>
+                            <TableCell>Voucher Number</TableCell>
+                            <TableCell>Voucher Amount</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {loading ? (
                             <TableRow>
-                              <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
                                 <CircularProgress />
                               </TableCell>
                             </TableRow>
                           ) : manualDepositStudents.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
                                 <Typography variant="body2" color="textSecondary">
                                   No data found. Please search for students.
                                 </Typography>
@@ -3129,22 +3221,13 @@ const FeeManagement = () => {
                                     </Typography>
                                   )}
                                 </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={capitalizeFirstOnly(student.status || 'pending')}
-                                    color={getStatusColor(student.status)}
-                                    size="small"
-                                  />
-                                </TableCell>
-                                <TableCell>{student.school || 'N/A'}</TableCell>
                                 <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
                                 <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
-                                <TableCell>{student.mobileNumber || 'N/A'}</TableCell>
-                                <TableCell>{student.admissionNo || 'N/A'}</TableCell>
                                 <TableCell>{student.admissionDate || 'N/A'}</TableCell>
                                 <TableCell>{student.admissionEffectiveDate || 'N/A'}</TableCell>
                                 <TableCell>{student.advanceFee || '0'}</TableCell>
                                 <TableCell>{student.lastVoucher || 'N/A'}</TableCell>
+                                <TableCell align="right">Rs. {(student.voucherAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                               </TableRow>
                             ))
                           )}
