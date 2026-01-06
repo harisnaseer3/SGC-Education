@@ -242,13 +242,10 @@ const FeeManagement = () => {
   const [loadingOutstandingFees, setLoadingOutstandingFees] = useState(false);
   const [selectedFeePayments, setSelectedFeePayments] = useState({}); // { studentFeeId: amount }
   const [manualDepositForm, setManualDepositForm] = useState({
-    paymentMethod: 'cash',
+    paymentMethod: 'bank',
     bankAccount: '',
     paymentDate: new Date().toISOString().split('T')[0],
     feeAmount: '',
-    fineAmount: '',
-    preFineAmount: '',
-    absentFineAmount: '',
     remarks: '',
     chequeNumber: '',
     bankName: '',
@@ -719,45 +716,94 @@ const FeeManagement = () => {
       const studentFees = response.data.data || [];
       
       // Filter to only include students with vouchers for the selected month/year
-      const studentsWithVouchers = studentFees.filter(sf => 
-        sf.vouchers && sf.vouchers.some(v => v.month === month && v.year === year)
-      );
+      const studentsWithVouchers = studentFees.filter(sf => {
+        if (!sf.vouchers || !Array.isArray(sf.vouchers)) return false;
+        return sf.vouchers.some(v => 
+          v && 
+          Number(v.month) === Number(month) && 
+          Number(v.year) === Number(year)
+        );
+      });
 
-      // Get unique students
+      // Get unique students with voucher information
       const uniqueStudentsMap = new Map();
       
+      // Group student fees by student ID to calculate total voucher amount
+      const studentFeesByStudent = new Map();
       studentsWithVouchers.forEach(studentFee => {
         const studentId = studentFee.student?._id || studentFee.student;
-        if (studentId && !uniqueStudentsMap.has(studentId.toString())) {
-          const student = studentFee.student;
-          const admission = studentFee.student?.admission;
-          
-          // Get student name
-          let studentName = 'N/A';
-          if (admission?.personalInfo?.name) {
-            studentName = admission.personalInfo.name;
-          } else if (student?.user?.name) {
-            studentName = student.user.name;
-          } else if (admission?.personalInfo?.firstName) {
-            const lastName = admission.personalInfo.lastName || '';
-            studentName = `${admission.personalInfo.firstName} ${lastName}`.trim();
+        if (studentId) {
+          if (!studentFeesByStudent.has(studentId.toString())) {
+            studentFeesByStudent.set(studentId.toString(), []);
           }
-
-          uniqueStudentsMap.set(studentId.toString(), {
-            _id: admission?._id || studentId,
-            studentId: studentId,
-            id: student?.enrollmentNumber || student?.rollNumber || admission?.applicationNumber || 'N/A',
-            rollNumber: student?.rollNumber || admission?.rollNumber || 'N/A',
-            admissionNo: admission?.applicationNumber || student?.enrollmentNumber || 'N/A',
-            name: studentName,
-            fatherName: admission?.guardianInfo?.fatherName || 'N/A',
-            class: studentFee.class?.name || admission?.class?.name || 'N/A',
-            section: admission?.section?.name || 'N/A',
-            status: student?.status || admission?.status || 'active',
-            voucherStatus: 'Generated',
-            printStatus: 'Not Printed'
-          });
+          studentFeesByStudent.get(studentId.toString()).push(studentFee);
         }
+      });
+      
+      studentFeesByStudent.forEach((studentFees, studentIdStr) => {
+        const firstStudentFee = studentFees[0];
+        const student = firstStudentFee.student;
+        const admission = student?.admission;
+        
+        // Get student name
+        let studentName = 'N/A';
+        if (admission?.personalInfo?.name) {
+          studentName = admission.personalInfo.name;
+        } else if (student?.user?.name) {
+          studentName = student.user.name;
+        } else if (admission?.personalInfo?.firstName) {
+          const lastName = admission.personalInfo.lastName || '';
+          studentName = `${admission.personalInfo.firstName} ${lastName}`.trim();
+        }
+
+        // Get voucher number and calculate total voucher amount for the selected month/year
+        let voucherNumber = 'N/A';
+        let voucherAmount = 0;
+        
+        // Find voucher for the selected month/year - all fees should have the same voucher number
+        for (const sf of studentFees) {
+          if (sf.vouchers && Array.isArray(sf.vouchers) && sf.vouchers.length > 0) {
+            const voucher = sf.vouchers.find(v => 
+              v && 
+              Number(v.month) === Number(month) && 
+              Number(v.year) === Number(year) &&
+              v.voucherNumber
+            );
+            if (voucher && voucher.voucherNumber) {
+              voucherNumber = voucher.voucherNumber;
+              break; // Use the first voucher number found (they should all be the same)
+            }
+          }
+        }
+        
+        // Calculate total amount from all student fees that have vouchers for this month/year
+        studentFees.forEach(sf => {
+          // Check if this fee has a voucher for the selected month/year
+          if (sf.vouchers && Array.isArray(sf.vouchers)) {
+            const hasVoucher = sf.vouchers.some(v => 
+              v && 
+              Number(v.month) === Number(month) && 
+              Number(v.year) === Number(year)
+            );
+            if (hasVoucher) {
+              voucherAmount += parseFloat(sf.finalAmount || 0);
+            }
+          }
+        });
+
+        uniqueStudentsMap.set(studentIdStr, {
+          _id: admission?._id || studentIdStr,
+          studentId: studentIdStr,
+          id: student?.enrollmentNumber || student?.rollNumber || admission?.applicationNumber || 'N/A',
+          rollNumber: student?.rollNumber || admission?.rollNumber || 'N/A',
+          name: studentName,
+          fatherName: admission?.guardianInfo?.fatherName || 'N/A',
+          class: firstStudentFee.class?.name || admission?.class?.name || 'N/A',
+          section: admission?.section?.name || 'N/A',
+          voucherStatus: 'Generated',
+          voucherNumber: voucherNumber,
+          voucherAmount: voucherAmount
+        });
       });
 
       const transformedStudents = Array.from(uniqueStudentsMap.values());
@@ -1400,11 +1446,7 @@ const FeeManagement = () => {
   // Calculate total payment amount
   const calculateTotalPayment = () => {
     const feesTotal = Object.values(selectedFeePayments).reduce((sum, amount) => sum + (parseFloat(amount) || 0), 0);
-    const finesTotal = 
-      parseFloat(manualDepositForm.fineAmount || 0) +
-      parseFloat(manualDepositForm.preFineAmount || 0) +
-      parseFloat(manualDepositForm.absentFineAmount || 0);
-    return feesTotal + finesTotal;
+    return feesTotal;
   };
 
   // Handle save payment
@@ -1450,7 +1492,7 @@ const FeeManagement = () => {
                 {
                   studentFeeId: studentFeeId,
                   amount: amount,
-                  paymentMethod: manualDepositForm.paymentMethod === 'bank' ? 'bank_transfer' : 'cash',
+                  paymentMethod: 'bank_transfer',
                   paymentDate: manualDepositForm.paymentDate,
                   remarks: manualDepositForm.remarks,
                   chequeNumber: manualDepositForm.chequeNumber,
@@ -1478,13 +1520,10 @@ const FeeManagement = () => {
       
       // Reset form
       setManualDepositForm({
-        paymentMethod: 'cash',
+        paymentMethod: 'bank',
         bankAccount: '',
         paymentDate: new Date().toISOString().split('T')[0],
         feeAmount: '',
-        fineAmount: '',
-        preFineAmount: '',
-        absentFineAmount: '',
         remarks: '',
         chequeNumber: '',
         bankName: '',
@@ -1540,6 +1579,7 @@ const FeeManagement = () => {
       let arrears = 0;
       let dueDate = new Date(year, month, 20); // Default to 20th of the month
       let studentFees = []; // Declare outside try block for use later
+      let voucherNumber = 'N/A'; // Declare outside try block for use in return statement
 
       // Get student ID from admission
       const studentId = admission.studentId?._id || admission.studentId;
@@ -1580,10 +1620,25 @@ const FeeManagement = () => {
           return hasVoucher;
         });
 
+        // Extract voucher number for the selected month/year
         // If no fees with vouchers found, return empty fee heads
         if (feesWithVouchers.length === 0) {
           feeHeads = [];
         } else {
+          // Find voucher number from fees with vouchers
+          for (const fee of feesWithVouchers) {
+            const match = (fee.vouchers || []).find(v => {
+              if (!v) return false;
+              const vMonth = typeof v.month === 'string' ? parseInt(v.month, 10) : Number(v.month);
+              const vYear = typeof v.year === 'string' ? parseInt(v.year, 10) : Number(v.year);
+              return vMonth === Number(month) && vYear === Number(year) && v.voucherNumber;
+            });
+            if (match && match.voucherNumber) {
+              voucherNumber = match.voucherNumber;
+              break;
+            }
+          }
+
           // Group fees by fee head and calculate totals
           // Use feeHead name instead of feeType
           const feeHeadMap = {};
@@ -1705,7 +1760,14 @@ const FeeManagement = () => {
       }
 
       return {
-        voucherNo: admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A',
+        voucherNo: (() => {
+          // Prefer voucher number from feesWithVouchers if available
+          if (typeof voucherNumber !== 'undefined' && voucherNumber !== 'N/A') {
+            return voucherNumber;
+          }
+          // Fallback to enrollment/application
+          return admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A';
+        })(),
         rollNo: admission.rollNumber || admission.studentId?.rollNumber || 'N/A',
         feeMonth: monthYear,
         validDate: validDate,
@@ -2845,26 +2907,25 @@ const FeeManagement = () => {
                   <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
                     <TableCell>Action</TableCell>
                     <TableCell>Voucher Status</TableCell>
-                    <TableCell>Print Status</TableCell>
+                    <TableCell>Voucher Number</TableCell>
+                    <TableCell>Voucher Amount</TableCell>
                     <TableCell>ID</TableCell>
                     <TableCell>Roll #</TableCell>
-                    <TableCell>Admission #</TableCell>
                     <TableCell>Name</TableCell>
                     <TableCell>Class</TableCell>
                     <TableCell>Section</TableCell>
-                    <TableCell>Status</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={12} align="center">
+                      <TableCell colSpan={9} align="center">
                         <CircularProgress />
                       </TableCell>
                     </TableRow>
                   ) : printVoucherStudents.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={12} align="center">
+                      <TableCell colSpan={9} align="center">
                         <Typography variant="body2" color="textSecondary">
                           No data found
                         </Typography>
@@ -2885,12 +2946,10 @@ const FeeManagement = () => {
                         <TableCell>
                           <Chip label={student.voucherStatus || 'Pending'} size="small" color="warning" />
                         </TableCell>
-                        <TableCell>
-                          <Chip label={student.printStatus || 'Not Printed'} size="small" color="default" />
-                        </TableCell>
+                        <TableCell>{student.voucherNumber || 'N/A'}</TableCell>
+                        <TableCell align="right">Rs. {(student.voucherAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                         <TableCell>{student.id || 'N/A'}</TableCell>
                         <TableCell>{student.rollNumber || 'N/A'}</TableCell>
-                        <TableCell>{student.admissionNo || 'N/A'}</TableCell>
                         <TableCell>
                           {capitalizeFirstOnly(student.name || 'N/A')}
                           {student.fatherName && (
@@ -2901,13 +2960,6 @@ const FeeManagement = () => {
                         </TableCell>
                         <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
                         <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
-                        <TableCell>
-                          <Chip
-                            label={capitalizeFirstOnly(student.status || 'pending')}
-                            color={getStatusColor(student.status)}
-                            size="small"
-                          />
-                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -3122,54 +3174,43 @@ const FeeManagement = () => {
                         {/* Payment Method & Date */}
                         <Grid item xs={12} md={6}>
                           <FormLabel component="legend" sx={{ mb: 1, fontWeight: 'bold' }}>Payment Method</FormLabel>
-                          <RadioGroup
-                            row
-                            value={manualDepositForm.paymentMethod}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, paymentMethod: e.target.value })}
-                          >
-                            <FormControlLabel value="cash" control={<Radio />} label="Cash" />
-                            <FormControlLabel value="bank" control={<Radio />} label="Bank" />
-                          </RadioGroup>
-                          {manualDepositForm.paymentMethod === 'bank' && (
-                            <>
-                              <FormControl fullWidth sx={{ mt: 2 }}>
-                                <InputLabel>Select Bank Account</InputLabel>
-                                <Select
-                                  value={manualDepositForm.bankAccount}
-                                  onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankAccount: e.target.value })}
-                                  label="Select Bank Account"
-                                >
-                                  <MenuItem value="">Select Bank Account</MenuItem>
-                                  <MenuItem value="allied">Allied Bank - 0010000070780246</MenuItem>
-                                  <MenuItem value="bankislami">Bank Islami - 0108000000000001</MenuItem>
-                                </Select>
-                              </FormControl>
-                              <TextField
-                                fullWidth
-                                sx={{ mt: 2 }}
-                                label="Bank Name"
-                                value={manualDepositForm.bankName}
-                                onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankName: e.target.value })}
-                                placeholder="Enter bank name"
-                              />
-                              <TextField
-                                fullWidth
-                                sx={{ mt: 2 }}
-                                label="Cheque Number (if applicable)"
-                                value={manualDepositForm.chequeNumber}
-                                onChange={(e) => setManualDepositForm({ ...manualDepositForm, chequeNumber: e.target.value })}
-                                placeholder="Enter cheque number"
-                              />
-                              <TextField
-                                fullWidth
-                                sx={{ mt: 2 }}
-                                label="Transaction ID (if applicable)"
-                                value={manualDepositForm.transactionId}
-                                onChange={(e) => setManualDepositForm({ ...manualDepositForm, transactionId: e.target.value })}
-                                placeholder="Enter transaction ID"
-                              />
-                            </>
-                          )}
+                          <Typography variant="body2" sx={{ mb: 1 }}>Bank payment</Typography>
+                          <FormControl fullWidth sx={{ mt: 1 }}>
+                            <InputLabel>Select Bank Account</InputLabel>
+                            <Select
+                              value={manualDepositForm.bankAccount}
+                              onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankAccount: e.target.value })}
+                              label="Select Bank Account"
+                            >
+                              <MenuItem value="">Select Bank Account</MenuItem>
+                              <MenuItem value="allied">Allied Bank - 0010000070780246</MenuItem>
+                              <MenuItem value="bankislami">Bank Islami - 0108000000000001</MenuItem>
+                            </Select>
+                          </FormControl>
+                          <TextField
+                            fullWidth
+                            sx={{ mt: 2 }}
+                            label="Bank Name"
+                            value={manualDepositForm.bankName}
+                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankName: e.target.value })}
+                            placeholder="Enter bank name"
+                          />
+                          <TextField
+                            fullWidth
+                            sx={{ mt: 2 }}
+                            label="Cheque Number (if applicable)"
+                            value={manualDepositForm.chequeNumber}
+                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, chequeNumber: e.target.value })}
+                            placeholder="Enter cheque number"
+                          />
+                          <TextField
+                            fullWidth
+                            sx={{ mt: 2 }}
+                            label="Transaction ID (if applicable)"
+                            value={manualDepositForm.transactionId}
+                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, transactionId: e.target.value })}
+                            placeholder="Enter transaction ID"
+                          />
                         </Grid>
 
                         <Grid item xs={12} md={6}>
@@ -3259,80 +3300,6 @@ const FeeManagement = () => {
                           )}
                         </Grid>
 
-                        {/* Fee Amount Fields (for fines) */}
-                        <Grid item xs={12}>
-                          <Divider sx={{ my: 2 }} />
-                          <Typography variant="subtitle1" sx={{ mb: 2, fontWeight: 'bold' }}>
-                            Fine Amounts (Optional)
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={12} sm={6} md={3}>
-                          <TextField
-                            fullWidth
-                            label="Fine Amount"
-                            type="number"
-                            value={manualDepositForm.fineAmount}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, fineAmount: e.target.value })}
-                            placeholder="0.00"
-                            sx={{ 
-                              '& .MuiOutlinedInput-root': {
-                                bgcolor: '#ffebee',
-                                '&:hover': {
-                                  bgcolor: '#ffcdd2'
-                                }
-                              }
-                            }}
-                            InputProps={{
-                              startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6} md={3}>
-                          <TextField
-                            fullWidth
-                            label="Pre Fine Amount"
-                            type="number"
-                            value={manualDepositForm.preFineAmount}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, preFineAmount: e.target.value })}
-                            placeholder="0.00"
-                            sx={{ 
-                              '& .MuiOutlinedInput-root': {
-                                bgcolor: '#ffebee',
-                                '&:hover': {
-                                  bgcolor: '#ffcdd2'
-                                }
-                              }
-                            }}
-                            InputProps={{
-                              startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
-                            }}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} sm={6} md={3}>
-                          <TextField
-                            fullWidth
-                            label="Absent Fine Amount"
-                            type="number"
-                            value={manualDepositForm.absentFineAmount}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, absentFineAmount: e.target.value })}
-                            placeholder="0.00"
-                            sx={{ 
-                              '& .MuiOutlinedInput-root': {
-                                bgcolor: '#ffebee',
-                                '&:hover': {
-                                  bgcolor: '#ffcdd2'
-                                }
-                              }
-                            }}
-                            InputProps={{
-                              startAdornment: <InputAdornment position="start">Rs.</InputAdornment>,
-                            }}
-                          />
-                        </Grid>
-
                         {/* Total Amount Display */}
                         <Grid item xs={12}>
                           <Box sx={{ 
@@ -3345,13 +3312,6 @@ const FeeManagement = () => {
                               <Grid item xs={12} md={6}>
                                 <Typography variant="body2" color="textSecondary">
                                   Fee Payments: Rs. {Object.values(selectedFeePayments).reduce((sum, amount) => sum + (parseFloat(amount) || 0), 0).toLocaleString()}
-                                </Typography>
-                                <Typography variant="body2" color="textSecondary" sx={{ mt: 0.5 }}>
-                                  Fine Amounts: Rs. {(
-                                    parseFloat(manualDepositForm.fineAmount || 0) +
-                                    parseFloat(manualDepositForm.preFineAmount || 0) +
-                                    parseFloat(manualDepositForm.absentFineAmount || 0)
-                                  ).toLocaleString()}
                                 </Typography>
                               </Grid>
                               <Grid item xs={12} md={6}>
@@ -3380,27 +3340,24 @@ const FeeManagement = () => {
                         {/* Action Buttons */}
                         <Grid item xs={12}>
                           <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
-                            <Button
-                              variant="outlined"
-                              onClick={() => {
-                                setManualDepositForm({
-                                  paymentMethod: 'cash',
-                                  bankAccount: '',
-                                  paymentDate: new Date().toISOString().split('T')[0],
-                                  feeAmount: '',
-                                  fineAmount: '',
-                                  preFineAmount: '',
-                                  absentFineAmount: '',
-                                  remarks: '',
-                                  chequeNumber: '',
-                                  bankName: '',
-                                  transactionId: ''
-                                });
-                                setSelectedManualDepositStudent(null);
-                                setOutstandingFees([]);
-                                setSelectedFeePayments({});
-                              }}
-                            >
+                              <Button
+                                variant="outlined"
+                                onClick={() => {
+                                  setManualDepositForm({
+                                    paymentMethod: 'bank',
+                                    bankAccount: '',
+                                    paymentDate: new Date().toISOString().split('T')[0],
+                                    feeAmount: '',
+                                    remarks: '',
+                                    chequeNumber: '',
+                                    bankName: '',
+                                    transactionId: ''
+                                  });
+                                  setSelectedManualDepositStudent(null);
+                                  setOutstandingFees([]);
+                                  setSelectedFeePayments({});
+                                }}
+                              >
                               Reset
                             </Button>
                             <Button
