@@ -169,25 +169,16 @@ const Admissions = () => {
   const [allDataStatusFilter, setAllDataStatusFilter] = useState(allStudentStatusOptions);
 
   const allDataFieldOptions = [
-    { id: 'studentId', label: 'Student Id' },
-    { id: 'studentName', label: 'Student Name' },
-    { id: 'fatherName', label: 'Father Name' },
-    { id: 'dateOfBirth', label: 'Date Of Birth' },
-    { id: 'bloodGroup', label: 'Blood Group' },
-    { id: 'hobbies', label: 'Hobbies' },
-    { id: 'category', label: 'Student Category Name' },
-    { id: 'familyNumber', label: 'Family Number' },
-    { id: 'admissionDate', label: 'Admission Date' },
-    { id: 'gender', label: 'Gender Name' },
-    { id: 'packageName', label: 'Package Name' },
-    { id: 'packageStart', label: 'Fee Package Start Date' },
-    { id: 'packageEnd', label: 'Fee Package End Date' },
-    { id: 'sectionRollNumber', label: 'Section Roll Number' },
-    { id: 'admissionNumber', label: 'Admission Number' },
-    { id: 'rollNumber', label: 'Roll Number' },
-    { id: 'sectionName', label: 'Section Name' },
-    { id: 'className', label: 'Class Name' },
-    { id: 'groupName', label: 'Group Name' },
+    { id: 'studentId', label: 'Id' },
+    { id: 'studentName', label: 'Student name' },
+    { id: 'fatherName', label: 'Father name' },
+    { id: 'dateOfBirth', label: 'Date of birth' },
+    { id: 'admissionNumber', label: 'Admission number' },
+    { id: 'admissionDate', label: 'Admission date' },
+    { id: 'rollNumber', label: 'Roll number' },
+    { id: 'className', label: 'Class' },
+    { id: 'sectionName', label: 'Section' },
+    { id: 'gender', label: 'Gender' },
   ];
   const [selectedAllDataFields, setSelectedAllDataFields] = useState(
     allDataFieldOptions.map((f) => f.id)
@@ -709,7 +700,7 @@ const Admissions = () => {
             <TextField
               fullWidth
               size="small"
-              placeholder={`Search by ${searchType === 'all' ? 'student ID, application number, name, or email' : searchType}...`}
+              placeholder="Search by student ID, application number, name, or email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               InputProps={{
@@ -749,29 +740,6 @@ const Admissions = () => {
             />
           </Box>
 
-          {/* Search Type Selector */}
-          <FormControl size="small" sx={{ minWidth: 120, bgcolor: 'rgba(255, 255, 255, 0.15)', borderRadius: 1 }}>
-            <Select
-              value={searchType}
-              onChange={(e) => setSearchType(e.target.value)}
-              sx={{
-                color: 'white',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: 'rgba(255, 255, 255, 0.3)',
-                },
-                '& .MuiSvgIcon-root': {
-                  color: 'white',
-                },
-              }}
-            >
-              <MenuItem value="all">All Fields</MenuItem>
-              <MenuItem value="studentId">Student ID</MenuItem>
-              <MenuItem value="applicationNumber">App Number</MenuItem>
-              <MenuItem value="name">Name</MenuItem>
-              <MenuItem value="email">Email</MenuItem>
-            </Select>
-          </FormControl>
-
           {/* Action Buttons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
             <Button
@@ -797,14 +765,6 @@ const Admissions = () => {
               title="Refresh"
             >
               <Refresh />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={handleExport}
-              sx={{ color: 'white', bgcolor: 'rgba(255, 255, 255, 0.15)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.25)' } }}
-              title="Export Data"
-            >
-              <Download />
             </IconButton>
             {isAdmin && (
               <Button
@@ -2967,7 +2927,6 @@ const Admissions = () => {
                 <Table>
                   <TableHead>
                     <TableRow sx={{ bgcolor: '#667eea' }}>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Roll #</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Admission Number</TableCell>
@@ -2975,17 +2934,11 @@ const Admissions = () => {
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Father Name</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Section</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Group</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Age</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Student Category</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Family Number</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Fee After Discount</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Gender</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Religion</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Orphan</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Stationery</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -3003,7 +2956,7 @@ const Admissions = () => {
                       })
                       .length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={19} align="center" sx={{ py: 4 }}>
+                        <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
                           <Typography variant="body2" color="text.secondary">
                             No students found
                           </Typography>
@@ -3028,6 +2981,27 @@ const Admissions = () => {
                           
                           return (
                             <TableRow key={admission._id} hover>
+                              <TableCell>{admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A'}</TableCell>
+                              <TableCell>{admission.studentId?.rollNumber || 'N/A'}</TableCell>
+                              <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
+                              <TableCell>{studentName || 'N/A'}</TableCell>
+                              <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
+                              <TableCell>{admission.class?.name || admission.program || 'N/A'}</TableCell>
+                              <TableCell>{admission.section?.name || 'N/A'}</TableCell>
+                              <TableCell>
+                                {admission.personalInfo?.dateOfBirth 
+                                  ? `${Math.floor((new Date() - new Date(admission.personalInfo.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} Years`
+                                  : 'N/A'}
+                              </TableCell>
+                              <TableCell>{admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'N/A'}</TableCell>
+                              <TableCell>{admission.orphan === 'YES' ? 'Yes' : 'No'}</TableCell>
+                              <TableCell>
+                                <Chip
+                                  label={admission.status || 'pending'}
+                                  size="small"
+                                  color={getStatusColor(admission.status)}
+                                />
+                              </TableCell>
                               <TableCell>
                                 <IconButton
                                   size="small"
@@ -3146,36 +3120,6 @@ const Admissions = () => {
                                     Stationery Status
                                   </MenuItem>
                                 </Menu>
-                              </TableCell>
-                              <TableCell>{admission._id?.slice(-3) || index + 1}</TableCell>
-                              <TableCell>{admission.studentId?.rollNumber || 'N/A'}</TableCell>
-                              <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
-                              <TableCell>{studentName || 'N/A'}</TableCell>
-                              <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
-                              <TableCell>{admission.class?.name || admission.program || 'N/A'}</TableCell>
-                              <TableCell>{admission.section?.name || 'N/A'}</TableCell>
-                              <TableCell>{admission.group?.name || 'N/A'}</TableCell>
-                              <TableCell>
-                                {admission.personalInfo?.dateOfBirth 
-                                  ? `${Math.floor((new Date() - new Date(admission.personalInfo.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} Years`
-                                  : 'N/A'}
-                              </TableCell>
-                              <TableCell>{admission.personalInfo?.category || 'Default'}</TableCell>
-                              <TableCell>{admission.familyNumber || 'N/A'}</TableCell>
-                              <TableCell>{admission.applicationFee?.amount || '0'}</TableCell>
-                              <TableCell>{admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'N/A'}</TableCell>
-                              <TableCell>{admission.personalInfo?.religion || 'N/A'}</TableCell>
-                              <TableCell>{admission.orphan === 'YES' ? 'Yes' : 'No'}</TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={admission.status || 'pending'}
-                                  size="small"
-                                  color={getStatusColor(admission.status)}
-                                />
-                              </TableCell>
-                              <TableCell>{admission.stationeryStatus || 'No'}</TableCell>
-                              <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {admission.remarks || ''}
                               </TableCell>
                             </TableRow>
                           );

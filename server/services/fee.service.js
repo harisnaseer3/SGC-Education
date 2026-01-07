@@ -618,48 +618,69 @@ class FeeService {
 
     let voucherCounter = existingVouchersCount.length > 0 ? existingVouchersCount[0].total : 0;
 
-    // Generate vouchers for each StudentFee
+    // Group StudentFee records by student to ensure same voucher number for all fee heads
+    const studentFeesByStudent = new Map();
+    for (const studentFee of studentFeeRecords) {
+      const studentId = studentFee.student?._id || studentFee.student;
+      if (!studentId) continue;
+      
+      const studentIdStr = studentId.toString();
+      if (!studentFeesByStudent.has(studentIdStr)) {
+        studentFeesByStudent.set(studentIdStr, []);
+      }
+      studentFeesByStudent.get(studentIdStr).push(studentFee);
+    }
+
+    // Generate vouchers - one voucher number per student per month/year
     const updatedStudentFees = [];
     const errors = [];
+    const studentVoucherNumbers = new Map(); // Track voucher numbers per student
 
-    for (const studentFee of studentFeeRecords) {
+    for (const [studentIdStr, studentFees] of studentFeesByStudent.entries()) {
       try {
-        // Check if voucher already exists for this month/year
-        const existingVoucher = studentFee.vouchers && studentFee.vouchers.find(
-          v => v.month === month && v.year === year
-        );
+        // Check if any fee already has a voucher for this month/year
+        const hasExistingVoucher = studentFees.some(sf => {
+          return sf.vouchers && sf.vouchers.some(
+            v => v.month === month && v.year === year
+          );
+        });
 
-        if (existingVoucher) {
-          // Skip if voucher already exists
+        if (hasExistingVoucher) {
+          // Skip if voucher already exists for this student/month/year
           continue;
         }
 
-        // Increment counter for unique voucher number
+        // Increment counter for unique voucher number (once per student)
         voucherCounter++;
         
-        // Generate unique voucher number: VCH-YYYY-MM-INST-SEQ
-        // Format: VCH-2024-01-000001 (institution prefix + sequential number)
-        const institutionPrefix = institutionId.toString().substring(0, 6).toUpperCase();
+        // Generate unique voucher number: VCH-YYYY-MM-SEQ
+        // Format: VCH-2024-01-000001
         const voucherNumber = `VCH-${year}-${String(month).padStart(2, '0')}-${String(voucherCounter).padStart(6, '0')}`;
+        
+        // Store voucher number for this student
+        studentVoucherNumbers.set(studentIdStr, voucherNumber);
 
-        // Add voucher to the array
-        if (!studentFee.vouchers) {
-          studentFee.vouchers = [];
+        // Add the same voucher number to all fee heads for this student
+        for (const studentFee of studentFees) {
+          // Add voucher to the array
+          if (!studentFee.vouchers) {
+            studentFee.vouchers = [];
+          }
+
+          studentFee.vouchers.push({
+            month: month,
+            year: year,
+            generatedAt: new Date(),
+            generatedBy: currentUser._id,
+            voucherNumber: voucherNumber
+          });
+
+          await studentFee.save();
+          updatedStudentFees.push(studentFee);
         }
-
-        studentFee.vouchers.push({
-          month: month,
-          year: year,
-          generatedAt: new Date(),
-          generatedBy: currentUser._id,
-          voucherNumber: voucherNumber
-        });
-
-        await studentFee.save();
-        updatedStudentFees.push(studentFee);
       } catch (error) {
         errors.push({
-          studentFeeId: studentFee._id,
+          studentId: studentIdStr,
           error: error.message
         });
       }
@@ -702,12 +723,24 @@ class FeeService {
       throw new ApiError(400, `Payment amount (${amount}) exceeds remaining amount (${remainingAmount})`);
     }
 
-    // Create FeePayment record
+    // Generate receipt number
     const FeePayment = require('../models/FeePayment');
+    const year = new Date().getFullYear();
+    const receiptCount = await FeePayment.countDocuments({
+      institution: studentFee.institution,
+      createdAt: {
+        $gte: new Date(year, 0, 1),
+        $lt: new Date(year + 1, 0, 1)
+      }
+    });
+    const receiptNumber = `RCP-${year}-${String(receiptCount + 1).padStart(6, '0')}`;
+
+    // Create FeePayment record
     const feePayment = await FeePayment.create({
       institution: studentFee.institution,
       student: studentFee.student,
       studentFee: studentFeeId,
+      receiptNumber: receiptNumber,
       amount: amount,
       paymentDate: paymentDate || new Date(),
       paymentMethod: paymentMethod,

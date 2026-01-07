@@ -230,7 +230,6 @@ const FeeManagement = () => {
   // Fee Deposit
   const [manualDepositSearch, setManualDepositSearch] = useState({
     id: '',
-    admissionNumber: '',
     rollNumber: '',
     studentName: '',
     voucherNumber: ''
@@ -776,7 +775,8 @@ const FeeManagement = () => {
           }
         }
         
-        // Calculate total amount from all student fees that have vouchers for this month/year
+        // Calculate total amount and determine voucher status from all student fees that have vouchers for this month/year
+        const feesWithVoucher = [];
         studentFees.forEach(sf => {
           // Check if this fee has a voucher for the selected month/year
           if (sf.vouchers && Array.isArray(sf.vouchers)) {
@@ -787,9 +787,67 @@ const FeeManagement = () => {
             );
             if (hasVoucher) {
               voucherAmount += parseFloat(sf.finalAmount || 0);
+              feesWithVoucher.push(sf);
             }
           }
         });
+
+        // Determine voucher status based on payments for this specific voucher
+        // A voucher is "Paid" only if payments were made AFTER the voucher was generated
+        // and the remaining amount is 0 for fees with this voucher
+        let voucherStatus = 'Unpaid';
+        if (feesWithVoucher.length > 0) {
+          // Get the voucher's generated date (use the first one found, they should all be the same)
+          let voucherGeneratedDate = null;
+          for (const sf of studentFees) {
+            if (sf.vouchers && Array.isArray(sf.vouchers)) {
+              const voucher = sf.vouchers.find(v => 
+                v && 
+                Number(v.month) === Number(month) && 
+                Number(v.year) === Number(year)
+              );
+              if (voucher && voucher.generatedAt) {
+                voucherGeneratedDate = new Date(voucher.generatedAt);
+                break;
+              }
+            }
+          }
+
+          // Calculate total voucher amount
+          const totalVoucherAmount = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.finalAmount || 0), 0);
+          
+          // Calculate total paid amount for fees with this voucher
+          const totalPaidForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
+          
+          // Calculate total remaining for fees with this voucher
+          const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
+
+          // Check if payment was made after voucher generation
+          const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
+            if (!f.lastPaymentDate || !voucherGeneratedDate) return false;
+            return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
+          });
+
+          // Voucher is "Paid" ONLY if:
+          // 1. Payment was made AFTER the voucher was generated
+          // 2. Total remaining is 0 (or very close to 0 due to rounding)
+          // This ensures that payments made before voucher generation don't mark the voucher as paid
+          if (hasPaymentAfterVoucher && totalRemainingForVoucher <= 0.01) {
+            voucherStatus = 'Paid';
+          } else if (hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
+            // Payment made after voucher generation but not fully paid
+            voucherStatus = 'Partial';
+          } else if (!hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
+            // Payment made before voucher generation (for previous month) - still has remaining
+            voucherStatus = 'Unpaid';
+          } else {
+            // No payment made for this voucher
+            voucherStatus = 'Unpaid';
+          }
+        } else {
+          // If no fees found, default to 'Generated' (voucher exists but no fee data)
+          voucherStatus = 'Generated';
+        }
 
         uniqueStudentsMap.set(studentIdStr, {
           _id: admission?._id || studentIdStr,
@@ -800,7 +858,7 @@ const FeeManagement = () => {
           fatherName: admission?.guardianInfo?.fatherName || 'N/A',
           class: firstStudentFee.class?.name || admission?.class?.name || 'N/A',
           section: admission?.section?.name || 'N/A',
-          voucherStatus: 'Generated',
+          voucherStatus: voucherStatus,
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount
         });
@@ -1289,13 +1347,6 @@ const FeeManagement = () => {
         });
       }
       
-      // Filter by admission number
-      if (manualDepositSearch.admissionNumber) {
-        admissions = admissions.filter(admission => 
-          admission.applicationNumber?.toLowerCase().includes(manualDepositSearch.admissionNumber.toLowerCase())
-        );
-      }
-
       const transformedStudents = admissions.map(admission => ({
         _id: admission._id,
         id: admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A',
@@ -1321,11 +1372,14 @@ const FeeManagement = () => {
         advanceFee: '0',
         lastVoucher: 'N/A',
         voucherAmount: 0,
+        voucherMonth: 'N/A',
         studentId: admission.studentId?._id || admission.studentId || null
       }));
 
-      // Fetch last voucher for each student who has a studentId
+      // Fetch all vouchers for each student who has a studentId
       const studentsWithIds = transformedStudents.filter(s => s.studentId);
+      const isVoucherSearch = !!manualDepositSearch.voucherNumber;
+      
       if (studentsWithIds.length > 0) {
         try {
           const token = localStorage.getItem('token');
@@ -1341,73 +1395,181 @@ const FeeManagement = () => {
                   student: student.studentId
                 }
               });
-              return { studentId: student.studentId, fees: feesResponse.data.data || [] };
+              return { studentId: student.studentId, student: student, fees: feesResponse.data.data || [] };
             } catch (err) {
               console.error(`Error fetching fees for student ${student.studentId}:`, err);
-              return { studentId: student.studentId, fees: [] };
+              return { studentId: student.studentId, student: student, fees: [] };
             }
           });
 
           const feesResults = await Promise.all(feesPromises);
           
-          // Create a map of studentId -> latest voucher info (number and amount)
-          const lastVoucherMap = new Map();
-          feesResults.forEach(({ studentId, fees }) => {
-            let latestVoucher = null;
-            let latestDate = null;
-            let latestVoucherNumber = null;
+          // Create an array of student rows with vouchers (one row per voucher)
+          const studentsWithVouchers = [];
+          
+          feesResults.forEach(({ studentId, student, fees }) => {
+            // Collect all unique vouchers (grouped by voucherNumber + month + year)
+            const voucherMap = new Map();
             
-            // Find the latest voucher by generatedAt date
             fees.forEach(studentFee => {
               if (studentFee.vouchers && Array.isArray(studentFee.vouchers) && studentFee.vouchers.length > 0) {
-                const vouchers = studentFee.vouchers.filter(v => v && v.generatedAt && v.voucherNumber);
-                vouchers.forEach(voucher => {
-                  const voucherDate = new Date(voucher.generatedAt);
-                  if (!latestDate || voucherDate > latestDate) {
-                    latestDate = voucherDate;
-                    latestVoucher = voucher;
-                    latestVoucherNumber = voucher.voucherNumber;
+                studentFee.vouchers.forEach(voucher => {
+                  if (voucher && voucher.voucherNumber && voucher.month && voucher.year) {
+                    // If searching by voucher number, filter to only matching vouchers
+                    if (isVoucherSearch) {
+                      const searchTerm = manualDepositSearch.voucherNumber.trim().toLowerCase();
+                      if (!voucher.voucherNumber.toLowerCase().includes(searchTerm)) {
+                        return; // Skip this voucher if it doesn't match
+                      }
+                    }
+                    
+                    const voucherKey = `${voucher.voucherNumber}-${voucher.month}-${voucher.year}`;
+                    
+                    if (!voucherMap.has(voucherKey)) {
+                      voucherMap.set(voucherKey, {
+                        voucherNumber: voucher.voucherNumber,
+                        month: voucher.month,
+                        year: voucher.year,
+                        generatedAt: voucher.generatedAt,
+                        feeIds: []
+                      });
+                    }
+                    
+                    // Track which fees are part of this voucher
+                    const voucherInfo = voucherMap.get(voucherKey);
+                    if (!voucherInfo.feeIds.includes(studentFee._id)) {
+                      voucherInfo.feeIds.push(studentFee._id);
+                    }
                   }
                 });
               }
             });
             
-            // Calculate voucher amount for the latest voucher
-            if (latestVoucherNumber) {
-              let voucherAmount = 0;
-              fees.forEach(studentFee => {
-                if (studentFee.vouchers && Array.isArray(studentFee.vouchers)) {
-                  // Check if this fee has a voucher with the latest voucher number
-                  const hasLatestVoucher = studentFee.vouchers.some(v => 
-                    v && v.voucherNumber === latestVoucherNumber
-                  );
-                  if (hasLatestVoucher) {
-                    voucherAmount += parseFloat(studentFee.finalAmount || 0);
+            // If no vouchers found, create one row with N/A
+            if (voucherMap.size === 0) {
+              studentsWithVouchers.push({
+                ...student,
+                lastVoucher: 'N/A',
+                voucherAmount: 0,
+                voucherMonth: 'N/A',
+                voucherStatus: 'N/A',
+                originalAdmissionId: student._id // Store original admission ID
+              });
+            } else {
+              // Create one row per voucher
+              voucherMap.forEach((voucherInfo) => {
+                // Calculate voucher amount and status for this specific voucher
+                let voucherAmount = 0;
+                const feesWithVoucher = [];
+                
+                fees.forEach(studentFee => {
+                  if (studentFee.vouchers && Array.isArray(studentFee.vouchers)) {
+                    const hasThisVoucher = studentFee.vouchers.some(v => 
+                      v && 
+                      v.voucherNumber === voucherInfo.voucherNumber &&
+                      v.month === voucherInfo.month &&
+                      v.year === voucherInfo.year
+                    );
+                    if (hasThisVoucher) {
+                      voucherAmount += parseFloat(studentFee.finalAmount || 0);
+                      feesWithVoucher.push(studentFee);
+                    }
+                  }
+                });
+                
+                // Determine voucher status based on payments for this specific voucher
+                // A voucher is "Paid" only if payments were made AFTER the voucher was generated
+                let voucherStatus = 'Unpaid';
+                if (feesWithVoucher.length > 0) {
+                  // Get the voucher's generated date
+                  let voucherGeneratedDate = null;
+                  fees.forEach(studentFee => {
+                    if (studentFee.vouchers && Array.isArray(studentFee.vouchers)) {
+                      const voucher = studentFee.vouchers.find(v => 
+                        v && 
+                        v.voucherNumber === voucherInfo.voucherNumber &&
+                        v.month === voucherInfo.month &&
+                        v.year === voucherInfo.year
+                      );
+                      if (voucher && voucher.generatedAt && !voucherGeneratedDate) {
+                        voucherGeneratedDate = new Date(voucher.generatedAt);
+                      }
+                    }
+                  });
+
+                  // Calculate total voucher amount
+                  const totalVoucherAmount = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.finalAmount || 0), 0);
+                  
+                  // Calculate total paid amount for fees with this voucher
+                  const totalPaidForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
+                  
+                  // Calculate total remaining for fees with this voucher
+                  const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
+
+                  // Check if payment was made after voucher generation
+                  const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
+                    if (!f.lastPaymentDate || !voucherGeneratedDate) return false;
+                    return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
+                  });
+
+                  // Voucher is "Paid" ONLY if:
+                  // 1. Payment was made AFTER the voucher was generated
+                  // 2. Total remaining is 0 (or very close to 0 due to rounding)
+                  // This ensures that payments made before voucher generation don't mark the voucher as paid
+                  if (hasPaymentAfterVoucher && totalRemainingForVoucher <= 0.01) {
+                    voucherStatus = 'Paid';
+                  } else if (hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
+                    // Payment made after voucher generation but not fully paid
+                    voucherStatus = 'Partial';
+                  } else if (!hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
+                    // Payment made before voucher generation (for previous month) - still has remaining
+                    voucherStatus = 'Unpaid';
+                  } else {
+                    // No payment made for this voucher
+                    voucherStatus = 'Unpaid';
                   }
                 }
-              });
-              
-              lastVoucherMap.set(studentId.toString(), {
-                voucherNumber: latestVoucherNumber,
-                voucherAmount: voucherAmount
+                
+                // Format month name
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const monthName = monthNames[voucherInfo.month - 1] || voucherInfo.month;
+                const voucherMonth = `${monthName} ${voucherInfo.year}`;
+                
+                studentsWithVouchers.push({
+                  ...student,
+                  lastVoucher: voucherInfo.voucherNumber,
+                  voucherAmount: voucherAmount,
+                  voucherMonth: voucherMonth,
+                  voucherStatus: voucherStatus,
+                  originalAdmissionId: student._id, // Store original admission ID
+                  _id: `${student._id}-${voucherInfo.voucherNumber}-${voucherInfo.month}-${voucherInfo.year}` // Unique key for each voucher row
+                });
               });
             }
           });
 
-          // Update lastVoucher and voucherAmount for each student
-          transformedStudents.forEach(student => {
-            if (student.studentId) {
-              const sid = student.studentId.toString();
-              const voucherInfo = lastVoucherMap.get(sid);
-              if (voucherInfo) {
-                student.lastVoucher = voucherInfo.voucherNumber;
-                student.voucherAmount = voucherInfo.voucherAmount;
-              }
-            }
+          // Sort by generatedAt date (latest first)
+          studentsWithVouchers.sort((a, b) => {
+            if (a.voucherMonth === 'N/A' && b.voucherMonth === 'N/A') return 0;
+            if (a.voucherMonth === 'N/A') return 1;
+            if (b.voucherMonth === 'N/A') return -1;
+            // Extract year and month for sorting
+            const aParts = a.voucherMonth.split(' ');
+            const bParts = b.voucherMonth.split(' ');
+            const aYear = parseInt(aParts[1]);
+            const bYear = parseInt(bParts[1]);
+            if (aYear !== bYear) return bYear - aYear;
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const aMonth = monthNames.indexOf(aParts[0]);
+            const bMonth = monthNames.indexOf(bParts[0]);
+            return bMonth - aMonth;
           });
+
+          setManualDepositStudents(studentsWithVouchers);
+          return; // Exit early since we've set the students
         } catch (err) {
-          console.error('Error fetching last vouchers:', err);
-          // Continue even if voucher fetch fails
+          console.error('Error fetching vouchers:', err);
+          // Continue with original transformedStudents if fetch fails
         }
       }
 
@@ -1508,20 +1670,31 @@ const FeeManagement = () => {
 
   // Handle student selection for manual deposit
   const handleManualDepositStudentSelect = async (student) => {
+    // Prevent selection of paid vouchers
+    if (student.voucherStatus === 'Paid') {
+      setError('This voucher is already paid and cannot be paid again.');
+      return;
+    }
+    
     setSelectedManualDepositStudent(student);
     // Get student ID from admission
-    if (student._id) {
+    // Use originalAdmissionId if available (for voucher rows), otherwise use _id
+    const admissionId = student.originalAdmissionId || student._id;
+    if (admissionId) {
       // Try to get actual student ID from admission
       try {
         const token = localStorage.getItem('token');
-        const admissionResponse = await axios.get(`${API_URL}/admissions/${student._id}`, {
+        const admissionResponse = await axios.get(`${API_URL}/admissions/${admissionId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const admission = admissionResponse.data.data;
         const studentId = admission?.studentId?._id || admission?.studentId;
         if (studentId) {
-          // If voucher number was used in search, pass it to filter fees
-          const voucherNumber = manualDepositSearch.voucherNumber || null;
+          // If a specific voucher is selected (not from search), use that voucher number
+          // Otherwise, if voucher number was used in search, pass it to filter fees
+          const voucherNumber = student.lastVoucher && student.lastVoucher !== 'N/A' 
+            ? student.lastVoucher 
+            : (manualDepositSearch.voucherNumber || null);
           await fetchOutstandingFees(studentId, voucherNumber);
         }
       } catch (err) {
@@ -1557,13 +1730,26 @@ const FeeManagement = () => {
       return;
     }
 
+    // Validate bank account and transaction ID
+    if (!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === '') {
+      setError('Please select a bank account');
+      return;
+    }
+
+    if (!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === '') {
+      setError('Please enter a transaction ID');
+      return;
+    }
+
     try {
       setRecordingPayment(true);
       setError('');
       const token = localStorage.getItem('token');
 
       // Get student ID
-      const admissionResponse = await axios.get(`${API_URL}/admissions/${selectedManualDepositStudent._id}`, {
+      // Use originalAdmissionId if available (for voucher rows), otherwise use _id
+      const admissionId = selectedManualDepositStudent.originalAdmissionId || selectedManualDepositStudent._id;
+      const admissionResponse = await axios.get(`${API_URL}/admissions/${admissionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const admission = admissionResponse.data.data;
@@ -1627,6 +1813,16 @@ const FeeManagement = () => {
       
       // Refresh outstanding fees (this will also reset selected payments)
       await fetchOutstandingFees(studentId);
+      
+      // If on Print Voucher tab, refresh the voucher list to update statuses
+      if (activeTab === 4) {
+        await fetchPrintVoucherStudents();
+      }
+      
+      // If on Fee Deposit tab, refresh the student list to update voucher statuses
+      if (activeTab === 5) {
+        await fetchManualDepositStudents();
+      }
     } catch (err) {
       console.error('Error recording payment:', err);
       setError(err.response?.data?.message || 'Failed to record payment');
@@ -3039,7 +3235,20 @@ const FeeManagement = () => {
                           </IconButton>
                         </TableCell>
                         <TableCell>
-                          <Chip label={student.voucherStatus || 'Pending'} size="small" color="warning" />
+                          {student.voucherStatus ? (
+                            <Chip
+                              label={student.voucherStatus === 'Partial' ? 'Partially Paid' : student.voucherStatus}
+                              size="small"
+                              color={
+                                student.voucherStatus === 'Paid' ? 'success' :
+                                student.voucherStatus === 'Partial' ? 'warning' :
+                                student.voucherStatus === 'Unpaid' ? 'error' :
+                                student.voucherStatus === 'Generated' ? 'info' : 'default'
+                              }
+                            />
+                          ) : (
+                            <Chip label="Pending" size="small" color="warning" />
+                          )}
                         </TableCell>
                         <TableCell>{student.voucherNumber || 'N/A'}</TableCell>
                         <TableCell align="right">Rs. {(student.voucherAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
@@ -3093,16 +3302,6 @@ const FeeManagement = () => {
                       value={manualDepositSearch.id}
                       onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, id: e.target.value })}
                       placeholder="Enter ID"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Admission Number"
-                      value={manualDepositSearch.admissionNumber}
-                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, admissionNumber: e.target.value })}
-                      placeholder="Enter admission number"
                     />
                   </Grid>
                   <Grid item xs={12} sm={6} md={4} lg={2}>
@@ -3182,33 +3381,49 @@ const FeeManagement = () => {
                             <TableCell>Admission Effective Date</TableCell>
                             <TableCell>Adv. Fee</TableCell>
                             <TableCell>Voucher Number</TableCell>
+                            <TableCell>Voucher Month</TableCell>
+                            <TableCell>Voucher Status</TableCell>
                             <TableCell>Voucher Amount</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
                           {loading ? (
                             <TableRow>
-                              <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
                                 <CircularProgress />
                               </TableCell>
                             </TableRow>
                           ) : manualDepositStudents.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={10} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
                                 <Typography variant="body2" color="textSecondary">
                                   No data found. Please search for students.
                                 </Typography>
                               </TableCell>
                             </TableRow>
                           ) : (
-                            manualDepositStudents.map((student) => (
+                            manualDepositStudents.map((student) => {
+                              const isPaid = student.voucherStatus === 'Paid';
+                              const isSelectable = !isPaid;
+                              return (
                               <TableRow
                                 key={student._id}
-                                onClick={() => handleManualDepositStudentSelect(student)}
+                                onClick={() => {
+                                  if (isSelectable) {
+                                    handleManualDepositStudentSelect(student);
+                                  } else {
+                                    setError('This voucher is already paid and cannot be paid again.');
+                                  }
+                                }}
                                 sx={{
-                                  cursor: 'pointer',
-                                  bgcolor: selectedManualDepositStudent?._id === student._id ? '#e3f2fd' : 'inherit',
-                                  '&:hover': { bgcolor: selectedManualDepositStudent?._id === student._id ? '#e3f2fd' : '#f5f5f5' }
+                                  cursor: isSelectable ? 'pointer' : 'not-allowed',
+                                  bgcolor: selectedManualDepositStudent?._id === student._id ? '#e3f2fd' : (isPaid ? '#f5f5f5' : 'inherit'),
+                                  opacity: isPaid ? 0.6 : 1,
+                                  '&:hover': { 
+                                    bgcolor: selectedManualDepositStudent?._id === student._id 
+                                      ? '#e3f2fd' 
+                                      : (isPaid ? '#f5f5f5' : '#f5f5f5')
+                                  }
                                 }}
                               >
                                 <TableCell>{student.id || 'N/A'}</TableCell>
@@ -3227,9 +3442,26 @@ const FeeManagement = () => {
                                 <TableCell>{student.admissionEffectiveDate || 'N/A'}</TableCell>
                                 <TableCell>{student.advanceFee || '0'}</TableCell>
                                 <TableCell>{student.lastVoucher || 'N/A'}</TableCell>
+                                <TableCell>{student.voucherMonth || 'N/A'}</TableCell>
+                                <TableCell>
+                                  {student.voucherStatus && student.voucherStatus !== 'N/A' ? (
+                                    <Chip
+                                      label={student.voucherStatus === 'Partial' ? 'Partially Paid' : student.voucherStatus}
+                                      size="small"
+                                      color={
+                                        student.voucherStatus === 'Paid' ? 'success' :
+                                        student.voucherStatus === 'Partial' ? 'warning' :
+                                        student.voucherStatus === 'Unpaid' ? 'error' : 'default'
+                                      }
+                                    />
+                                  ) : (
+                                    'N/A'
+                                  )}
+                                </TableCell>
                                 <TableCell align="right">Rs. {(student.voucherAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                               </TableRow>
-                            ))
+                            );
+                            })
                           )}
                         </TableBody>
                       </Table>
@@ -3258,17 +3490,23 @@ const FeeManagement = () => {
                         <Grid item xs={12} md={6}>
                           <FormLabel component="legend" sx={{ mb: 1, fontWeight: 'bold' }}>Payment Method</FormLabel>
                           <Typography variant="body2" sx={{ mb: 1 }}>Bank payment</Typography>
-                          <FormControl fullWidth sx={{ mt: 1 }}>
-                            <InputLabel>Select Bank Account</InputLabel>
+                          <FormControl fullWidth required sx={{ mt: 1 }}>
+                            <InputLabel>Select Bank Account *</InputLabel>
                             <Select
                               value={manualDepositForm.bankAccount}
                               onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankAccount: e.target.value })}
-                              label="Select Bank Account"
+                              label="Select Bank Account *"
+                              error={!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === ''}
                             >
                               <MenuItem value="">Select Bank Account</MenuItem>
                               <MenuItem value="allied">Allied Bank - 0010000070780246</MenuItem>
                               <MenuItem value="bankislami">Bank Islami - 0108000000000001</MenuItem>
                             </Select>
+                            {(!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === '') && (
+                              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                                Bank account is required
+                              </Typography>
+                            )}
                           </FormControl>
                           <TextField
                             fullWidth
@@ -3288,11 +3526,14 @@ const FeeManagement = () => {
                           />
                           <TextField
                             fullWidth
+                            required
                             sx={{ mt: 2 }}
-                            label="Transaction ID (if applicable)"
+                            label="Transaction ID *"
                             value={manualDepositForm.transactionId}
                             onChange={(e) => setManualDepositForm({ ...manualDepositForm, transactionId: e.target.value })}
                             placeholder="Enter transaction ID"
+                            error={!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === ''}
+                            helperText={(!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === '') ? 'Transaction ID is required' : ''}
                           />
                         </Grid>
 
@@ -3448,7 +3689,14 @@ const FeeManagement = () => {
                               size="large"
                               sx={{ bgcolor: '#667eea', minWidth: 150 }}
                               onClick={handleSavePayment}
-                              disabled={recordingPayment || calculateTotalPayment() <= 0}
+                              disabled={
+                                recordingPayment || 
+                                calculateTotalPayment() <= 0 ||
+                                !manualDepositForm.bankAccount || 
+                                manualDepositForm.bankAccount.trim() === '' ||
+                                !manualDepositForm.transactionId || 
+                                manualDepositForm.transactionId.trim() === ''
+                              }
                             >
                               {recordingPayment ? <CircularProgress size={24} /> : 'Save Payment'}
                             </Button>
