@@ -822,26 +822,62 @@ const FeeManagement = () => {
           // Calculate total remaining for fees with this voucher
           const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
 
-          // Check if payment was made after voucher generation
-          const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
-            if (!f.lastPaymentDate || !voucherGeneratedDate) return false;
-            return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
-          });
+          // Determine voucher status based on payments
+          // Key logic:
+          // 1. If a fee has this voucher AND has payments, check if payment was made after voucher generation
+          // 2. If payment was made after voucher generation → it's for this voucher
+          // 3. If payment was made before voucher generation → it's for a previous voucher (arrears)
+          // 4. Special case: If no payment date but has paidAmount AND this voucher is recent → likely for this voucher
+          
+          let hasPaymentForThisVoucher = false;
+          
+          if (voucherGeneratedDate) {
+            // Check if any payment was made after this voucher was generated
+            hasPaymentForThisVoucher = feesWithVoucher.some(f => {
+              if (f.lastPaymentDate) {
+                const paymentDate = new Date(f.lastPaymentDate);
+                const voucherDate = new Date(voucherGeneratedDate);
+                // Compare dates (ignore time, just compare date part)
+                const paymentDateOnly = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
+                const voucherDateOnly = new Date(voucherDate.getFullYear(), voucherDate.getMonth(), voucherDate.getDate());
+                return paymentDateOnly >= voucherDateOnly;
+              }
+              // If no lastPaymentDate but has paidAmount, check if this voucher is recent
+              // This handles cases where payment was just recorded but lastPaymentDate hasn't been updated
+              if (parseFloat(f.paidAmount || 0) > 0) {
+                const now = new Date();
+                const voucherDate = new Date(voucherGeneratedDate);
+                const daysSinceVoucher = (now - voucherDate) / (1000 * 60 * 60 * 24);
+                // If voucher was generated recently (within 60 days) and there are payments,
+                // it's likely the payment is for this voucher
+                if (daysSinceVoucher <= 60 && daysSinceVoucher >= 0) {
+                  return true;
+                }
+              }
+              return false;
+            });
+          } else {
+            // If no voucher generation date, we need to be more careful
+            // Check if there are payments and if this voucher is the most recent one
+            // For now, if there are payments and remaining, assume it's partial
+            if (totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
+              hasPaymentForThisVoucher = true;
+            } else if (totalPaidForVoucher > 0 && totalRemainingForVoucher <= 0.01) {
+              hasPaymentForThisVoucher = true;
+            }
+          }
 
-          // Voucher is "Paid" ONLY if:
-          // 1. Payment was made AFTER the voucher was generated
-          // 2. Total remaining is 0 (or very close to 0 due to rounding)
-          // This ensures that payments made before voucher generation don't mark the voucher as paid
-          if (hasPaymentAfterVoucher && totalRemainingForVoucher <= 0.01) {
-            voucherStatus = 'Paid';
-          } else if (hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
-            // Payment made after voucher generation but not fully paid
-            voucherStatus = 'Partial';
-          } else if (!hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
-            // Payment made before voucher generation (for previous month) - still has remaining
-            voucherStatus = 'Unpaid';
+          // Determine status: only consider payments made FOR this voucher
+          if (hasPaymentForThisVoucher) {
+            // Payment was made for this voucher
+            if (totalRemainingForVoucher <= 0.01) {
+              voucherStatus = 'Paid';
+            } else {
+              voucherStatus = 'Partial';
+            }
           } else {
             // No payment made for this voucher
+            // Even if there are old payments (arrears), this voucher is unpaid
             voucherStatus = 'Unpaid';
           }
         } else {
@@ -1506,26 +1542,62 @@ const FeeManagement = () => {
                   // Calculate total remaining for fees with this voucher
                   const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
 
-                  // Check if payment was made after voucher generation
-                  const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
-                    if (!f.lastPaymentDate || !voucherGeneratedDate) return false;
-                    return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
-                  });
+                  // Determine voucher status based on payments
+                  // Key logic:
+                  // 1. If a fee has this voucher AND has payments, check if payment was made after voucher generation
+                  // 2. If payment was made after voucher generation → it's for this voucher
+                  // 3. If payment was made before voucher generation → it's for a previous voucher (arrears)
+                  // 4. Special case: If no payment date but has paidAmount AND this voucher is recent → likely for this voucher
+                  
+                  let hasPaymentForThisVoucher = false;
+                  
+                  if (voucherGeneratedDate) {
+                    // Check if any payment was made after this voucher was generated
+                    hasPaymentForThisVoucher = feesWithVoucher.some(f => {
+                      if (f.lastPaymentDate) {
+                        const paymentDate = new Date(f.lastPaymentDate);
+                        const voucherDate = new Date(voucherGeneratedDate);
+                        // Compare dates (ignore time, just compare date part)
+                        const paymentDateOnly = new Date(paymentDate.getFullYear(), paymentDate.getMonth(), paymentDate.getDate());
+                        const voucherDateOnly = new Date(voucherDate.getFullYear(), voucherDate.getMonth(), voucherDate.getDate());
+                        return paymentDateOnly >= voucherDateOnly;
+                      }
+                      // If no lastPaymentDate but has paidAmount, check if this voucher is recent
+                      // This handles cases where payment was just recorded but lastPaymentDate hasn't been updated
+                      if (parseFloat(f.paidAmount || 0) > 0) {
+                        const now = new Date();
+                        const voucherDate = new Date(voucherGeneratedDate);
+                        const daysSinceVoucher = (now - voucherDate) / (1000 * 60 * 60 * 24);
+                        // If voucher was generated recently (within 60 days) and there are payments,
+                        // it's likely the payment is for this voucher
+                        if (daysSinceVoucher <= 60 && daysSinceVoucher >= 0) {
+                          return true;
+                        }
+                      }
+                      return false;
+                    });
+                  } else {
+                    // If no voucher generation date, we need to be more careful
+                    // Check if there are payments and if this voucher is the most recent one
+                    // For now, if there are payments and remaining, assume it's partial
+                    if (totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
+                      hasPaymentForThisVoucher = true;
+                    } else if (totalPaidForVoucher > 0 && totalRemainingForVoucher <= 0.01) {
+                      hasPaymentForThisVoucher = true;
+                    }
+                  }
 
-                  // Voucher is "Paid" ONLY if:
-                  // 1. Payment was made AFTER the voucher was generated
-                  // 2. Total remaining is 0 (or very close to 0 due to rounding)
-                  // This ensures that payments made before voucher generation don't mark the voucher as paid
-                  if (hasPaymentAfterVoucher && totalRemainingForVoucher <= 0.01) {
-                    voucherStatus = 'Paid';
-                  } else if (hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
-                    // Payment made after voucher generation but not fully paid
-                    voucherStatus = 'Partial';
-                  } else if (!hasPaymentAfterVoucher && totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
-                    // Payment made before voucher generation (for previous month) - still has remaining
-                    voucherStatus = 'Unpaid';
+                  // Determine status: only consider payments made FOR this voucher
+                  if (hasPaymentForThisVoucher) {
+                    // Payment was made for this voucher
+                    if (totalRemainingForVoucher <= 0.01) {
+                      voucherStatus = 'Paid';
+                    } else {
+                      voucherStatus = 'Partial';
+                    }
                   } else {
                     // No payment made for this voucher
+                    // Even if there are old payments (arrears), this voucher is unpaid
                     voucherStatus = 'Unpaid';
                   }
                 }
@@ -3692,6 +3764,7 @@ const FeeManagement = () => {
                               disabled={
                                 recordingPayment || 
                                 calculateTotalPayment() <= 0 ||
+                                manualDepositForm.paymentMethod !== 'bank' ||
                                 !manualDepositForm.bankAccount || 
                                 manualDepositForm.bankAccount.trim() === '' ||
                                 !manualDepositForm.transactionId || 
