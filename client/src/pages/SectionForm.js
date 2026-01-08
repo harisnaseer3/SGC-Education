@@ -15,11 +15,8 @@ import {
   CircularProgress,
   Checkbox,
   FormControlLabel,
-  Card,
-  CardContent,
-  Divider,
 } from '@mui/material';
-import { Save, ArrowBack, Class as ClassIcon, School } from '@mui/icons-material';
+import { Save, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
 import TopBar from '../components/layout/TopBar';
@@ -194,410 +191,178 @@ const SectionForm = () => {
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
       <TopBar title={isEditMode ? 'Edit Section' : 'Add New Section'} />
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Paper
-          elevation={0}
-          sx={{
-            p: 0,
-            borderRadius: 3,
-            boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-            background: 'white',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Header Section with Gradient */}
-          <Box
-            sx={{
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              p: 4,
-              color: 'white',
-            }}
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+      <Paper sx={{ p: 4 }}>
+        <Box display="flex" alignItems="center" mb={3}>
+          <Button
+            startIcon={<ArrowBack />}
+            onClick={() => navigate('/sections')}
+            sx={{ mr: 2 }}
           >
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Button
-                startIcon={<ArrowBack />}
-                onClick={() => navigate('/sections')}
-                sx={{
-                  color: 'white',
-                  borderColor: 'rgba(255,255,255,0.3)',
-                  '&:hover': {
-                    borderColor: 'white',
-                    bgcolor: 'rgba(255,255,255,0.1)',
-                  },
-                }}
-                variant="outlined"
-              >
-                Back to Sections
-              </Button>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Box
-                sx={{
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  borderRadius: 3,
-                  p: 2.5,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <ClassIcon sx={{ fontSize: 48 }} />
+            Back
+          </Button>
+          <Typography variant="h4" fontWeight="bold">
+            {isEditMode ? 'Edit Section' : 'Add New Section'}
+          </Typography>
+        </Box>
+
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
+
+        {success && (
+          <Alert severity="success" sx={{ mb: 3 }}>
+            {success}
+          </Alert>
+        )}
+
+        <Box component="form" onSubmit={handleSubmit}>
+          <Grid container spacing={3}>
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                required
+                label="Section Name"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                required
+                label="Section Code"
+                name="code"
+                value={formData.code}
+                onChange={handleChange}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControl fullWidth required>
+                <InputLabel>Session</InputLabel>
+                <Select
+                  name="session"
+                  value={formData.session}
+                  onChange={handleChange}
+                  label="Session"
+                >
+                  <MenuItem value="">Select Session</MenuItem>
+                  {sessions.map((s) => (
+                    <MenuItem key={s} value={s}>{s}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12}>
+              <FormControl fullWidth required>
+                <InputLabel>Class</InputLabel>
+                <Select
+                  name="class"
+                  value={formData.class}
+                  onChange={handleChange}
+                  label="Class"
+                >
+                  <MenuItem value="">Select School Class</MenuItem>
+                  {classes.map((cls) => (
+                    <MenuItem key={cls._id} value={cls._id}>
+                      {capitalizeFirstOnly(cls.name || '')}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Strength"
+                name="strength"
+                type="number"
+                value={formData.strength}
+                onChange={handleChange}
+                placeholder="Strength"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                required
+                label="Academic Year"
+                name="academicYear"
+                value={formData.academicYear}
+                onChange={handleChange}
+                placeholder="2025-2026"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Start Date"
+                name="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="End Date"
+                name="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={handleChange}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    name="isActive"
+                    checked={formData.isActive}
+                    onChange={handleChange}
+                  />
+                }
+                label="Is Active"
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 3 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => navigate('/sections')}
+                >
+                  Close
+                </Button>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  startIcon={<Save />}
+                  disabled={loading}
+                  sx={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  }}
+                >
+                  {loading ? <CircularProgress size={24} /> : 'Save'}
+                </Button>
               </Box>
-              <Box>
-                <Typography variant="h4" fontWeight="bold" sx={{ mb: 1 }}>
-                  {isEditMode ? 'Edit Section Information' : 'Create New Section'}
-                </Typography>
-                <Typography variant="body1" sx={{ opacity: 0.9 }}>
-                  {isEditMode
-                    ? 'Update section details and settings'
-                    : 'Fill in the information below to create a new class section'}
-                </Typography>
-              </Box>
-            </Box>
-          </Box>
-
-          {/* Content Section */}
-          <Box sx={{ p: 4 }}>
-            {error && (
-              <Alert
-                severity="error"
-                sx={{
-                  mb: 3,
-                  borderRadius: 2,
-                  '& .MuiAlert-icon': {
-                    fontSize: 28,
-                  },
-                }}
-                onClose={() => setError('')}
-              >
-                {error}
-              </Alert>
-            )}
-
-            {success && (
-              <Alert
-                severity="success"
-                sx={{
-                  mb: 3,
-                  borderRadius: 2,
-                  '& .MuiAlert-icon': {
-                    fontSize: 28,
-                  },
-                }}
-              >
-                {success}
-              </Alert>
-            )}
-
-            {/* Form Card */}
-            <Card
-              elevation={0}
-              sx={{
-                border: '1px solid #e9ecef',
-                borderRadius: 2,
-                mb: 3,
-              }}
-            >
-              <CardContent sx={{ p: 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                  <School sx={{ fontSize: 28, color: '#667eea' }} />
-                  <Typography variant="h6" fontWeight="bold" sx={{ color: '#1a1a1a' }}>
-                    Section Details
-                  </Typography>
-                </Box>
-                <Divider sx={{ mb: 3 }} />
-
-                <Box component="form" onSubmit={handleSubmit}>
-                  <Grid container spacing={3}>
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        required
-                        label="Section Name"
-                        name="name"
-                        value={formData.name}
-                        onChange={handleChange}
-                        placeholder="e.g., Section A, Morning Section"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        required
-                        label="Section Code"
-                        name="code"
-                        value={formData.code}
-                        onChange={handleChange}
-                        placeholder="e.g., SEC-A, MORN"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <FormControl
-                        fullWidth
-                        required
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      >
-                        <InputLabel>Session</InputLabel>
-                        <Select
-                          name="session"
-                          value={formData.session}
-                          onChange={handleChange}
-                          label="Session"
-                        >
-                          <MenuItem value="">Select Session</MenuItem>
-                          {sessions.map((s) => (
-                            <MenuItem key={s} value={s}>{s}</MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <FormControl
-                        fullWidth
-                        required
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      >
-                        <InputLabel>Class</InputLabel>
-                        <Select
-                          name="class"
-                          value={formData.class}
-                          onChange={handleChange}
-                          label="Class"
-                        >
-                          <MenuItem value="">Select School Class</MenuItem>
-                          {classes.map((cls) => (
-                            <MenuItem key={cls._id} value={cls._id}>
-                              {capitalizeFirstOnly(cls.name || '')}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Strength"
-                        name="strength"
-                        type="number"
-                        value={formData.strength}
-                        onChange={handleChange}
-                        placeholder="Maximum capacity"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        required
-                        label="Academic Year"
-                        name="academicYear"
-                        value={formData.academicYear}
-                        onChange={handleChange}
-                        placeholder="2025-2026"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="Start Date"
-                        name="startDate"
-                        type="date"
-                        value={formData.startDate}
-                        onChange={handleChange}
-                        InputLabelProps={{ shrink: true }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <TextField
-                        fullWidth
-                        label="End Date"
-                        name="endDate"
-                        type="date"
-                        value={formData.endDate}
-                        onChange={handleChange}
-                        InputLabelProps={{ shrink: true }}
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            borderRadius: 2,
-                            '&:hover fieldset': {
-                              borderColor: '#667eea',
-                            },
-                            '&.Mui-focused fieldset': {
-                              borderColor: '#667eea',
-                              borderWidth: 2,
-                            },
-                          },
-                        }}
-                      />
-                    </Grid>
-
-                    <Grid item xs={12} md={6}>
-                      <FormControlLabel
-                        control={
-                          <Checkbox
-                            name="isActive"
-                            checked={formData.isActive}
-                            onChange={handleChange}
-                            sx={{
-                              color: '#667eea',
-                              '&.Mui-checked': {
-                                color: '#667eea',
-                              },
-                            }}
-                          />
-                        }
-                        label="Is Active"
-                      />
-                    </Grid>
-
-                    <Grid item xs={12}>
-                      <Divider sx={{ my: 2 }} />
-                      <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 3 }}>
-                        <Button
-                          variant="outlined"
-                          onClick={() => navigate('/sections')}
-                          sx={{
-                            minWidth: 120,
-                            px: 3,
-                            py: 1.5,
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontSize: '1rem',
-                            borderColor: '#6c757d',
-                            color: '#6c757d',
-                            '&:hover': {
-                              borderColor: '#5c636a',
-                              bgcolor: 'rgba(108, 117, 125, 0.1)',
-                            },
-                          }}
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="submit"
-                          variant="contained"
-                          startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Save />}
-                          disabled={loading}
-                          sx={{
-                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                            minWidth: 120,
-                            px: 3,
-                            py: 1.5,
-                            borderRadius: 2,
-                            textTransform: 'none',
-                            fontSize: '1rem',
-                            fontWeight: 600,
-                            boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
-                            '&:hover': {
-                              background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
-                              boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)',
-                              transform: 'translateY(-2px)',
-                            },
-                            transition: 'all 0.3s ease',
-                            '&:disabled': {
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                              opacity: 0.6,
-                            },
-                          }}
-                        >
-                          {loading ? 'Saving...' : isEditMode ? 'Update Section' : 'Create Section'}
-                        </Button>
-                      </Box>
-                    </Grid>
-                  </Grid>
-                </Box>
-              </CardContent>
-            </Card>
-          </Box>
-        </Paper>
+            </Grid>
+          </Grid>
+        </Box>
+      </Paper>
       </Container>
     </Box>
   );
