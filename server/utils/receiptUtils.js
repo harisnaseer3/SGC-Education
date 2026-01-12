@@ -20,6 +20,7 @@ async function generateReceiptNumber({ institution, year, type = 'RCP' }) {
 
   // Use findOneAndUpdate with $inc for atomic increment
   // This ensures thread-safe counter increment even with concurrent requests
+  // When document doesn't exist, $inc will create it with seq: 1 (first receipt)
   const counter = await ReceiptCounter.findOneAndUpdate(
     {
       institution: institution,
@@ -27,7 +28,12 @@ async function generateReceiptNumber({ institution, year, type = 'RCP' }) {
       type: receiptType
     },
     {
-      $inc: { seq: 1 }
+      $inc: { seq: 1 },
+      $setOnInsert: {
+        institution: institution,
+        year: currentYear,
+        type: receiptType
+      }
     },
     {
       upsert: true, // Create if doesn't exist
@@ -36,8 +42,11 @@ async function generateReceiptNumber({ institution, year, type = 'RCP' }) {
     }
   );
 
+  // Ensure seq is a valid number
+  const seq = counter && counter.seq !== undefined ? counter.seq : 0;
+
   // Generate receipt number: RCP-YYYY-XXXXXX
-  const receiptNumber = `${receiptType}-${currentYear}-${String(counter.seq).padStart(6, '0')}`;
+  const receiptNumber = `${receiptType}-${currentYear}-${String(seq).padStart(6, '0')}`;
 
   return receiptNumber;
 }

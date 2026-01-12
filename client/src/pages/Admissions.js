@@ -38,6 +38,7 @@ import {
   ListItemText,
   Drawer,
   Divider,
+  TablePagination,
 } from '@mui/material';
 import {
   Add,
@@ -96,6 +97,7 @@ import AdmissionCharts from '../components/admissions/AdmissionCharts';
 import InstitutionSwitcher from '../components/InstitutionSwitcher';
 import AdmissionByDateReport from '../components/reports/AdmissionByDateReport';
 import AdmissionByMonthReport from '../components/reports/AdmissionByMonthReport';
+import { useTablePagination } from '../hooks/useTablePagination';
 
 const Admissions = () => {
   const navigate = useNavigate();
@@ -183,6 +185,29 @@ const Admissions = () => {
   const [selectedAllDataFields, setSelectedAllDataFields] = useState(
     allDataFieldOptions.map((f) => f.id)
   );
+
+  // Pagination hooks for all tables (default: 12 rows per page)
+  const admissionsListPagination = useTablePagination(12);
+  const searchStudentPagination = useTablePagination(12);
+  const searchAllDataPagination = useTablePagination(12);
+  const registerPagination = useTablePagination(12);
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    admissionsListPagination.resetPagination();
+  }, [selectedStatus, selectedInstitution, searchTerm, searchType]);
+
+  useEffect(() => {
+    searchStudentPagination.resetPagination();
+  }, [searchTerm, studentStatusFilter]);
+
+  useEffect(() => {
+    searchAllDataPagination.resetPagination();
+  }, [allDataStatusFilter, selectedAllDataFields]);
+
+  useEffect(() => {
+    registerPagination.resetPagination();
+  }, [searchTerm]);
   const [studentAllDataRows, setStudentAllDataRows] = useState([]);
   
   // Reports state
@@ -1293,7 +1318,7 @@ const Admissions = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAdmissions.map((admission) => (
+                admissionsListPagination.getPaginatedData(filteredAdmissions).map((admission) => (
                   <TableRow key={admission._id} hover>
                     <TableCell>
                       <Chip label={admission.applicationNumber} size="small" color="primary" variant="outlined" />
@@ -1386,6 +1411,18 @@ const Admissions = () => {
               )}
             </TableBody>
           </Table>
+          {filteredAdmissions.length > 0 && (
+            <TablePagination
+              component="div"
+              count={filteredAdmissions.length}
+              page={admissionsListPagination.page}
+              onPageChange={admissionsListPagination.handleChangePage}
+              rowsPerPage={admissionsListPagination.rowsPerPage}
+              onRowsPerPageChange={admissionsListPagination.handleChangeRowsPerPage}
+              rowsPerPageOptions={admissionsListPagination.rowsPerPageOptions}
+              labelRowsPerPage="Rows per page:"
+            />
+          )}
         </TableContainer>
       </Paper>
 
@@ -1508,20 +1545,35 @@ const Admissions = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {studentAllDataRows.map((row, idx) => (
-                      <TableRow key={row._id || idx} hover>
-                        <TableCell>{idx + 1}</TableCell>
-                        {allDataFieldOptions
-                          .filter((field) => selectedAllDataFields.includes(field.id))
-                          .map((field) => (
-                            <TableCell key={field.id}>
-                              {row[field.id] || ''}
-                            </TableCell>
-                          ))}
-                      </TableRow>
-                    ))}
+                    {searchAllDataPagination.getPaginatedData(studentAllDataRows).map((row, idx) => {
+                      const actualIndex = searchAllDataPagination.page * searchAllDataPagination.rowsPerPage + idx;
+                      return (
+                        <TableRow key={row._id || idx} hover>
+                          <TableCell>{actualIndex + 1}</TableCell>
+                          {allDataFieldOptions
+                            .filter((field) => selectedAllDataFields.includes(field.id))
+                            .map((field) => (
+                              <TableCell key={field.id}>
+                                {row[field.id] || ''}
+                              </TableCell>
+                            ))}
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
+                {studentAllDataRows.length > 0 && (
+                  <TablePagination
+                    component="div"
+                    count={studentAllDataRows.length}
+                    page={searchAllDataPagination.page}
+                    onPageChange={searchAllDataPagination.handleChangePage}
+                    rowsPerPage={searchAllDataPagination.rowsPerPage}
+                    onRowsPerPageChange={searchAllDataPagination.handleChangeRowsPerPage}
+                    rowsPerPageOptions={searchAllDataPagination.rowsPerPageOptions}
+                    labelRowsPerPage="Rows per page:"
+                  />
+                )}
               </TableContainer>
             )}
 
@@ -2732,108 +2784,139 @@ const Admissions = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {admissions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={17} align="center" sx={{ py: 4 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            No admissions found
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      admissions
-                        .filter((admission) => {
-                          if (!searchTerm) return true;
-                          const search = searchTerm.toLowerCase();
-                          const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
-                          const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                          const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                          const phone = (admission.contactInfo?.phone || '').toLowerCase();
-                          return studentName.includes(search) || 
-                                 fatherName.includes(search) || 
-                                 admissionNo.includes(search) ||
-                                 phone.includes(search);
-                        })
-                        .map((admission, index) => {
-                          const studentName = admission.personalInfo?.name || '';
-                          const dateOfBirth = admission.personalInfo?.dateOfBirth 
-                            ? new Date(admission.personalInfo.dateOfBirth).toLocaleDateString('en-GB', {
-                                day: 'numeric',
-                                month: 'long',
-                                year: 'numeric'
-                              })
-                            : 'N/A';
-                          const admissionDate = admission.createdAt 
-                            ? new Date(admission.createdAt).toLocaleDateString('en-GB')
-                            : 'N/A';
-                          const residence = admission.contactInfo?.currentAddress 
-                            ? `${admission.contactInfo.currentAddress.street || ''}, ${admission.contactInfo.currentAddress.city || ''}`.trim()
-                            : 'N/A';
-                          const className = admission.class?.name || admission.program || 'N/A';
-                          
-                          return (
-                            <TableRow key={admission._id} hover>
-                              <TableCell>{index + 1}</TableCell>
-                              <TableCell>{admissionDate}</TableCell>
-                              <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
-                              <TableCell>{studentName || 'N/A'}</TableCell>
-                              <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
-                              <TableCell>{dateOfBirth}</TableCell>
-                              <TableCell>{admission.contactInfo?.phone || 'N/A'}</TableCell>
-                              <TableCell>{admission.personalInfo?.category || ''}</TableCell>
-                              <TableCell>{admission.personalInfo?.religion || 'N/A'}</TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={admission.status || 'pending'}
+                    {(() => {
+                      const filteredRegisterAdmissions = admissions.filter((admission) => {
+                        if (!searchTerm) return true;
+                        const search = searchTerm.toLowerCase();
+                        const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                        const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                        const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                        const phone = (admission.contactInfo?.phone || '').toLowerCase();
+                        return studentName.includes(search) || 
+                               fatherName.includes(search) || 
+                               admissionNo.includes(search) ||
+                               phone.includes(search);
+                      });
+
+                      if (filteredRegisterAdmissions.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={17} align="center" sx={{ py: 4 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                No admissions found
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return registerPagination.getPaginatedData(filteredRegisterAdmissions).map((admission, idx) => {
+                        const actualIndex = registerPagination.page * registerPagination.rowsPerPage + idx;
+                        const studentName = admission.personalInfo?.name || '';
+                        const dateOfBirth = admission.personalInfo?.dateOfBirth 
+                          ? new Date(admission.personalInfo.dateOfBirth).toLocaleDateString('en-GB', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })
+                          : 'N/A';
+                        const admissionDate = admission.createdAt 
+                          ? new Date(admission.createdAt).toLocaleDateString('en-GB')
+                          : 'N/A';
+                        const residence = admission.contactInfo?.currentAddress 
+                          ? `${admission.contactInfo.currentAddress.street || ''}, ${admission.contactInfo.currentAddress.city || ''}`.trim()
+                          : 'N/A';
+                        const className = admission.class?.name || admission.program || 'N/A';
+                        
+                        return (
+                          <TableRow key={admission._id} hover>
+                            <TableCell>{actualIndex + 1}</TableCell>
+                            <TableCell>{admissionDate}</TableCell>
+                            <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
+                            <TableCell>{studentName || 'N/A'}</TableCell>
+                            <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
+                            <TableCell>{dateOfBirth}</TableCell>
+                            <TableCell>{admission.contactInfo?.phone || 'N/A'}</TableCell>
+                            <TableCell>{admission.personalInfo?.category || ''}</TableCell>
+                            <TableCell>{admission.personalInfo?.religion || 'N/A'}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={admission.status || 'pending'}
+                                size="small"
+                                color={getStatusColor(admission.status)}
+                              />
+                            </TableCell>
+                            <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {residence}
+                            </TableCell>
+                            <TableCell>{className}</TableCell>
+                            <TableCell>
+                              {admission.applicationFee?.amount && !admission.applicationFee?.paid 
+                                ? admission.applicationFee.amount 
+                                : '0'}
+                            </TableCell>
+                            <TableCell>{admission.withdrawnClass || ''}</TableCell>
+                            <TableCell>
+                              {admission.withdrawalDate 
+                                ? new Date(admission.withdrawalDate).toLocaleDateString('en-GB')
+                                : ''}
+                            </TableCell>
+                            <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {admission.remarks || ''}
+                            </TableCell>
+                            <TableCell>
+                              <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                <IconButton
                                   size="small"
-                                  color={getStatusColor(admission.status)}
-                                />
-                              </TableCell>
-                              <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {residence}
-                              </TableCell>
-                              <TableCell>{className}</TableCell>
-                              <TableCell>
-                                {admission.applicationFee?.amount && !admission.applicationFee?.paid 
-                                  ? admission.applicationFee.amount 
-                                  : '0'}
-                              </TableCell>
-                              <TableCell>{admission.withdrawnClass || ''}</TableCell>
-                              <TableCell>
-                                {admission.withdrawalDate 
-                                  ? new Date(admission.withdrawalDate).toLocaleDateString('en-GB')
-                                  : ''}
-                              </TableCell>
-                              <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {admission.remarks || ''}
-                              </TableCell>
-                              <TableCell>
-                                <Box sx={{ display: 'flex', gap: 0.5 }}>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => navigate(`/admissions/${admission._id}/edit`)}
-                                    sx={{ color: '#0d6efd' }}
-                                    title="Edit"
-                                  >
-                                    <Edit fontSize="small" />
-                                  </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleDeleteAdmission(admission._id, studentName || admission.applicationNumber)}
-                                    sx={{ color: '#dc3545' }}
-                                    title="Delete"
-                                    disabled={admission.status === 'enrolled'}
-                                  >
-                                    <Delete fontSize="small" />
-                                  </IconButton>
-                                </Box>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                    )}
+                                  onClick={() => navigate(`/admissions/${admission._id}/edit`)}
+                                  sx={{ color: '#0d6efd' }}
+                                  title="Edit"
+                                >
+                                  <Edit fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDeleteAdmission(admission._id, studentName || admission.applicationNumber)}
+                                  sx={{ color: '#dc3545' }}
+                                  title="Delete"
+                                  disabled={admission.status === 'enrolled'}
+                                >
+                                  <Delete fontSize="small" />
+                                </IconButton>
+                              </Box>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
                   </TableBody>
                 </Table>
+                {(() => {
+                  const filteredRegisterAdmissions = admissions.filter((admission) => {
+                    if (!searchTerm) return true;
+                    const search = searchTerm.toLowerCase();
+                    const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                    const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                    const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                    const phone = (admission.contactInfo?.phone || '').toLowerCase();
+                    return studentName.includes(search) || 
+                           fatherName.includes(search) || 
+                           admissionNo.includes(search) ||
+                           phone.includes(search);
+                  });
+                  return filteredRegisterAdmissions.length > 0 ? (
+                    <TablePagination
+                      component="div"
+                      count={filteredRegisterAdmissions.length}
+                      page={registerPagination.page}
+                      onPageChange={registerPagination.handleChangePage}
+                      rowsPerPage={registerPagination.rowsPerPage}
+                      onRowsPerPageChange={registerPagination.handleChangeRowsPerPage}
+                      rowsPerPageOptions={registerPagination.rowsPerPageOptions}
+                      labelRowsPerPage="Rows per page:"
+                    />
+                  ) : null;
+                })()}
               </TableContainer>
             )}
           </Paper>
@@ -2942,29 +3025,15 @@ const Admissions = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {admissions
-                      .filter(admission => admission.status === 'enrolled')
-                      .filter(admission => {
-                        if (searchTerm) {
-                          const search = searchTerm.toLowerCase();
-                          const name = (admission.personalInfo?.name || '').toLowerCase();
-                          const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                          const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                          return name.includes(search) || fatherName.includes(search) || admissionNo.includes(search);
-                        }
-                        return true;
-                      })
-                      .length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
-                          <Typography variant="body2" color="text.secondary">
-                            No students found
-                          </Typography>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      admissions
-                        .filter(admission => admission.status === 'enrolled')
+                    {(() => {
+                      const filteredSearchStudents = admissions
+                        .filter(admission => {
+                          // Apply status filter if studentStatusFilter is set
+                          if (studentStatusFilter.length > 0 && !studentStatusFilter.includes(admission.status)) {
+                            return false;
+                          }
+                          return admission.status === 'enrolled';
+                        })
                         .filter(admission => {
                           if (searchTerm) {
                             const search = searchTerm.toLowerCase();
@@ -2974,159 +3043,204 @@ const Admissions = () => {
                             return name.includes(search) || fatherName.includes(search) || admissionNo.includes(search);
                           }
                           return true;
-                        })
-                        .map((admission, index) => {
-                          const studentName = admission.personalInfo?.name || '';
-                          const isMenuOpen = studentMenuAnchor && selectedStudentForMenu?._id === admission._id;
-                          
-                          return (
-                            <TableRow key={admission._id} hover>
-                              <TableCell>{admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A'}</TableCell>
-                              <TableCell>{admission.studentId?.rollNumber || 'N/A'}</TableCell>
-                              <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
-                              <TableCell>{studentName || 'N/A'}</TableCell>
-                              <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
-                              <TableCell>{admission.class?.name || admission.program || 'N/A'}</TableCell>
-                              <TableCell>{admission.section?.name || 'N/A'}</TableCell>
-                              <TableCell>
-                                {admission.personalInfo?.dateOfBirth 
-                                  ? `${Math.floor((new Date() - new Date(admission.personalInfo.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} Years`
-                                  : 'N/A'}
-                              </TableCell>
-                              <TableCell>{admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'N/A'}</TableCell>
-                              <TableCell>{admission.orphan === 'YES' ? 'Yes' : 'No'}</TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={admission.status || 'pending'}
-                                  size="small"
-                                  color={getStatusColor(admission.status)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <IconButton
-                                  size="small"
-                                  onClick={(e) => {
-                                    setSelectedAdmission(admission);
-                                    setSelectedStudentForMenu(admission);
-                                    setStudentMenuAnchor(e.currentTarget);
-                                  }}
-                                >
-                                  <Settings />
-                                </IconButton>
-                                <Menu
-                                  anchorEl={studentMenuAnchor}
-                                  open={isMenuOpen}
-                                  onClose={() => {
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                  }}
-                                >
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Edit */ 
-                                  }}>
-                                    Edit
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Change Student Status */ 
-                                  }}>
-                                    Change Student Status
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Print Time Table */ 
-                                  }}>
-                                    Print Time Table
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Voucher History */ 
-                                  }}>
-                                    Voucher History
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Print Result Card */ 
-                                  }}>
-                                    Print Result Card
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Student Documents */ 
-                                  }}>
-                                    Student Documents
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Student Status History */ 
-                                  }}>
-                                    Student Status History
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Dossier */ 
-                                  }}>
-                                    Dossier
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Print Detail */ 
-                                  }}>
-                                    Print Detail
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement SMS History */ 
-                                  }}>
-                                    SMS History
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Attendance History */ 
-                                  }}>
-                                    Attendance History
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Remove Picture */ 
-                                  }}>
-                                    Remove Picture
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Fee Commitment */ 
-                                  }}>
-                                    Fee Commitment
-                                  </MenuItem>
-                                  <MenuItem onClick={() => { 
-                                    setStudentMenuAnchor(null);
-                                    setSelectedStudentForMenu(null);
-                                    /* TODO: Implement Stationery Status */ 
-                                  }}>
-                                    Stationery Status
-                                  </MenuItem>
-                                </Menu>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                    )}
+                        });
+
+                      if (filteredSearchStudents.length === 0) {
+                        return (
+                          <TableRow>
+                            <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
+                              <Typography variant="body2" color="text.secondary">
+                                No students found
+                              </Typography>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      }
+
+                      return searchStudentPagination.getPaginatedData(filteredSearchStudents).map((admission, idx) => {
+                        const studentName = admission.personalInfo?.name || '';
+                        const isMenuOpen = studentMenuAnchor && selectedStudentForMenu?._id === admission._id;
+                        
+                        return (
+                          <TableRow key={admission._id} hover>
+                            <TableCell>{admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A'}</TableCell>
+                            <TableCell>{admission.studentId?.rollNumber || 'N/A'}</TableCell>
+                            <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
+                            <TableCell>{studentName || 'N/A'}</TableCell>
+                            <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
+                            <TableCell>{admission.class?.name || admission.program || 'N/A'}</TableCell>
+                            <TableCell>{admission.section?.name || 'N/A'}</TableCell>
+                            <TableCell>
+                              {admission.personalInfo?.dateOfBirth 
+                                ? `${Math.floor((new Date() - new Date(admission.personalInfo.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} Years`
+                                : 'N/A'}
+                            </TableCell>
+                            <TableCell>{admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'N/A'}</TableCell>
+                            <TableCell>{admission.orphan === 'YES' ? 'Yes' : 'No'}</TableCell>
+                            <TableCell>
+                              <Chip
+                                label={admission.status || 'pending'}
+                                size="small"
+                                color={getStatusColor(admission.status)}
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  setSelectedAdmission(admission);
+                                  setSelectedStudentForMenu(admission);
+                                  setStudentMenuAnchor(e.currentTarget);
+                                }}
+                              >
+                                <Settings />
+                              </IconButton>
+                              <Menu
+                                anchorEl={studentMenuAnchor}
+                                open={isMenuOpen}
+                                onClose={() => {
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                }}
+                              >
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Edit */ 
+                                }}>
+                                  Edit
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Change Student Status */ 
+                                }}>
+                                  Change Student Status
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Print Time Table */ 
+                                }}>
+                                  Print Time Table
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Voucher History */ 
+                                }}>
+                                  Voucher History
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Print Result Card */ 
+                                }}>
+                                  Print Result Card
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Student Documents */ 
+                                }}>
+                                  Student Documents
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Student Status History */ 
+                                }}>
+                                  Student Status History
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Dossier */ 
+                                }}>
+                                  Dossier
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Print Detail */ 
+                                }}>
+                                  Print Detail
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement SMS History */ 
+                                }}>
+                                  SMS History
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Attendance History */ 
+                                }}>
+                                  Attendance History
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Remove Picture */ 
+                                }}>
+                                  Remove Picture
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Fee Commitment */ 
+                                }}>
+                                  Fee Commitment
+                                </MenuItem>
+                                <MenuItem onClick={() => { 
+                                  setStudentMenuAnchor(null);
+                                  setSelectedStudentForMenu(null);
+                                  /* TODO: Implement Stationery Status */ 
+                                }}>
+                                  Stationery Status
+                                </MenuItem>
+                              </Menu>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      });
+                    })()}
                   </TableBody>
                 </Table>
+                {(() => {
+                  const filteredSearchStudents = admissions
+                    .filter(admission => {
+                      // Apply status filter if studentStatusFilter is set
+                      if (studentStatusFilter.length > 0 && !studentStatusFilter.includes(admission.status)) {
+                        return false;
+                      }
+                      return admission.status === 'enrolled';
+                    })
+                    .filter(admission => {
+                      if (searchTerm) {
+                        const search = searchTerm.toLowerCase();
+                        const name = (admission.personalInfo?.name || '').toLowerCase();
+                        const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                        const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                        return name.includes(search) || fatherName.includes(search) || admissionNo.includes(search);
+                      }
+                      return true;
+                    });
+                  return filteredSearchStudents.length > 0 ? (
+                    <TablePagination
+                      component="div"
+                      count={filteredSearchStudents.length}
+                      page={searchStudentPagination.page}
+                      onPageChange={searchStudentPagination.handleChangePage}
+                      rowsPerPage={searchStudentPagination.rowsPerPage}
+                      onRowsPerPageChange={searchStudentPagination.handleChangeRowsPerPage}
+                      rowsPerPageOptions={searchStudentPagination.rowsPerPageOptions}
+                      labelRowsPerPage="Rows per page:"
+                    />
+                  ) : null;
+                })()}
               </TableContainer>
             )}
           </Paper>

@@ -36,6 +36,7 @@ import {
   Paper,
   IconButton,
   Checkbox,
+  TablePagination,
 } from '@mui/material';
 import {
   Search,
@@ -267,6 +268,43 @@ const FeeManagement = () => {
 
   // Institutions
   const [institutions, setInstitutions] = useState([]);
+
+  // Pagination state for all tables (default page size: 12)
+  const [pagination, setPagination] = useState({
+    feeHeads: { page: 0, rowsPerPage: 12 },
+    assignFeeStructure: { page: 0, rowsPerPage: 12 },
+    generateVoucher: { page: 0, rowsPerPage: 12 },
+    studentOperations: { page: 0, rowsPerPage: 12 },
+    printVoucher: { page: 0, rowsPerPage: 12 },
+    feeDeposit: { page: 0, rowsPerPage: 12 },
+    outstandingFees: { page: 0, rowsPerPage: 12 },
+    feeHeadSelection: { page: 0, rowsPerPage: 12 },
+    assignFeeStructureDialog: { page: 0, rowsPerPage: 12 }
+  });
+
+  // Helper function to handle pagination change
+  const handleChangePage = (tableName, event, newPage) => {
+    setPagination(prev => ({
+      ...prev,
+      [tableName]: { ...prev[tableName], page: newPage }
+    }));
+  };
+
+  // Helper function to handle rows per page change
+  const handleChangeRowsPerPage = (tableName, event) => {
+    setPagination(prev => ({
+      ...prev,
+      [tableName]: { page: 0, rowsPerPage: parseInt(event.target.value, 10) }
+    }));
+  };
+
+  // Helper function to get paginated data
+  const getPaginatedData = (data, tableName) => {
+    const { page, rowsPerPage } = pagination[tableName] || { page: 0, rowsPerPage: 12 };
+    const startIndex = page * rowsPerPage;
+    const endIndex = startIndex + rowsPerPage;
+    return data.slice(startIndex, endIndex);
+  };
 
   // Fetch admission statuses
   useEffect(() => {
@@ -561,44 +599,31 @@ const FeeManagement = () => {
       setLoading(true);
       const institutionId = user.institution?._id || user.institution;
 
+      // Use admissions endpoint directly (misc-operations endpoint doesn't exist)
       const params = {
-        institution: institutionId,
-        monthYear: miscFeeFilters.monthYear
+        institution: institutionId
       };
 
       if (miscFeeFilters.enrolled && miscFeeFilters.enrolled.length > 0) {
         params.status = miscFeeFilters.enrolled;
       }
 
-      try {
-        const response = await axios.get(`${API_URL}/fees/misc-operations/students`, createAxiosConfig({
-          params: params,
-          paramsSerializer: { indexes: null }
-        }));
-        setMiscFeeStudents(response.data.data || []);
-      } catch (err) {
-        // Fallback to admissions endpoint
-        const fallbackParams = {
-          institution: institutionId
-        };
-        if (miscFeeFilters.enrolled && miscFeeFilters.enrolled.length > 0) {
-          fallbackParams.status = miscFeeFilters.enrolled;
+      const response = await axios.get(`${API_URL}/admissions`, createAxiosConfig({
+        params: params,
+        paramsSerializer: { indexes: null }
+      }));
+
+      const admissions = response.data.data || [];
+      const transformedStudents = admissions.map(admission => transformStudentData(admission, {
+        additionalFields: {
+          school: admission.institution?.name || 'N/A',
+          advanceFee: '0',
+          lastVoucher: 'N/A'
         }
-        const fallbackResponse = await axios.get(`${API_URL}/admissions`, createAxiosConfig({
-          params: fallbackParams,
-          paramsSerializer: { indexes: null }
-        }));
-        const admissions = fallbackResponse.data.data || [];
-        const transformedStudents = admissions.map(admission => transformStudentData(admission, {
-          additionalFields: {
-            school: admission.institution?.name || 'N/A',
-            advanceFee: '0',
-            lastVoucher: 'N/A'
-          }
-        }));
-        setMiscFeeStudents(transformedStudents);
-      }
+      }));
+      setMiscFeeStudents(transformedStudents);
     } catch (err) {
+      console.error('Error fetching students:', err);
       notifyError(err.response?.data?.message || 'Failed to fetch students');
     } finally {
       setLoading(false);
@@ -798,20 +823,14 @@ const FeeManagement = () => {
         return;
       }
 
-      // Calculate academic year from monthYear filter
-      const { month: monthNum, year: yearNum } = parseMonthYear(generateVoucherFilters.monthYear);
-      const academicYear = calculateAcademicYear(monthNum, yearNum);
-
       // Fetch students with fee structures assigned
+      // Note: We don't filter by academicYear here because:
+      // 1. New students might not have academicYear set on their StudentFee records
+      // 2. We want to show all students with fee structures, regardless of academic year
+      // 3. The academic year will be used when generating vouchers, not when listing students
       const params = {
         institution: institutionId
-        // Note: academicYear is optional - if not provided, will return all student fees for the institution
       };
-      
-      // Only add academicYear if we have a valid one
-      if (academicYear) {
-        params.academicYear = academicYear;
-      }
 
       const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }));
 
@@ -2145,22 +2164,28 @@ const FeeManagement = () => {
     if (activeTab === 0) {
       fetchFeeHeads();
       fetchAvailablePriorities();
+      // Reset pagination when tab changes
+      setPagination(prev => ({ ...prev, feeHeads: { page: 0, rowsPerPage: prev.feeHeads.rowsPerPage } }));
     }
     if (activeTab === 1) {
       fetchFeeStructureMatrix();
     }
     if (activeTab === 2) {
       fetchStudentsWithoutFeeStructure();
+      setPagination(prev => ({ ...prev, assignFeeStructure: { page: 0, rowsPerPage: prev.assignFeeStructure.rowsPerPage } }));
     }
     if (activeTab === 3) {
       if (miscFeeSubTab === 0) {
         fetchGenerateVoucherStudents();
+        setPagination(prev => ({ ...prev, generateVoucher: { page: 0, rowsPerPage: prev.generateVoucher.rowsPerPage } }));
       } else if (miscFeeSubTab === 1) {
         fetchMiscFeeStudents();
+        setPagination(prev => ({ ...prev, studentOperations: { page: 0, rowsPerPage: prev.studentOperations.rowsPerPage } }));
       }
     }
     if (activeTab === 4) {
       fetchPrintVoucherStudents();
+      setPagination(prev => ({ ...prev, printVoucher: { page: 0, rowsPerPage: prev.printVoucher.rowsPerPage } }));
     }
   }, [activeTab, miscFeeSubTab, miscFeeFilters, generateVoucherFilters, printVoucherFilters, feeHeadSearchTerm]);
 
@@ -2183,6 +2208,9 @@ const FeeManagement = () => {
     try {
       setLoading(true);
       
+      // Update local state immediately for each successful update
+      const updatedStudentIds = new Set();
+      
       for (const student of selectedMiscFeeStudents) {
         try {
           await axios.put(
@@ -2194,9 +2222,21 @@ const FeeManagement = () => {
             },
             createAxiosConfig()
           );
+          updatedStudentIds.add(student._id);
         } catch (err) {
           console.error(`Error updating status for student ${student._id}:`, err);
         }
+      }
+
+      // Update local state immediately to reflect the status change
+      if (updatedStudentIds.size > 0) {
+        setMiscFeeStudents(prevStudents => 
+          prevStudents.map(student => 
+            updatedStudentIds.has(student._id)
+              ? { ...student, status: changeStatusForm.status }
+              : student
+          )
+        );
       }
 
       notifySuccess('Status updated successfully');
@@ -2207,7 +2247,9 @@ const FeeManagement = () => {
         changeDate: new Date().toISOString().split('T')[0]
       });
       setSelectedMiscFeeStudents([]);
-      fetchMiscFeeStudents();
+      
+      // Refetch to ensure data is in sync with backend
+      await fetchMiscFeeStudents();
     } catch (err) {
       notifyError(err.response?.data?.message || 'Failed to update status');
     } finally {
@@ -2306,15 +2348,16 @@ const FeeManagement = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      feeHeads
-                        .sort((a, b) => {
+                      getPaginatedData(
+                        feeHeads.sort((a, b) => {
                           // Sort: active first, then by priority
                           if (a.isActive !== b.isActive) {
                             return a.isActive ? -1 : 1;
                           }
                           return (a.priority || 0) - (b.priority || 0);
-                        })
-                        .map((feeHead) => (
+                        }),
+                        'feeHeads'
+                      ).map((feeHead) => (
                         <TableRow 
                           key={feeHead._id} 
                           hover
@@ -2392,6 +2435,18 @@ const FeeManagement = () => {
                     )}
                   </TableBody>
                 </Table>
+                {feeHeads.length > 0 && (
+                  <TablePagination
+                    component="div"
+                    count={feeHeads.length}
+                    page={pagination.feeHeads.page}
+                    onPageChange={(e, newPage) => handleChangePage('feeHeads', e, newPage)}
+                    rowsPerPage={pagination.feeHeads.rowsPerPage}
+                    onRowsPerPageChange={(e) => handleChangeRowsPerPage('feeHeads', e)}
+                    rowsPerPageOptions={[12, 25, 50, 100]}
+                    labelRowsPerPage="Rows per page:"
+                  />
+                )}
               </TableContainer>
             )}
           </Box>
@@ -2574,7 +2629,7 @@ const FeeManagement = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {studentsWithoutFeeStructure.map((student) => (
+                    {getPaginatedData(studentsWithoutFeeStructure, 'assignFeeStructure').map((student) => (
                       <TableRow key={student._id} hover>
                         <TableCell>{student.enrollmentNumber}</TableCell>
                         <TableCell>{student.rollNumber || 'N/A'}</TableCell>
@@ -2597,6 +2652,18 @@ const FeeManagement = () => {
                     ))}
                   </TableBody>
                 </Table>
+                {studentsWithoutFeeStructure.length > 0 && (
+                  <TablePagination
+                    component="div"
+                    count={studentsWithoutFeeStructure.length}
+                    page={pagination.assignFeeStructure.page}
+                    onPageChange={(e, newPage) => handleChangePage('assignFeeStructure', e, newPage)}
+                    rowsPerPage={pagination.assignFeeStructure.rowsPerPage}
+                    onRowsPerPageChange={(e) => handleChangeRowsPerPage('assignFeeStructure', e)}
+                    rowsPerPageOptions={[12, 25, 50, 100]}
+                    labelRowsPerPage="Rows per page:"
+                  />
+                )}
               </TableContainer>
             )}
           </Box>
@@ -2711,7 +2778,7 @@ const FeeManagement = () => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        generateVoucherStudents.map((student) => {
+                        getPaginatedData(generateVoucherStudents, 'generateVoucher').map((student) => {
                           const isGenerated = student.voucherStatus === 'Generated';
                           const isSelected = selectedGenerateVoucherStudents.some(s => s._id === student._id);
                           
@@ -2765,6 +2832,18 @@ const FeeManagement = () => {
                       )}
                     </TableBody>
                   </Table>
+                  {generateVoucherStudents.length > 0 && (
+                    <TablePagination
+                      component="div"
+                      count={generateVoucherStudents.length}
+                      page={pagination.generateVoucher.page}
+                      onPageChange={(e, newPage) => handleChangePage('generateVoucher', e, newPage)}
+                      rowsPerPage={pagination.generateVoucher.rowsPerPage}
+                      onRowsPerPageChange={(e) => handleChangeRowsPerPage('generateVoucher', e)}
+                      rowsPerPageOptions={[12, 25, 50, 100]}
+                      labelRowsPerPage="Rows per page:"
+                    />
+                  )}
                 </TableContainer>
 
                 {/* Total Count */}
@@ -2899,7 +2978,7 @@ const FeeManagement = () => {
                           </TableCell>
                         </TableRow>
                       ) : (
-                        miscFeeStudents.map((student) => (
+                        getPaginatedData(miscFeeStudents, 'studentOperations').map((student) => (
                           <TableRow key={student._id}>
                             <TableCell padding="checkbox">
                               <input
@@ -2933,6 +3012,18 @@ const FeeManagement = () => {
                       )}
                     </TableBody>
                   </Table>
+                  {miscFeeStudents.length > 0 && (
+                    <TablePagination
+                      component="div"
+                      count={miscFeeStudents.length}
+                      page={pagination.studentOperations.page}
+                      onPageChange={(e, newPage) => handleChangePage('studentOperations', e, newPage)}
+                      rowsPerPage={pagination.studentOperations.rowsPerPage}
+                      onRowsPerPageChange={(e) => handleChangeRowsPerPage('studentOperations', e)}
+                      rowsPerPageOptions={[12, 25, 50, 100]}
+                      labelRowsPerPage="Rows per page:"
+                    />
+                  )}
                 </TableContainer>
               </Box>
             )}
@@ -3022,7 +3113,7 @@ const FeeManagement = () => {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    printVoucherStudents.map((student) => (
+                    getPaginatedData(printVoucherStudents, 'printVoucher').map((student) => (
                       <TableRow key={student._id}>
                         <TableCell>
                           <IconButton
@@ -3068,6 +3159,18 @@ const FeeManagement = () => {
                   )}
                 </TableBody>
               </Table>
+              {printVoucherStudents.length > 0 && (
+                <TablePagination
+                  component="div"
+                  count={printVoucherStudents.length}
+                  page={pagination.printVoucher.page}
+                  onPageChange={(e, newPage) => handleChangePage('printVoucher', e, newPage)}
+                  rowsPerPage={pagination.printVoucher.rowsPerPage}
+                  onRowsPerPageChange={(e) => handleChangeRowsPerPage('printVoucher', e)}
+                  rowsPerPageOptions={[12, 25, 50, 100]}
+                  labelRowsPerPage="Rows per page:"
+                />
+              )}
             </TableContainer>
 
             {/* Total Count */}
@@ -3201,7 +3304,7 @@ const FeeManagement = () => {
                               </TableCell>
                             </TableRow>
                           ) : (
-                            manualDepositStudents.map((student) => {
+                            getPaginatedData(manualDepositStudents, 'feeDeposit').map((student) => {
                               const isPaid = student.voucherStatus === 'Paid';
                               const isSelectable = !isPaid;
                               return (
@@ -3266,6 +3369,18 @@ const FeeManagement = () => {
                           )}
                         </TableBody>
                       </Table>
+                      {manualDepositStudents.length > 0 && (
+                        <TablePagination
+                          component="div"
+                          count={manualDepositStudents.length}
+                          page={pagination.feeDeposit.page}
+                          onPageChange={(e, newPage) => handleChangePage('feeDeposit', e, newPage)}
+                          rowsPerPage={pagination.feeDeposit.rowsPerPage}
+                          onRowsPerPageChange={(e) => handleChangeRowsPerPage('feeDeposit', e)}
+                          rowsPerPageOptions={[12, 25, 50, 100]}
+                          labelRowsPerPage="Rows per page:"
+                        />
+                      )}
                     </TableContainer>
                   </CardContent>
                 </Card>
@@ -3375,7 +3490,7 @@ const FeeManagement = () => {
                                   </TableRow>
                                 </TableHead>
                                 <TableBody>
-                                  {outstandingFees.map((fee) => {
+                                  {getPaginatedData(outstandingFees, 'outstandingFees').map((fee) => {
                                     const remaining = fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0));
                                     const paymentAmount = selectedFeePayments[fee._id] || 0;
                                     return (
@@ -3421,6 +3536,18 @@ const FeeManagement = () => {
                                   })}
                                 </TableBody>
                               </Table>
+                              {outstandingFees.length > 0 && (
+                                <TablePagination
+                                  component="div"
+                                  count={outstandingFees.length}
+                                  page={pagination.outstandingFees.page}
+                                  onPageChange={(e, newPage) => handleChangePage('outstandingFees', e, newPage)}
+                                  rowsPerPage={pagination.outstandingFees.rowsPerPage}
+                                  onRowsPerPageChange={(e) => handleChangeRowsPerPage('outstandingFees', e)}
+                                  rowsPerPageOptions={[12, 25, 50, 100]}
+                                  labelRowsPerPage="Rows per page:"
+                                />
+                              )}
                             </TableContainer>
                           )}
                         </Grid>
@@ -4195,9 +4322,10 @@ const FeeManagement = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {feeHeads
-                      .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-                      .map((feeHead) => (
+                    {getPaginatedData(
+                      feeHeads.sort((a, b) => (a.priority || 0) - (b.priority || 0)),
+                      'feeHeadSelection'
+                    ).map((feeHead) => (
                         <TableRow key={feeHead._id} hover>
                           <TableCell padding="checkbox">
                             <Checkbox
@@ -4221,6 +4349,18 @@ const FeeManagement = () => {
                       ))}
                   </TableBody>
                 </Table>
+                {feeHeads.length > 0 && (
+                  <TablePagination
+                    component="div"
+                    count={feeHeads.length}
+                    page={pagination.feeHeadSelection.page}
+                    onPageChange={(e, newPage) => handleChangePage('feeHeadSelection', e, newPage)}
+                    rowsPerPage={pagination.feeHeadSelection.rowsPerPage}
+                    onRowsPerPageChange={(e) => handleChangeRowsPerPage('feeHeadSelection', e)}
+                    rowsPerPageOptions={[12, 25, 50, 100]}
+                    labelRowsPerPage="Rows per page:"
+                  />
+                )}
               </TableContainer>
             )}
           </DialogContent>

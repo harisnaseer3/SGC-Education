@@ -727,28 +727,55 @@ class FeeService {
     // Generate receipt number atomically using ReceiptCounter
     // This prevents race conditions when multiple payments are created simultaneously
     const FeePayment = require('../models/FeePayment');
-    const receiptNumber = await generateReceiptNumber({
-      institution: studentFee.institution,
-      year: new Date().getFullYear(),
-      type: 'RCP'
-    });
+    
+    // Retry logic for duplicate receipt numbers (handles race conditions)
+    let feePayment;
+    let retries = 0;
+    const maxRetries = 5;
+    
+    while (retries < maxRetries) {
+      try {
+        const receiptNumber = await generateReceiptNumber({
+          institution: studentFee.institution,
+          year: new Date().getFullYear(),
+          type: 'RCP'
+        });
 
-    // Create FeePayment record
-    const feePayment = await FeePayment.create({
-      institution: studentFee.institution,
-      student: studentFee.student,
-      studentFee: studentFeeId,
-      receiptNumber: receiptNumber,
-      amount: amount,
-      paymentDate: paymentDate || new Date(),
-      paymentMethod: paymentMethod,
-      chequeNumber: chequeNumber,
-      bankName: bankName,
-      transactionId: transactionId,
-      remarks: remarks,
-      status: 'completed',
-      collectedBy: currentUser._id
-    });
+        // Create FeePayment record with receiptNumber explicitly set
+        // This prevents the pre-save hook from generating another one
+        feePayment = await FeePayment.create({
+          institution: studentFee.institution,
+          student: studentFee.student,
+          studentFee: studentFeeId,
+          receiptNumber: receiptNumber,
+          amount: amount,
+          paymentDate: paymentDate || new Date(),
+          paymentMethod: paymentMethod,
+          chequeNumber: chequeNumber,
+          bankName: bankName,
+          transactionId: transactionId,
+          remarks: remarks,
+          status: 'completed',
+          collectedBy: currentUser._id
+        });
+        
+        // Success - break out of retry loop
+        break;
+      } catch (error) {
+        // Check if it's a duplicate key error for receiptNumber
+        if (error.code === 11000 && error.keyPattern && error.keyPattern.receiptNumber) {
+          retries++;
+          if (retries >= maxRetries) {
+            throw new ApiError(500, 'Failed to generate unique receipt number after multiple attempts. Please try again.');
+          }
+          // Wait a bit before retrying (exponential backoff)
+          await new Promise(resolve => setTimeout(resolve, 50 * retries));
+          continue;
+        }
+        // If it's not a duplicate key error, throw it immediately
+        throw error;
+      }
+    }
 
     // Update StudentFee payment tracking
     const newPaidAmount = (studentFee.paidAmount || 0) + amount;

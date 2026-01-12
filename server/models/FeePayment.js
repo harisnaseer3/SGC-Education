@@ -94,14 +94,22 @@ feePaymentSchema.pre('save', function() {
 
 // Generate receipt number before save (fallback if not set by service)
 // Uses atomic ReceiptCounter to prevent race conditions
+// Only runs if receiptNumber is not already set (service should always set it)
 feePaymentSchema.pre('save', async function() {
-  if (this.isNew && !this.receiptNumber) {
-    const { generateReceiptNumber } = require('../utils/receiptUtils');
-    this.receiptNumber = await generateReceiptNumber({
-      institution: this.institution,
-      year: new Date().getFullYear(),
-      type: 'RCP'
-    });
+  // Only generate if this is a new document AND receiptNumber is not already set
+  // The service should always set receiptNumber, so this is just a safety fallback
+  if (this.isNew && (!this.receiptNumber || this.receiptNumber.trim() === '')) {
+    try {
+      const { generateReceiptNumber } = require('../utils/receiptUtils');
+      this.receiptNumber = await generateReceiptNumber({
+        institution: this.institution,
+        year: new Date().getFullYear(),
+        type: 'RCP'
+      });
+    } catch (error) {
+      // If receipt number generation fails, throw error to prevent saving without receipt
+      throw new Error(`Failed to generate receipt number: ${error.message}`);
+    }
   }
 });
 
