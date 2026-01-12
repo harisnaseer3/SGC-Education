@@ -80,7 +80,7 @@ const FeeManagement = () => {
   const [loading, setLoading] = useState(false);
 
   // Tab name mappings
-  const tabNames = ['fee-heads', 'fee-structure', 'assign-fee-structure', 'misc-operations', 'print-voucher', 'fee-deposit'];
+  const tabNames = ['fee-heads', 'fee-structure', 'assign-fee-structure', 'misc-operations', 'print-voucher', 'fee-deposit', 'receipt'];
   const miscSubTabNames = ['generate-voucher', 'student-operations'];
 
   // Tab management - initialize from URL or default
@@ -266,6 +266,34 @@ const FeeManagement = () => {
   });
   const [recordingPayment, setRecordingPayment] = useState(false);
 
+  // Receipt
+  // Initialize receipt search with default dates (one month before today to today)
+  const getDefaultReceiptDates = () => {
+    const today = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    
+    return {
+      startDate: oneMonthAgo.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0]
+    };
+  };
+
+  const [receiptSearch, setReceiptSearch] = useState(() => {
+    const defaultDates = getDefaultReceiptDates();
+    return {
+      id: '',
+      rollNumber: '',
+      studentName: '',
+      receiptNumber: '',
+      startDate: defaultDates.startDate,
+      endDate: defaultDates.endDate
+    };
+  });
+  const [receipts, setReceipts] = useState([]);
+  const [receiptsLoading, setReceiptsLoading] = useState(false);
+  const [hasSearchedReceipts, setHasSearchedReceipts] = useState(false);
+
   // Institutions
   const [institutions, setInstitutions] = useState([]);
 
@@ -277,6 +305,7 @@ const FeeManagement = () => {
     studentOperations: { page: 0, rowsPerPage: 12 },
     printVoucher: { page: 0, rowsPerPage: 12 },
     feeDeposit: { page: 0, rowsPerPage: 12 },
+    receipt: { page: 0, rowsPerPage: 12 },
     outstandingFees: { page: 0, rowsPerPage: 12 },
     feeHeadSelection: { page: 0, rowsPerPage: 12 },
     assignFeeStructureDialog: { page: 0, rowsPerPage: 12 }
@@ -754,14 +783,29 @@ const FeeManagement = () => {
           // Calculate total remaining for fees with this voucher
           const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
 
-          // Determine voucher status based on remaining amount first
-          // If remaining is 0 or very close to 0, voucher is fully paid
+          // Determine voucher status based on remaining amount and payment timing
+          // If remaining is 0, the voucher is paid (regardless of when payment was made)
+          // This is because payments reduce the overall remaining amount
           if (totalRemainingForVoucher <= 0.01) {
             // Fully paid - remaining amount is 0
             voucherStatus = 'Paid';
           } else if (totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
             // Partially paid - some payment made but still has remaining
-            voucherStatus = 'Partial';
+            // Check if payment was made after voucher generation to determine if it's for this voucher
+            const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
+              if (!f.lastPaymentDate || !voucherGeneratedDate) {
+                // If dates are missing, assume payment is for this voucher if there's remaining
+                return true;
+              }
+              return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
+            });
+            
+            if (hasPaymentAfterVoucher) {
+              voucherStatus = 'Partial';
+            } else {
+              // Payment was made before this voucher was generated (for previous voucher)
+              voucherStatus = 'Unpaid';
+            }
           } else {
             // No payment made for this voucher
             voucherStatus = 'Unpaid';
@@ -1369,20 +1413,29 @@ const FeeManagement = () => {
                   // Calculate total remaining for fees with this voucher
                   totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
 
-                  // Check if payment was made after voucher generation
-                  const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
-                    if (!f.lastPaymentDate || !voucherGeneratedDate) return false;
-                    return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
-                  });
-
-                  // Determine voucher status based on remaining amount first
-                  // If remaining is 0 or very close to 0, voucher is fully paid
+                  // Determine voucher status based on remaining amount and payment timing
+                  // If remaining is 0, the voucher is paid (regardless of when payment was made)
+                  // This is because payments reduce the overall remaining amount
                   if (totalRemainingForVoucher <= 0.01) {
                     // Fully paid - remaining amount is 0
                     voucherStatus = 'Paid';
                   } else if (totalPaidForVoucher > 0 && totalRemainingForVoucher > 0) {
                     // Partially paid - some payment made but still has remaining
-                    voucherStatus = 'Partial';
+                    // Check if payment was made after voucher generation to determine if it's for this voucher
+                    const hasPaymentAfterVoucher = feesWithVoucher.some(f => {
+                      if (!f.lastPaymentDate || !voucherGeneratedDate) {
+                        // If dates are missing, assume payment is for this voucher if there's remaining
+                        return true;
+                      }
+                      return new Date(f.lastPaymentDate) >= voucherGeneratedDate;
+                    });
+                    
+                    if (hasPaymentAfterVoucher) {
+                      voucherStatus = 'Partial';
+                    } else {
+                      // Payment was made before this voucher was generated (for previous voucher)
+                      voucherStatus = 'Unpaid';
+                    }
                   } else {
                     // No payment made for this voucher
                     voucherStatus = 'Unpaid';
@@ -1677,6 +1730,110 @@ const FeeManagement = () => {
       notifyError(err.response?.data?.message || 'Failed to record payment');
     } finally {
       setRecordingPayment(false);
+    }
+  };
+
+  // Fetch receipts with search filters
+  const fetchReceipts = async (autoLoad = false) => {
+    try {
+      setReceiptsLoading(true);
+      setHasSearchedReceipts(true);
+      
+      // Get institution ID - retry if not available immediately (for page refresh)
+      let institutionId = getInstitutionId();
+      if (!institutionId && autoLoad) {
+        // Wait a bit for institution to load from localStorage (retry up to 3 times)
+        for (let i = 0; i < 3 && !institutionId; i++) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+          institutionId = getInstitutionId();
+        }
+      }
+
+      if (!institutionId) {
+        // Don't show error on auto-load, just set empty array
+        if (!autoLoad) {
+          notifyError('Institution ID not found. Please select an institution.');
+        }
+        setReceiptsLoading(false);
+        setReceipts([]);
+        return;
+      }
+
+      // Build search params
+      const params = {
+        institution: institutionId
+      };
+
+      // If autoLoad, use default dates from receiptSearch state (one month before today to today)
+      if (autoLoad) {
+        // Use the default dates from receiptSearch state
+        if (receiptSearch.startDate) {
+          params.startDate = receiptSearch.startDate;
+        }
+        if (receiptSearch.endDate) {
+          params.endDate = receiptSearch.endDate;
+        }
+      } else {
+        // Use search filters - always include dates if provided
+        if (receiptSearch.id) {
+          params.studentId = receiptSearch.id.trim();
+        }
+        if (receiptSearch.rollNumber) {
+          params.rollNumber = receiptSearch.rollNumber.trim();
+        }
+        if (receiptSearch.studentName) {
+          params.studentName = receiptSearch.studentName.trim();
+        }
+        if (receiptSearch.receiptNumber) {
+          params.receiptNumber = receiptSearch.receiptNumber.trim();
+        }
+        // Always include dates if they are set (they should be by default)
+        if (receiptSearch.startDate) {
+          params.startDate = receiptSearch.startDate;
+        }
+        if (receiptSearch.endDate) {
+          params.endDate = receiptSearch.endDate;
+        }
+      }
+
+      // Fetch payments/receipts - we'll need to create this endpoint or use existing one
+      // For now, using a direct query approach
+      const response = await axios.get(`${API_URL}/fees/payments`, createAxiosConfig({
+        params: params,
+        paramsSerializer: { indexes: null }
+      }));
+
+      const payments = response.data.data || response.data || [];
+      
+      // Transform payments to include student information
+      // Check if student info is already populated in the response
+      const receiptsWithStudentInfo = payments.map((payment) => {
+        const student = payment.student || {};
+        const admission = student.admission || payment.admission || {};
+        
+        return {
+          ...payment,
+          studentName: admission.personalInfo?.name || student.name || 'N/A',
+          studentId: student.enrollmentNumber || admission.applicationNumber || 'N/A',
+          rollNumber: student.rollNumber || admission.rollNumber || 'N/A',
+          class: admission.class?.name || student.class?.name || 'N/A',
+          section: admission.section?.name || 'N/A'
+        };
+      });
+
+      setReceipts(receiptsWithStudentInfo);
+    } catch (err) {
+      console.error('Error fetching receipts:', err);
+      if (err.response?.status === 404) {
+        // Endpoint doesn't exist yet, show empty list
+        setReceipts([]);
+        notifyError('Receipt endpoint not available. Please contact administrator.');
+      } else {
+        notifyError(err.response?.data?.message || 'Failed to fetch receipts');
+        setReceipts([]);
+      }
+    } finally {
+      setReceiptsLoading(false);
     }
   };
 
@@ -2183,6 +2340,11 @@ const FeeManagement = () => {
       fetchPrintVoucherStudents();
       setPagination(prev => ({ ...prev, printVoucher: { page: 0, rowsPerPage: prev.printVoucher.rowsPerPage } }));
     }
+    if (activeTab === 6) {
+      // Auto-load latest receipts (fetchReceipts handles institution check and retry)
+      fetchReceipts(true);
+      setPagination(prev => ({ ...prev, receipt: { page: 0, rowsPerPage: prev.receipt.rowsPerPage } }));
+    }
   }, [activeTab, miscFeeSubTab, miscFeeFilters, generateVoucherFilters, printVoucherFilters, feeHeadSearchTerm]);
 
   // Status color helper
@@ -2274,6 +2436,7 @@ const FeeManagement = () => {
               <Tab label="Misc Fee Operations" />
               <Tab label="Print Voucher" />
               <Tab label="Fee Deposit" />
+              <Tab label="Receipt" />
             </Tabs>
           </Box>
 
@@ -3643,6 +3806,202 @@ const FeeManagement = () => {
                     </CardContent>
                   </Card>
                 )}
+          </Box>
+        )}
+
+        {/* Tab Panel 6: Receipt */}
+        {activeTab === 6 && (
+          <Box>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 'bold' }}>
+              RECEIPT
+            </Typography>
+
+            {/* Search Filters */}
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="ID"
+                      value={receiptSearch.id}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, id: e.target.value })}
+                      placeholder="Enter ID"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Roll Number"
+                      value={receiptSearch.rollNumber}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, rollNumber: e.target.value })}
+                      placeholder="Enter roll number"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Student Name"
+                      value={receiptSearch.studentName}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, studentName: e.target.value })}
+                      placeholder="Enter student name"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Receipt Number"
+                      value={receiptSearch.receiptNumber}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, receiptNumber: e.target.value })}
+                      placeholder="Enter receipt number"
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Start Date"
+                      type="date"
+                      value={receiptSearch.startDate}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, startDate: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="End Date"
+                      type="date"
+                      value={receiptSearch.endDate}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, endDate: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'center' }}>
+                      <Typography variant="body2" color="textSecondary">
+                        Login as: {user.name || 'User'} ({user.id || 'N/A'})
+                      </Typography>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        startIcon={<Search />}
+                        sx={{ bgcolor: '#667eea' }}
+                        onClick={fetchReceipts}
+                        disabled={receiptsLoading}
+                      >
+                        {receiptsLoading ? 'Searching...' : 'Search'}
+                      </Button>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </CardContent>
+            </Card>
+
+            {/* Receipts Table */}
+            <Card>
+              <CardContent>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
+                    Receipt List {receipts.length > 0 && `(${receipts.length} receipt${receipts.length !== 1 ? 's' : ''})`}
+                  </Typography>
+                </Box>
+
+                {receiptsLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <TableContainer component={Paper}>
+                      <Table>
+                        <TableHead>
+                          <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                            <TableCell>Receipt Number</TableCell>
+                            <TableCell>Payment Date</TableCell>
+                            <TableCell>Student ID</TableCell>
+                            <TableCell>Roll #</TableCell>
+                            <TableCell>Student Name</TableCell>
+                            <TableCell>Class</TableCell>
+                            <TableCell>Section</TableCell>
+                            <TableCell align="right">Amount</TableCell>
+                            <TableCell>Payment Method</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell>Collected By</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {receipts.length === 0 ? (
+                            <TableRow>
+                              <TableCell colSpan={11} align="center">
+                                <Typography variant="body2" color="textSecondary">
+                                  No receipts found. Please search for receipts.
+                                </Typography>
+                              </TableCell>
+                            </TableRow>
+                          ) : (
+                            getPaginatedData(receipts, 'receipt').map((receipt) => (
+                              <TableRow key={receipt._id} hover>
+                                <TableCell>
+                                  <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="primary" variant="outlined" />
+                                </TableCell>
+                                <TableCell>
+                                  {receipt.paymentDate 
+                                    ? new Date(receipt.paymentDate).toLocaleDateString('en-GB')
+                                    : 'N/A'}
+                                </TableCell>
+                                <TableCell>{receipt.studentId || 'N/A'}</TableCell>
+                                <TableCell>{receipt.rollNumber || 'N/A'}</TableCell>
+                                <TableCell>{capitalizeFirstOnly(receipt.studentName || 'N/A')}</TableCell>
+                                <TableCell>{capitalizeFirstOnly(receipt.class || 'N/A')}</TableCell>
+                                <TableCell>{capitalizeFirstOnly(receipt.section || 'N/A')}</TableCell>
+                                <TableCell align="right">
+                                  Rs. {(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={receipt.paymentMethod ? receipt.paymentMethod.replace('_', ' ').toUpperCase() : 'N/A'}
+                                    size="small"
+                                    color="default"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Chip
+                                    label={receipt.status || 'completed'}
+                                    size="small"
+                                    color={
+                                      receipt.status === 'completed' ? 'success' :
+                                      receipt.status === 'pending' ? 'warning' :
+                                      receipt.status === 'failed' ? 'error' : 'default'
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell>{receipt.collectedBy?.name || 'N/A'}</TableCell>
+                              </TableRow>
+                            ))
+                          )}
+                        </TableBody>
+                      </Table>
+                      {receipts.length > 0 && (
+                        <TablePagination
+                          component="div"
+                          count={receipts.length}
+                          page={pagination.receipt.page}
+                          onPageChange={(e, newPage) => handleChangePage('receipt', e, newPage)}
+                          rowsPerPage={pagination.receipt.rowsPerPage}
+                          onRowsPerPageChange={(e) => handleChangeRowsPerPage('receipt', e)}
+                          rowsPerPageOptions={[12, 25, 50, 100]}
+                          labelRowsPerPage="Rows per page:"
+                        />
+                      )}
+                    </TableContainer>
+                  )}
+                </CardContent>
+              </Card>
           </Box>
         )}
 

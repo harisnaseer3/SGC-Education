@@ -26,5 +26,6 @@ router.post('/generate-vouchers', isAdmin, feeController.generateVouchers);
 // Payment routes
 router.post('/record-payment', isAdmin, feeController.recordPayment);
 router.get('/outstanding-balances', feeController.getOutstandingBalances);
+router.get('/payments', feeController.getPayments);
 
 module.exports = router;

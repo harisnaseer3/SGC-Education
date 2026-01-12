@@ -157,6 +157,30 @@ const getOutstandingBalances = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/v1/fees/payments
+ * @desc    Get fee payments/receipts with search filters
+ * @access  Private
+ */
+const getPayments = asyncHandler(async (req, res) => {
+  const filters = {
+    institution: req.query.institution,
+    studentId: req.query.studentId,
+    rollNumber: req.query.rollNumber,
+    studentName: req.query.studentName,
+    receiptNumber: req.query.receiptNumber,
+    startDate: req.query.startDate,
+    endDate: req.query.endDate
+  };
+
+  const payments = await feeService.getPayments(filters, req.user);
+
+  res.json({
+    success: true,
+    data: payments
+  });
+});
+
 module.exports = {
   getFeeStructureMatrix,
   getFeeStructureByClass,
@@ -166,5 +190,6 @@ module.exports = {
   getStudentFees,
   generateVouchers,
   recordPayment,
-  getOutstandingBalances
+  getOutstandingBalances,
+  getPayments
 };

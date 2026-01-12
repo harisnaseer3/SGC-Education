@@ -4,6 +4,7 @@ const Class = require('../models/Class');
 const Student = require('../models/Student');
 const StudentFee = require('../models/StudentFee');
 const Admission = require('../models/Admission');
+const FeePayment = require('../models/FeePayment');
 const { ApiError } = require('../middleware/error.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 const { generateReceiptNumber } = require('../utils/receiptUtils');
@@ -857,6 +858,119 @@ class FeeService {
       totalOutstanding: totalOutstanding,
       count: outstandingFees.length
     };
+  }
+
+  /**
+   * Get fee payments/receipts with filters
+   * Returns all payments matching the search criteria
+   */
+  async getPayments(filters = {}, currentUser) {
+    // Get institution ID
+    let institutionId;
+    if (currentUser.role !== 'super_admin') {
+      institutionId = getInstitutionId(currentUser);
+      if (!institutionId) {
+        throw new ApiError(400, 'Institution not found for user');
+      }
+    } else if (filters.institution) {
+      institutionId = extractInstitutionId(filters.institution);
+      if (!institutionId) {
+        throw new ApiError(400, 'Invalid institution');
+      }
+    } else {
+      throw new ApiError(400, 'Institution is required');
+    }
+
+    // Build query
+    const query = {
+      institution: institutionId
+    };
+
+    // Filter by receipt number
+    if (filters.receiptNumber) {
+      query.receiptNumber = { $regex: filters.receiptNumber, $options: 'i' };
+    }
+
+    // Filter by date range
+    if (filters.startDate || filters.endDate) {
+      query.paymentDate = {};
+      if (filters.startDate) {
+        query.paymentDate.$gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        query.paymentDate.$lte = endDate;
+      }
+    }
+
+    // Filter by student ID, roll number, or name
+    if (filters.studentId || filters.rollNumber || filters.studentName) {
+      // First, find matching students
+      const studentQuery = {};
+      if (filters.studentId) {
+        studentQuery.$or = [
+          { enrollmentNumber: { $regex: filters.studentId, $options: 'i' } },
+          { _id: filters.studentId }
+        ];
+      }
+      if (filters.rollNumber) {
+        if (!studentQuery.$or) studentQuery.$or = [];
+        studentQuery.$or.push({ rollNumber: { $regex: filters.rollNumber, $options: 'i' } });
+      }
+
+      const students = await Student.find(studentQuery).select('_id');
+      const studentIds = students.map(s => s._id);
+
+      // Also search in admissions if student name is provided
+      if (filters.studentName) {
+        const admissionQuery = {
+          'personalInfo.name': { $regex: filters.studentName, $options: 'i' }
+        };
+        if (filters.rollNumber) {
+          admissionQuery.rollNumber = { $regex: filters.rollNumber, $options: 'i' };
+        }
+        const admissions = await Admission.find(admissionQuery).select('studentId');
+        const admissionStudentIds = admissions
+          .map(a => a.studentId?._id || a.studentId)
+          .filter(id => id);
+        studentIds.push(...admissionStudentIds);
+      }
+
+      if (studentIds.length > 0) {
+        query.student = { $in: studentIds };
+      } else {
+        // No matching students found, return empty array
+        return [];
+      }
+    }
+
+    // Fetch payments with populated student and collectedBy
+    const payments = await FeePayment.find(query)
+      .populate({
+        path: 'student',
+        select: 'enrollmentNumber rollNumber name',
+        populate: {
+          path: 'admission',
+          select: 'personalInfo rollNumber class section applicationNumber',
+          populate: [
+            {
+              path: 'class',
+              select: 'name'
+            },
+            {
+              path: 'section',
+              select: 'name'
+            }
+          ]
+        }
+      })
+      .populate('collectedBy', 'name')
+      .populate('studentFee', 'feeHead')
+      .sort({ paymentDate: -1, createdAt: -1 })
+      .lean();
+
+    return payments;
   }
 }
 
