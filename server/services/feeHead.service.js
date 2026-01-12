@@ -1,5 +1,6 @@
 const FeeHead = require('../models/FeeHead');
 const { ApiError } = require('../middleware/error.middleware');
+const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
 /**
  * FeeHead Service - Handles fee head-related business logic
@@ -9,30 +10,58 @@ class FeeHeadService {
    * Get all fee heads (filtered by user role and institution)
    */
   async getAllFeeHeads(filters = {}, currentUser) {
-    const query = {};
+    const query = { isActive: true }; // Always show only active fee heads
 
-    // Apply institution filter based on role
+    // Build institution filter
+    // For admin users: show fee heads for their institution + global fee heads (institution: null)
+    // For super admin: show all fee heads (no filter) or filter by selected institution + global
+    const institutionConditions = [];
     if (currentUser.role !== 'super_admin') {
-      if (currentUser.institution) {
-        query.$or = [
-          { institution: currentUser.institution },
+      const userInstitutionId = getInstitutionId(currentUser);
+      if (userInstitutionId) {
+        // Show fee heads for user's institution and global fee heads
+        institutionConditions.push(
+          { institution: userInstitutionId },
           { institution: null } // Global fee heads
-        ];
+        );
+      } else {
+        // If admin has no institution, show only global fee heads
+        institutionConditions.push({ institution: null });
       }
     } else if (filters.institution) {
-      query.$or = [
-        { institution: filters.institution },
-        { institution: null } // Global fee heads
-      ];
+      const filterInstitutionId = extractInstitutionId(filters.institution);
+      if (filterInstitutionId) {
+        institutionConditions.push(
+          { institution: filterInstitutionId },
+          { institution: null } // Global fee heads
+        );
+      } else {
+        // If institution filter is invalid, show only global fee heads
+        institutionConditions.push({ institution: null });
+      }
     }
+    // For super admin with no institution filter, don't add any institution conditions (show all)
 
-    // Apply search filter
+    // Build search filter
+    const searchConditions = [];
     if (filters.search) {
-      query.$or = [
+      searchConditions.push(
         { name: { $regex: filters.search, $options: 'i' } },
         { glAccount: { $regex: filters.search, $options: 'i' } },
         { frequencyType: { $regex: filters.search, $options: 'i' } }
+      );
+    }
+
+    // Combine filters using $and if both exist
+    if (institutionConditions.length > 0 && searchConditions.length > 0) {
+      query.$and = [
+        { $or: institutionConditions },
+        { $or: searchConditions }
       ];
+    } else if (institutionConditions.length > 0) {
+      query.$or = institutionConditions;
+    } else if (searchConditions.length > 0) {
+      query.$or = searchConditions;
     }
 
     const feeHeads = await FeeHead.find(query)

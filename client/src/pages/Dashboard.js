@@ -18,6 +18,12 @@ import {
   Divider,
   Alert,
   CircularProgress,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -49,6 +55,10 @@ import {
   DirectionsBus,
   Brush,
   Hotel,
+  PendingActions,
+  ExpandMore,
+  ExpandLess,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -64,6 +74,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
+  const sidebarWidth = 280;
 
   useEffect(() => {
     fetchDashboardStats();
@@ -244,19 +255,51 @@ const Dashboard = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4, overflow: 'visible' }}>
-      {/* Top Navigation Bar */}
-      <AppBar position="static" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
+      {/* Top Navigation Bar - Fixed */}
+      <AppBar position="fixed" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+        <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: '64px !important' }}>
           <School sx={{ mr: { xs: 1, sm: 2 }, display: { xs: 'none', sm: 'block' } }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: { xs: '0.9rem', sm: '1.25rem' } }}>
+          <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1.25rem' } }}>
             SGC Education - Dashboard
           </Typography>
 
+          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mx: 2 }}>
+            <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1.1rem' }, fontWeight: 500 }}>
+              Welcome back, {user.name || 'Admin'}!
+            </Typography>
+            {selectedInstitution && (
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Business sx={{ fontSize: 18, color: 'rgba(255,255,255,0.9)' }} />
+                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+                  {selectedInstitution.name}
+                </Typography>
+                <Chip
+                  label={selectedInstitution.type}
+                  size="small"
+                  sx={{ 
+                    textTransform: 'capitalize',
+                    bgcolor: 'rgba(255,255,255,0.2)',
+                    color: 'white',
+                    height: 24,
+                    fontSize: '0.7rem'
+                  }}
+                />
+                <Chip
+                  label={selectedInstitution.isActive ? 'Active' : 'Inactive'}
+                  size="small"
+                  sx={{
+                    bgcolor: selectedInstitution.isActive ? 'rgba(76, 175, 80, 0.3)' : 'rgba(158, 158, 158, 0.3)',
+                    color: 'white',
+                    height: 24,
+                    fontSize: '0.7rem'
+                  }}
+                />
+              </Box>
+            )}
+          </Box>
+
           <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 2 } }}>
             <InstitutionSwitcher />
-            <Typography variant="body2" sx={{ display: { xs: 'none', sm: 'block' } }}>
-              {user.name}
-            </Typography>
             <IconButton
               size="large"
               onClick={handleMenu}
@@ -282,37 +325,92 @@ const Dashboard = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Dashboard Content */}
-      <Container maxWidth="xl" sx={{ mt: { xs: 2, sm: 3, md: 4 }, mb: { xs: 2, sm: 3, md: 4 }, px: { xs: 2, sm: 3 }, overflow: 'visible' }}>
-        {/* Welcome Section */}
-        <Box sx={{ mb: { xs: 3, sm: 4 } }}>
-          <Typography variant="h4" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1.5rem', sm: '2rem', md: '2.125rem' } }}>
-            Welcome back, {user.name || 'Admin'}!
-          </Typography>
-          {selectedInstitution && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-              <Business sx={{ fontSize: 20, color: 'text.secondary' }} />
-              <Typography variant="h6" color="primary" sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                {selectedInstitution.name}
+      {/* Sidebar + Content Layout */}
+      <Box sx={{ display: 'flex' }}>
+        {/* Sidebar */}
+        <Drawer
+          variant="permanent"
+          sx={{
+            width: sidebarWidth,
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: sidebarWidth,
+              boxSizing: 'border-box',
+              position: 'fixed',
+              top: 64,
+              left: 0,
+              height: 'calc(100vh - 64px)',
+              borderRight: '1px solid #e0e0e0',
+              overflowY: 'auto',
+              bgcolor: 'white',
+              zIndex: (theme) => theme.zIndex.drawer,
+            },
+          }}
+        >
+          <List sx={{ pt: 0 }}>
+            {/* Dashboard */}
+            <ListItem disablePadding>
+              <ListItemButton selected onClick={() => navigate('/dashboard')}>
+                <ListItemIcon>
+                  <DashboardIcon sx={{ color: '#667eea' }} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Dashboard"
+                  primaryTypographyProps={{
+                    fontWeight: 600,
+                    color: '#667eea',
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+
+            <Divider sx={{ my: 1 }} />
+
+            {/* Modules */}
+            <Box sx={{ px: 2, py: 1 }}>
+              <Typography variant="overline" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.75rem' }}>
+                Our Modules
               </Typography>
-              <Chip
-                label={selectedInstitution.type}
-                size="small"
-                sx={{ textTransform: 'capitalize' }}
-              />
-              <Chip
-                label={selectedInstitution.isActive ? 'Active' : 'Inactive'}
-                size="small"
-                color={selectedInstitution.isActive ? 'success' : 'default'}
-              />
             </Box>
-          )}
-          <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-            {selectedInstitution
-              ? `Managing ${selectedInstitution.name} - Here's what's happening today.`
-              : "Here's what's happening with your education platform today."}
-          </Typography>
-        </Box>
+
+            {modules.map((module, index) => (
+              <ListItem key={index} disablePadding>
+                <ListItemButton
+                  onClick={() => handleModuleClick(module)}
+                  sx={{
+                    '&:hover': {
+                      bgcolor: `${module.color}15`,
+                    },
+                  }}
+                >
+                  <ListItemIcon>
+                    {React.cloneElement(module.icon, {
+                      sx: { color: module.color, fontSize: 20 }
+                    })}
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={module.name}
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                    }}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))}
+          </List>
+        </Drawer>
+
+        {/* Main Content */}
+        <Box
+          component="main"
+          sx={{
+            flexGrow: 1,
+            width: { sm: `calc(100% - ${sidebarWidth}px)` },
+            ml: { sm: `${sidebarWidth}px` },
+            mt: '64px', // Account for fixed navbar
+          }}
+        >
+          <Container maxWidth="xl" sx={{ mt: { xs: 1, sm: 1.5 }, mb: { xs: 2, sm: 3, md: 4 }, px: { xs: 1, sm: 1.5, md: 2 }, overflow: 'visible' }}>
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }}>
@@ -320,120 +418,269 @@ const Dashboard = () => {
           </Alert>
         )}
 
+        {/* Main Layout: Cards on Left, Reports/Graphs on Right */}
+        <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
+          {/* Left Side: Statistics Cards and Modules */}
+          <Grid item xs={12} lg={8}>
+            {/* Statistics Cards Grid - 4 rows x 3 columns */}
+            {dashboardData && (
+              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    title="Total Institutions"
+                    value={dashboardData.overview.totalInstitutions}
+                    icon={<Domain />}
+                    color="#667eea"
+                    subtitle={`${dashboardData.overview.activeInstitutions} active`}
+                    trend={dashboardData.growth.institutionsLast30Days}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    title="Total Users"
+                    value={dashboardData.overview.totalUsers}
+                    icon={<People />}
+                    color="#4facfe"
+                    subtitle={`${dashboardData.users.roleBreakdown.students} students`}
+                    trend={dashboardData.growth.usersLast30Days}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    title="System Health"
+                    value="100%"
+                    icon={<Assessment />}
+                    color="#43e97b"
+                    subtitle="All systems operational"
+                  />
+                </Grid>
+                {dashboardData.users && (
+                  <>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <StatCard
+                        title="Active Students"
+                        value={dashboardData.users.roleBreakdown.students || 0}
+                        icon={<PersonAdd />}
+                        color="#feca57"
+                        subtitle={`Total Students: ${dashboardData.users.total || 0}`}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <StatCard
+                        title="Active Staff"
+                        value={dashboardData.users.roleBreakdown.teachers || 0}
+                        icon={<People />}
+                        color="#667eea"
+                        subtitle={`Total Staff: ${dashboardData.users.total || 0}`}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <StatCard
+                        title="Active Admins"
+                        value={dashboardData.users.roleBreakdown.admins || 0}
+                        icon={<SupervisorAccount />}
+                        color="#764ba2"
+                        subtitle={`Total Admins: ${(dashboardData.users.roleBreakdown.admins || 0) + (dashboardData.users.roleBreakdown.super_admin || 0)}`}
+                      />
+                    </Grid>
+                  </>
+                )}
+                {dashboardData.institutions && (
+                  <>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <StatCard
+                        title="Active Schools"
+                        value={dashboardData.institutions.typeBreakdown.schools || 0}
+                        icon={<School />}
+                        color="#f093fb"
+                        subtitle={`Total Schools: ${dashboardData.institutions.total || 0}`}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <StatCard
+                        title="Active Colleges"
+                        value={dashboardData.institutions.typeBreakdown.colleges || 0}
+                        icon={<Business />}
+                        color="#4facfe"
+                        subtitle={`Total Colleges: ${dashboardData.institutions.total || 0}`}
+                      />
+                    </Grid>
+                    <Grid item xs={12} sm={6} md={4}>
+                      <StatCard
+                        title="Active Institutions"
+                        value={dashboardData.institutions.statusBreakdown.active || 0}
+                        icon={<CheckCircle />}
+                        color="#43e97b"
+                        subtitle={`Total: ${dashboardData.institutions.total || 0}`}
+                      />
+                    </Grid>
+                  </>
+                )}
+                {/* Placeholder cards to fill the grid */}
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    title="Today's Activity"
+                    value="0"
+                    icon={<Event />}
+                    color="#fa709a"
+                    subtitle="No activity today"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    title="Pending Tasks"
+                    value="0"
+                    icon={<PendingActions />}
+                    color="#ee5a6f"
+                    subtitle="All tasks completed"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <StatCard
+                    title="Notifications"
+                    value="0"
+                    icon={<Notifications />}
+                    color="#667eea"
+                    subtitle="No new notifications"
+                  />
+                </Grid>
+              </Grid>
+            )}
+          </Grid>
+
+          {/* Right Side: Reports and Graphs */}
+          <Grid item xs={12} lg={4}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 }, position: 'sticky', top: 20 }}>
+              {/* Institution Overview Report */}
+              {dashboardData && (
+                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', bgcolor: '#667eea', color: 'white' }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, color: 'white' }}>
+                    Institution Overview Report
+                  </Typography>
+                  <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>Total Institutions</Typography>
+                    <Typography variant="h4" fontWeight="bold">{dashboardData.overview.totalInstitutions}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Active</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.statusBreakdown.active}</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Inactive</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.statusBreakdown.inactive}</Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Schools</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.typeBreakdown.schools}</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Colleges</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.typeBreakdown.colleges}</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              )}
+
+              {/* User Distribution Report */}
+              {dashboardData && (
+                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', bgcolor: '#4facfe', color: 'white' }}>
+                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, color: 'white' }}>
+                    User Distribution Report
+                  </Typography>
+                  <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>Total Users</Typography>
+                    <Typography variant="h4" fontWeight="bold">{dashboardData.users.total}</Typography>
+                  </Box>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Students</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.students}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Teachers</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.teachers}</Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Admins</Typography>
+                      <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.admins}</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              )}
+
+              {/* Quick Actions */}
+              <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+                  Quick Actions
+                </Typography>
+                <Divider sx={{ mb: 2 }} />
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    onClick={() => navigate('/institutions')}
+                    startIcon={<Domain sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                    sx={{
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      py: { xs: 1.2, sm: 1.5 },
+                      fontSize: { xs: '0.875rem', sm: '1rem' },
+                      '&:hover': {
+                        background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
+                      }
+                    }}
+                  >
+                    Manage Institutions
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/admissions')}
+                    startIcon={<PersonAdd sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                    sx={{
+                      py: { xs: 1.2, sm: 1.5 },
+                      fontSize: { xs: '0.875rem', sm: '1rem' }
+                    }}
+                  >
+                    Manage Admissions
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/fee-management')}
+                    startIcon={<Payment sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                    sx={{
+                      py: { xs: 1.2, sm: 1.5 },
+                      fontSize: { xs: '0.875rem', sm: '1rem' }
+                    }}
+                  >
+                    Fee Management
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    fullWidth
+                    onClick={() => navigate('/profile')}
+                    startIcon={<AccountCircle sx={{ fontSize: { xs: 18, sm: 20 } }} />}
+                    sx={{
+                      py: { xs: 1.2, sm: 1.5 },
+                      fontSize: { xs: '0.875rem', sm: '1rem' }
+                    }}
+                  >
+                    Profile Settings
+                  </Button>
+                </Box>
+              </Paper>
+            </Box>
+          </Grid>
+        </Grid>
+
+        {/* Detailed Statistics */}
         {dashboardData && (
           <>
-            {/* Main Statistics Cards */}
-            <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mb: { xs: 3, sm: 4 }, position: 'relative' }}>
-              <Grid item xs={12} sm={6} lg={3}>
-                <StatCard
-                  title="Total Institutions"
-                  value={dashboardData.overview.totalInstitutions}
-                  icon={<Domain />}
-                  color="#667eea"
-                  subtitle={`${dashboardData.overview.activeInstitutions} active`}
-                  trend={dashboardData.growth.institutionsLast30Days}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} lg={3}>
-                <StatCard
-                  title="Total Users"
-                  value={dashboardData.overview.totalUsers}
-                  icon={<People />}
-                  color="#4facfe"
-                  subtitle={`${dashboardData.users.roleBreakdown.students} students`}
-                  trend={dashboardData.growth.usersLast30Days}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6} lg={3}>
-                <StatCard
-                  title="System Health"
-                  value="100%"
-                  icon={<Assessment />}
-                  color="#43e97b"
-                  subtitle="All systems operational"
-                />
-              </Grid>
-            </Grid>
-
-            {/* Our Modules */}
-            <Box sx={{ mb: { xs: 4, sm: 5, md: 6 } }}>
-              <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ mb: 3, fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
-                Our Modules
-              </Typography>
-              <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
-                {modules.map((module, index) => (
-                  <Grid item xs={6} sm={4} md={3} lg={2.4} key={index} sx={{ display: 'flex' }}>
-                    <Card
-                      elevation={0}
-                      onClick={() => handleModuleClick(module)}
-                      sx={{
-                        cursor: 'pointer',
-                        background: `linear-gradient(135deg, ${module.color}35 0%, ${module.color}20 100%)`,
-                        border: `1px solid ${module.color}50`,
-                        borderRadius: 2,
-                        transition: 'all 0.3s ease',
-                        width: '100%',
-                        height: { xs: 130, sm: 160 },
-                        display: 'flex',
-                        flexDirection: 'column',
-                        '&:hover': {
-                          transform: 'translateY(-4px)',
-                          boxShadow: `0 8px 16px ${module.color}40`,
-                          border: `1px solid ${module.color}70`,
-                        }
-                      }}
-                    >
-                      <CardContent
-                        sx={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          p: { xs: 2, sm: 2.5 },
-                          textAlign: 'center',
-                          flex: 1,
-                          '&:last-child': { pb: { xs: 2, sm: 2.5 } }
-                        }}
-                      >
-                        <Box
-                          sx={{
-                            p: { xs: 1.5, sm: 2 },
-                            borderRadius: 2,
-                            backgroundColor: `${module.color}20`,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            mb: 1.5
-                          }}
-                        >
-                          {React.cloneElement(module.icon, {
-                            sx: { fontSize: { xs: 32, sm: 40 }, color: module.color }
-                          })}
-                        </Box>
-                        <Typography
-                          variant="body2"
-                          fontWeight="bold"
-                          sx={{
-                            color: module.color,
-                            fontSize: { xs: '0.75rem', sm: '0.875rem' },
-                            lineHeight: 1.3,
-                            minHeight: { xs: '2.6em', sm: '2.6em' },
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            width: '100%'
-                          }}
-                        >
-                          {module.name}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))}
-              </Grid>
-            </Box>
-
-            {/* Detailed Statistics */}
             <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mb: { xs: 4, sm: 5, md: 6 }, position: 'relative', zIndex: 1 }}>
               {/* Institution Breakdown */}
               <Grid item xs={12} md={6}>
@@ -557,10 +804,9 @@ const Dashboard = () => {
               </Grid>
             </Grid>
 
-            {/* Recent Institutions & Quick Actions */}
-            <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mt: 0, position: 'relative', zIndex: 0 }}>
-              {/* Recent Institutions */}
-              <Grid item xs={12} lg={8}>
+            {/* Recent Institutions */}
+            <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mt: { xs: 2, sm: 3 } }}>
+              <Grid item xs={12}>
                 <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0' }}>
                   <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
                     Recently Added Institutions
@@ -640,71 +886,6 @@ const Dashboard = () => {
                   )}
                 </Paper>
               </Grid>
-
-              {/* Quick Actions */}
-              <Grid item xs={12} lg={4}>
-                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                    Quick Actions
-                  </Typography>
-                  <Divider sx={{ mb: { xs: 2, sm: 2 } }} />
-
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      onClick={() => navigate('/institutions')}
-                      startIcon={<Domain sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                      sx={{
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                        py: { xs: 1.2, sm: 1.5 },
-                        fontSize: { xs: '0.875rem', sm: '1rem' },
-                        '&:hover': {
-                          background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
-                        }
-                      }}
-                    >
-                      Manage Institutions
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      onClick={() => navigate('/profile')}
-                      startIcon={<AccountCircle sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                      sx={{
-                        py: { xs: 1.2, sm: 1.5 },
-                        fontSize: { xs: '0.875rem', sm: '1rem' }
-                      }}
-                    >
-                      Profile Settings
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      onClick={() => navigate('/messages')}
-                      startIcon={<Message sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                      sx={{
-                        py: { xs: 1.2, sm: 1.5 },
-                        fontSize: { xs: '0.875rem', sm: '1rem' }
-                      }}
-                    >
-                      Messages
-                    </Button>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      onClick={() => navigate('/performance')}
-                      startIcon={<Speed sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                      sx={{
-                        py: { xs: 1.2, sm: 1.5 },
-                        fontSize: { xs: '0.875rem', sm: '1rem' }
-                      }}
-                    >
-                      Performance Monitor
-                    </Button>
-                  </Box>
-                </Paper>
-              </Grid>
             </Grid>
 
             {/* Activity Feed */}
@@ -715,14 +896,11 @@ const Dashboard = () => {
                 </Grid>
               </Grid>
             </Box>
-
-            {/* Analytics Charts */}
-            <Box sx={{ mt: { xs: 3, sm: 4 } }}>
-              <AnalyticsCharts />
-            </Box>
           </>
         )}
-      </Container>
+          </Container>
+        </Box>
+      </Box>
     </Box>
   );
 };
