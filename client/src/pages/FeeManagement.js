@@ -1817,7 +1817,8 @@ const FeeManagement = () => {
           studentId: student.enrollmentNumber || admission.applicationNumber || 'N/A',
           rollNumber: student.rollNumber || admission.rollNumber || 'N/A',
           class: admission.class?.name || student.class?.name || 'N/A',
-          section: admission.section?.name || 'N/A'
+          section: admission.section?.name || 'N/A',
+          voucherNumber: payment.voucherNumber || 'N/A'
         };
       });
 
@@ -3922,6 +3923,7 @@ const FeeManagement = () => {
                         <TableHead>
                           <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
                             <TableCell>Receipt Number</TableCell>
+                            <TableCell>Voucher Number</TableCell>
                             <TableCell>Payment Date</TableCell>
                             <TableCell>Student ID</TableCell>
                             <TableCell>Roll #</TableCell>
@@ -3930,6 +3932,7 @@ const FeeManagement = () => {
                             <TableCell>Section</TableCell>
                             <TableCell align="right">Amount</TableCell>
                             <TableCell>Payment Method</TableCell>
+                            <TableCell>Transaction ID</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Collected By</TableCell>
                           </TableRow>
@@ -3937,7 +3940,7 @@ const FeeManagement = () => {
                         <TableBody>
                           {receipts.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={11} align="center">
+                              <TableCell colSpan={13} align="center">
                                 <Typography variant="body2" color="textSecondary">
                                   No receipts found. Please search for receipts.
                                 </Typography>
@@ -3948,6 +3951,13 @@ const FeeManagement = () => {
                               <TableRow key={receipt._id} hover>
                                 <TableCell>
                                   <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="primary" variant="outlined" />
+                                </TableCell>
+                                <TableCell>
+                                  {receipt.voucherNumber && receipt.voucherNumber !== 'N/A' && receipt.voucherNumber ? (
+                                    <Chip label={receipt.voucherNumber} size="small" color="secondary" variant="outlined" />
+                                  ) : (
+                                    'N/A'
+                                  )}
                                 </TableCell>
                                 <TableCell>
                                   {receipt.paymentDate 
@@ -3968,6 +3978,9 @@ const FeeManagement = () => {
                                     size="small"
                                     color="default"
                                   />
+                                </TableCell>
+                                <TableCell>
+                                  {receipt.transactionId || 'N/A'}
                                 </TableCell>
                                 <TableCell>
                                   <Chip

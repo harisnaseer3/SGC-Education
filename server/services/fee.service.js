@@ -906,39 +906,84 @@ class FeeService {
 
     // Filter by student ID, roll number, or name
     if (filters.studentId || filters.rollNumber || filters.studentName) {
-      // First, find matching students
-      const studentQuery = {};
+      let studentIds = [];
+
+      // Search in Student collection
+      const studentQuery = { institution: institutionId };
+      const studentOrConditions = [];
+      
       if (filters.studentId) {
-        studentQuery.$or = [
-          { enrollmentNumber: { $regex: filters.studentId, $options: 'i' } },
-          { _id: filters.studentId }
-        ];
+        studentOrConditions.push(
+          { enrollmentNumber: { $regex: filters.studentId, $options: 'i' } }
+        );
+        // Also try to match as ObjectId if it's a valid ObjectId
+        try {
+          const mongoose = require('mongoose');
+          if (mongoose.Types.ObjectId.isValid(filters.studentId)) {
+            studentOrConditions.push({ _id: filters.studentId });
+          }
+        } catch (e) {
+          // Ignore if not a valid ObjectId
+        }
       }
+      
       if (filters.rollNumber) {
-        if (!studentQuery.$or) studentQuery.$or = [];
-        studentQuery.$or.push({ rollNumber: { $regex: filters.rollNumber, $options: 'i' } });
+        studentOrConditions.push({ rollNumber: { $regex: filters.rollNumber, $options: 'i' } });
       }
 
-      const students = await Student.find(studentQuery).select('_id');
-      const studentIds = students.map(s => s._id);
+      if (studentOrConditions.length > 0) {
+        studentQuery.$or = studentOrConditions;
+        const students = await Student.find(studentQuery).select('_id');
+        studentIds.push(...students.map(s => s._id));
+      }
 
-      // Also search in admissions if student name is provided
+      // Search in Student collection for student name (if Student model has name field)
       if (filters.studentName) {
-        const admissionQuery = {
-          'personalInfo.name': { $regex: filters.studentName, $options: 'i' }
+        const studentNameQuery = {
+          institution: institutionId,
+          name: { $regex: filters.studentName, $options: 'i' }
         };
+        const studentsByName = await Student.find(studentNameQuery).select('_id');
+        studentIds.push(...studentsByName.map(s => s._id));
+      }
+
+      // Search in Admission collection (for student name and roll number)
+      if (filters.studentName || filters.rollNumber) {
+        const admissionQuery = { institution: institutionId };
+        
+        if (filters.studentName) {
+          admissionQuery['personalInfo.name'] = { $regex: filters.studentName, $options: 'i' };
+        }
         if (filters.rollNumber) {
           admissionQuery.rollNumber = { $regex: filters.rollNumber, $options: 'i' };
         }
+        
         const admissions = await Admission.find(admissionQuery).select('studentId');
         const admissionStudentIds = admissions
-          .map(a => a.studentId?._id || a.studentId)
+          .map(a => {
+            // Handle both populated and unpopulated studentId
+            if (a.studentId) {
+              return typeof a.studentId === 'object' ? a.studentId._id : a.studentId;
+            }
+            return null;
+          })
           .filter(id => id);
         studentIds.push(...admissionStudentIds);
       }
 
-      if (studentIds.length > 0) {
-        query.student = { $in: studentIds };
+      // Remove duplicates (keep as ObjectIds)
+      const uniqueStudentIds = [];
+      const seenIds = new Set();
+      for (const id of studentIds) {
+        const idStr = id.toString();
+        if (!seenIds.has(idStr)) {
+          seenIds.add(idStr);
+          uniqueStudentIds.push(id);
+        }
+      }
+
+      if (uniqueStudentIds.length > 0) {
+        query.student = { $in: uniqueStudentIds };
       } else {
         // No matching students found, return empty array
         return [];
@@ -966,11 +1011,81 @@ class FeeService {
         }
       })
       .populate('collectedBy', 'name')
-      .populate('studentFee', 'feeHead')
+      .populate({
+        path: 'studentFee',
+        select: 'feeHead vouchers'
+      })
       .sort({ paymentDate: -1, createdAt: -1 })
       .lean();
 
-    return payments;
+    // Add voucher number to each payment based on payment date
+    // We need to check all StudentFee records for the student, not just the one linked to payment
+    const studentIds = [...new Set(payments.map(p => {
+      const studentId = p.student?._id || p.student;
+      return studentId ? studentId.toString() : null;
+    }).filter(Boolean))];
+    
+    const allStudentFees = studentIds.length > 0 ? await StudentFee.find({
+      student: { $in: studentIds },
+      institution: institutionId
+    }).select('student vouchers').lean() : [];
+
+    // Group student fees by student ID
+    const studentFeesByStudent = new Map();
+    for (const studentFee of allStudentFees) {
+      const studentId = studentFee.student?.toString() || studentFee.student?.toString();
+      if (!studentId) continue;
+      
+      if (!studentFeesByStudent.has(studentId)) {
+        studentFeesByStudent.set(studentId, []);
+      }
+      studentFeesByStudent.get(studentId).push(studentFee);
+    }
+
+    const paymentsWithVoucher = payments.map(payment => {
+      let voucherNumber = null;
+      
+      if (payment.paymentDate) {
+        const paymentDate = new Date(payment.paymentDate);
+        const paymentMonth = paymentDate.getMonth() + 1; // 1-12
+        const paymentYear = paymentDate.getFullYear();
+        
+        const studentId = payment.student?._id?.toString() || payment.student?.toString();
+        
+        // First, try to find voucher in the linked StudentFee
+        if (payment.studentFee && payment.studentFee.vouchers) {
+          const matchingVoucher = payment.studentFee.vouchers.find(
+            v => v.month === paymentMonth && v.year === paymentYear
+          );
+          if (matchingVoucher && matchingVoucher.voucherNumber) {
+            voucherNumber = matchingVoucher.voucherNumber;
+          }
+        }
+        
+        // If not found, check all StudentFee records for this student
+        if (!voucherNumber && studentId && studentFeesByStudent.has(studentId)) {
+          const studentFees = studentFeesByStudent.get(studentId);
+          for (const studentFee of studentFees) {
+            if (studentFee.vouchers && studentFee.vouchers.length > 0) {
+              const matchingVoucher = studentFee.vouchers.find(
+                v => v.month === paymentMonth && v.year === paymentYear
+              );
+              if (matchingVoucher && matchingVoucher.voucherNumber) {
+                voucherNumber = matchingVoucher.voucherNumber;
+                break; // Found it, no need to check further
+              }
+            }
+          }
+        }
+      }
+      
+      return {
+        ...payment,
+        voucherNumber: voucherNumber
+      };
+    });
+
+    return paymentsWithVoucher;
   }
 }
 
