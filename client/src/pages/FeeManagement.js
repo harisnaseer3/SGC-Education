@@ -995,8 +995,18 @@ const FeeManagement = () => {
     // Fetch fee head amounts for selected students
     await fetchFeeHeadAmounts();
     
-    // Select all fee heads by default
-    setSelectedFeeHeadIds(headsToUse.map(fh => fh._id));
+    // Select "Tuition Fee" and "Arrears" by default
+    const defaultFeeHeadNames = ['Tuition Fee', 'Arrears'];
+    const defaultFeeHeadIds = headsToUse
+      .filter(fh => {
+        const name = (fh.name || '').trim();
+        return defaultFeeHeadNames.some(defaultName => 
+          name.toLowerCase() === defaultName.toLowerCase()
+        );
+      })
+      .map(fh => fh._id);
+    
+    setSelectedFeeHeadIds(defaultFeeHeadIds);
     setFeeHeadSelectionDialogOpen(true);
   };
 
