@@ -63,6 +63,8 @@ import {
   ExpandMore,
   ExpandLess,
   Dashboard as DashboardIcon,
+  Menu as MenuIcon,
+  ChevronLeft as ChevronLeftIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -79,7 +81,8 @@ const Dashboard = () => {
   const [error, setError] = useState(null);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [breakdownTab, setBreakdownTab] = useState(0);
-  const sidebarWidth = 280;
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const sidebarWidth = sidebarCollapsed ? 80 : 280;
 
   useEffect(() => {
     fetchDashboardStats();
@@ -350,9 +353,18 @@ const Dashboard = () => {
       {/* Top Navigation Bar - Fixed */}
       <AppBar position="fixed" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
         <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: '64px !important' }}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            edge="start"
+            sx={{ mr: 2 }}
+          >
+            {sidebarCollapsed ? <MenuIcon /> : <ChevronLeftIcon />}
+          </IconButton>
           <School sx={{ mr: { xs: 1, sm: 2 }, display: { xs: 'none', sm: 'block' } }} />
-          <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1.25rem' } }}>
-            SGC Education - Dashboard
+          <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1.25rem' }, fontWeight: 700 }}>
+            SGC Education
           </Typography>
 
           <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mx: 2 }}>
@@ -425,6 +437,8 @@ const Dashboard = () => {
           sx={{
             width: sidebarWidth,
             flexShrink: 0,
+            whiteSpace: 'nowrap',
+            boxSizing: 'border-box',
             '& .MuiDrawer-paper': {
               width: sidebarWidth,
               boxSizing: 'border-box',
@@ -433,9 +447,13 @@ const Dashboard = () => {
               left: 0,
               height: 'calc(100vh - 64px)',
               borderRight: '1px solid #e0e0e0',
-              overflowY: 'auto',
+              overflowX: 'hidden',
               bgcolor: 'white',
               zIndex: (theme) => theme.zIndex.drawer,
+              transition: (theme) => theme.transitions.create('width', {
+                easing: theme.transitions.easing.sharp,
+                duration: theme.transitions.duration.enteringScreen,
+              }),
             },
           }}
         >
@@ -446,7 +464,10 @@ const Dashboard = () => {
                 selected 
                 onClick={() => navigate('/dashboard')}
                 sx={{
+                  minHeight: 48,
+                  px: 2.5,
                   borderRadius: 2,
+                  justifyContent: sidebarCollapsed ? 'center' : 'initial',
                   '&.Mui-selected': {
                     bgcolor: '#667eea15',
                     color: '#667eea',
@@ -455,7 +476,11 @@ const Dashboard = () => {
                   }
                 }}
               >
-                <ListItemIcon sx={{ minWidth: 40 }}>
+                <ListItemIcon sx={{ 
+                  minWidth: 0, 
+                  mr: sidebarCollapsed ? 'auto' : 3, 
+                  justifyContent: 'center' 
+                }}>
                   <DashboardIcon />
                 </ListItemIcon>
                 <ListItemText 
@@ -464,6 +489,7 @@ const Dashboard = () => {
                     fontWeight: 700,
                     fontSize: '0.9rem'
                   }}
+                  sx={{ opacity: sidebarCollapsed ? 0 : 1, transition: 'opacity 0.2s' }}
                 />
               </ListItemButton>
             </ListItem>
@@ -471,18 +497,23 @@ const Dashboard = () => {
             <Divider sx={{ my: 1 }} />
 
             {/* Modules */}
-            <Box sx={{ px: 2, py: 1 }}>
-              <Typography variant="overline" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.75rem' }}>
-                Our Modules
-              </Typography>
-            </Box>
+            {!sidebarCollapsed && (
+              <Box sx={{ px: 2, py: 1 }}>
+                <Typography variant="overline" sx={{ fontWeight: 600, color: 'text.secondary', fontSize: '0.75rem' }}>
+                  Our Modules
+                </Typography>
+              </Box>
+            )}
 
             {modules.map((module, index) => (
               <ListItem key={index} disablePadding sx={{ px: 1, mb: 0.2 }}>
                 <ListItemButton
                   onClick={() => handleModuleClick(module)}
                   sx={{
+                    minHeight: 48,
+                    px: 2.5,
                     borderRadius: 2,
+                    justifyContent: sidebarCollapsed ? 'center' : 'initial',
                     '&:hover': {
                       bgcolor: `${module.color}10`,
                       '& .MuiListItemIcon-root': { transform: 'scale(1.1)' }
@@ -490,7 +521,12 @@ const Dashboard = () => {
                     transition: 'all 0.2s ease'
                   }}
                 >
-                  <ListItemIcon sx={{ minWidth: 40, transition: 'transform 0.2s ease' }}>
+                  <ListItemIcon sx={{ 
+                    minWidth: 0, 
+                    mr: sidebarCollapsed ? 'auto' : 3, 
+                    justifyContent: 'center',
+                    transition: 'transform 0.2s ease'
+                  }}>
                     {React.cloneElement(module.icon, {
                       sx: { color: module.color, fontSize: 20 }
                     })}
@@ -502,6 +538,7 @@ const Dashboard = () => {
                       fontWeight: 500,
                       color: 'text.primary'
                     }}
+                    sx={{ opacity: sidebarCollapsed ? 0 : 1, transition: 'opacity 0.2s' }}
                   />
                 </ListItemButton>
               </ListItem>
@@ -517,8 +554,11 @@ const Dashboard = () => {
             mt: '64px', // Account for fixed navbar
             px: { xs: 2, sm: 3, md: 4 },
             py: { xs: 2, sm: 3 },
-            width: '100%',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            transition: (theme) => theme.transitions.create(['margin', 'width'], {
+              easing: theme.transitions.easing.sharp,
+              duration: theme.transitions.duration.enteringScreen,
+            }),
           }}
         >
           {error && (
