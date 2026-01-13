@@ -142,19 +142,22 @@ const AnalyticsCharts = () => {
               </Typography>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={institutionData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" style={{ fontSize: '12px' }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
+                <LineChart data={institutionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
                   <Line
                     type="monotone"
                     dataKey="count"
-                    stroke="#667eea"
-                    strokeWidth={2}
+                    stroke="#6366f1"
+                    strokeWidth={3}
                     name="New Institutions"
-                    dot={{ fill: '#667eea' }}
+                    dot={{ fill: '#6366f1', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -175,19 +178,22 @@ const AnalyticsCharts = () => {
               </Typography>
             ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={departmentData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" style={{ fontSize: '12px' }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
+                <LineChart data={departmentData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
                   <Line
                     type="monotone"
                     dataKey="count"
-                    stroke="#f093fb"
-                    strokeWidth={2}
+                    stroke="#ec4899"
+                    strokeWidth={3}
                     name="New Departments"
-                    dot={{ fill: '#f093fb' }}
+                    dot={{ fill: '#ec4899', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
                   />
                 </LineChart>
               </ResponsiveContainer>
@@ -208,16 +214,18 @@ const AnalyticsCharts = () => {
               </Typography>
             ) : (
               <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={userData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" style={{ fontSize: '12px' }} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="student" fill="#43e97b" name="Students" />
-                  <Bar dataKey="teacher" fill="#4facfe" name="Teachers" />
-                  <Bar dataKey="admin" fill="#f093fb" name="Admins" />
-                  <Bar dataKey="super_admin" fill="#667eea" name="Super Admins" />
+                <BarChart data={userData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="date" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
+                  <Bar dataKey="student" fill="#10b981" name="Students" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="teacher" fill="#06b6d4" name="Teachers" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="admin" fill="#f59e0b" name="Admins" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="super_admin" fill="#6366f1" name="Super Admins" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}

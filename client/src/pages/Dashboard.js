@@ -24,6 +24,9 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  TablePagination,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -74,6 +77,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
+  const [breakdownTab, setBreakdownTab] = useState(0);
   const sidebarWidth = 280;
 
   useEffect(() => {
@@ -171,68 +175,93 @@ const Dashboard = () => {
     }
   };
 
-  const StatCard = ({ title, value, icon, color, subtitle, trend }) => (
+  const StatCard = ({ title, value, icon, color, subtitle, trend, compact = false }) => (
     <Card
       elevation={0}
       sx={{
-        background: `linear-gradient(135deg, ${color}15 0%, ${color}05 100%)`,
-        border: `1px solid ${color}30`,
-        borderRadius: 2,
-        transition: 'all 0.3s ease',
-        display: 'flex',
-        flexDirection: 'column',
+        background: `linear-gradient(135deg, ${color}10 0%, #ffffff 100%)`,
+        border: `1px solid ${color}20`,
+        borderRadius: 3,
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        height: '100%',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         '&:hover': {
-          transform: 'translateY(-4px)',
-          boxShadow: `0 8px 16px ${color}20`
+          transform: 'translateY(-4px) scale(1.01)',
+          boxShadow: `0 12px 24px ${color}15`,
+          border: `1px solid ${color}40`,
         }
       }}
     >
-      <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { xs: 'flex-start', sm: 'flex-start' }, gap: 2 }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" color="text.secondary" gutterBottom sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
+      <CardContent sx={{ p: compact ? 2 : 2.5, '&:last-child': { pb: compact ? 2 : 2.5 } }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 0.5 }}>
               {title}
             </Typography>
-            <Typography
-              variant="h3"
-              fontWeight="bold"
-              color={color}
-              sx={{
-                mb: 1,
-                fontSize: { xs: '1.75rem', sm: '2.5rem' },
-                wordBreak: 'break-word'
-              }}
-            >
+            <Typography variant={compact ? "h5" : "h4"} fontWeight="800" color={color} sx={{ lineHeight: 1.2 }}>
               {value}
             </Typography>
-            {subtitle && (
-              <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.875rem' } }}>
-                {subtitle}
-              </Typography>
-            )}
-            {trend !== undefined && trend !== null && (
-              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                <TrendingUp sx={{ fontSize: { xs: 14, sm: 16 }, mr: 0.5, color: 'success.main' }} />
-                <Typography variant="caption" color="success.main" sx={{ fontSize: { xs: '0.65rem', sm: '0.75rem' } }}>
-                  {trend} this month
-                </Typography>
+            {(subtitle || trend) && (
+              <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                {subtitle && <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500 }}>{subtitle}</Typography>}
+                {trend && (
+                  <Chip 
+                    label={`+${trend}`}
+                    size="small"
+                    icon={<TrendingUp sx={{ fontSize: '10px !important', color: 'inherit !important' }} />}
+                    sx={{ 
+                      height: 18, 
+                      fontSize: '0.65rem', 
+                      bgcolor: 'success.main', 
+                      color: 'white',
+                      '& .MuiChip-icon': { ml: 0.5 }
+                    }}
+                  />
+                )}
               </Box>
             )}
           </Box>
-          <Box sx={{
-            p: { xs: 1, sm: 1.5 },
-            borderRadius: 2,
-            backgroundColor: `${color}20`,
+          <Box sx={{ 
+            p: 1.2, 
+            borderRadius: 2, 
+            background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
+            boxShadow: `0 4px 10px ${color}40`,
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            alignSelf: { xs: 'flex-end', sm: 'flex-start' }
+            justifyContent: 'center'
           }}>
-            {React.cloneElement(icon, { sx: { fontSize: { xs: 28, sm: 32 }, color: color } })}
+            {React.cloneElement(icon, { sx: { fontSize: compact ? 22 : 26, color: '#fff' } })}
           </Box>
         </Box>
       </CardContent>
     </Card>
+  );
+
+  const MetricGroup = ({ title, metrics, color }) => (
+    <Paper elevation={0} sx={{ 
+      p: 2.5, 
+      borderRadius: 3, 
+      border: '1px solid #edf2f7', 
+      height: '100%',
+      boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+      transition: 'box-shadow 0.3s ease',
+      '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.05)' }
+    }}>
+      <Typography variant="subtitle2" fontWeight="800" gutterBottom sx={{ color: 'text.primary', display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
+        <Box sx={{ width: 4, height: 18, bgcolor: color, borderRadius: 1 }} />
+        {title}
+      </Typography>
+      <Grid container spacing={2}>
+        {metrics.map((m, i) => (
+          <Grid item xs={4} key={i}>
+            <Box sx={{ textAlign: 'center' }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5, fontWeight: 500 }}>{m.label}</Typography>
+              <Typography variant="h6" fontWeight="bold" color={color}>{m.value}</Typography>
+            </Box>
+          </Grid>
+        ))}
+      </Grid>
+    </Paper>
   );
 
   if (loading) {
@@ -349,16 +378,28 @@ const Dashboard = () => {
         >
           <List sx={{ pt: 0 }}>
             {/* Dashboard */}
-            <ListItem disablePadding>
-              <ListItemButton selected onClick={() => navigate('/dashboard')}>
-                <ListItemIcon>
-                  <DashboardIcon sx={{ color: '#667eea' }} />
+            <ListItem disablePadding sx={{ px: 1, mb: 0.5 }}>
+              <ListItemButton 
+                selected 
+                onClick={() => navigate('/dashboard')}
+                sx={{
+                  borderRadius: 2,
+                  '&.Mui-selected': {
+                    bgcolor: '#667eea15',
+                    color: '#667eea',
+                    '& .MuiListItemIcon-root': { color: '#667eea' },
+                    '&:hover': { bgcolor: '#667eea25' }
+                  }
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <DashboardIcon />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Dashboard"
                   primaryTypographyProps={{
-                    fontWeight: 600,
-                    color: '#667eea',
+                    fontWeight: 700,
+                    fontSize: '0.9rem'
                   }}
                 />
               </ListItemButton>
@@ -374,16 +415,19 @@ const Dashboard = () => {
             </Box>
 
             {modules.map((module, index) => (
-              <ListItem key={index} disablePadding>
+              <ListItem key={index} disablePadding sx={{ px: 1, mb: 0.2 }}>
                 <ListItemButton
                   onClick={() => handleModuleClick(module)}
                   sx={{
+                    borderRadius: 2,
                     '&:hover': {
-                      bgcolor: `${module.color}15`,
+                      bgcolor: `${module.color}10`,
+                      '& .MuiListItemIcon-root': { transform: 'scale(1.1)' }
                     },
+                    transition: 'all 0.2s ease'
                   }}
                 >
-                  <ListItemIcon>
+                  <ListItemIcon sx={{ minWidth: 40, transition: 'transform 0.2s ease' }}>
                     {React.cloneElement(module.icon, {
                       sx: { color: module.color, fontSize: 20 }
                     })}
@@ -391,7 +435,9 @@ const Dashboard = () => {
                   <ListItemText 
                     primary={module.name}
                     primaryTypographyProps={{
-                      fontSize: '0.875rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      color: 'text.primary'
                     }}
                   />
                 </ListItemButton>
@@ -416,486 +462,304 @@ const Dashboard = () => {
           </Alert>
         )}
 
-        {/* Main Layout: Cards on Left, Reports/Graphs on Right */}
-        <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
-          {/* Left Side: Statistics Cards and Modules */}
-          <Grid item xs={12} md={8}>
-            {/* Statistics Cards Grid - 4 rows x 3 columns */}
-            {dashboardData && (
-              <Grid container spacing={{ xs: 1.5, sm: 2 }} sx={{ mb: { xs: 2, sm: 3 } }}>
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    title="Total Institutions"
-                    value={dashboardData.overview.totalInstitutions}
-                    icon={<Domain />}
-                    color="#667eea"
-                    subtitle={`${dashboardData.overview.activeInstitutions} active`}
-                    trend={dashboardData.growth.institutionsLast30Days}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    title="Total Users"
-                    value={dashboardData.overview.totalUsers}
-                    icon={<People />}
-                    color="#4facfe"
-                    subtitle={`${dashboardData.users.roleBreakdown.students} students`}
-                    trend={dashboardData.growth.usersLast30Days}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    title="System Health"
-                    value="100%"
-                    icon={<Assessment />}
-                    color="#43e97b"
-                    subtitle="All systems operational"
-                  />
-                </Grid>
-                {dashboardData.users && (
-                  <>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <StatCard
-                        title="Active Students"
-                        value={dashboardData.users.roleBreakdown.students || 0}
-                        icon={<PersonAdd />}
-                        color="#feca57"
-                        subtitle={`Total Students: ${dashboardData.users.total || 0}`}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <StatCard
-                        title="Active Staff"
-                        value={dashboardData.users.roleBreakdown.teachers || 0}
-                        icon={<People />}
-                        color="#667eea"
-                        subtitle={`Total Staff: ${dashboardData.users.total || 0}`}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <StatCard
-                        title="Active Admins"
-                        value={dashboardData.users.roleBreakdown.admins || 0}
-                        icon={<SupervisorAccount />}
-                        color="#764ba2"
-                        subtitle={`Total Admins: ${(dashboardData.users.roleBreakdown.admins || 0) + (dashboardData.users.roleBreakdown.super_admin || 0)}`}
-                      />
-                    </Grid>
-                  </>
-                )}
-                {dashboardData.institutions && (
-                  <>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <StatCard
-                        title="Active Schools"
-                        value={dashboardData.institutions.typeBreakdown.schools || 0}
-                        icon={<School />}
-                        color="#f093fb"
-                        subtitle={`Total Schools: ${dashboardData.institutions.total || 0}`}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <StatCard
-                        title="Active Colleges"
-                        value={dashboardData.institutions.typeBreakdown.colleges || 0}
-                        icon={<Business />}
-                        color="#4facfe"
-                        subtitle={`Total Colleges: ${dashboardData.institutions.total || 0}`}
-                      />
-                    </Grid>
-                    <Grid item xs={12} sm={6} md={4}>
-                      <StatCard
-                        title="Active Institutions"
-                        value={dashboardData.institutions.statusBreakdown.active || 0}
-                        icon={<CheckCircle />}
-                        color="#43e97b"
-                        subtitle={`Total: ${dashboardData.institutions.total || 0}`}
-                      />
-                    </Grid>
-                  </>
-                )}
-                {/* Placeholder cards to fill the grid */}
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    title="Today's Activity"
-                    value="0"
-                    icon={<Event />}
-                    color="#fa709a"
-                    subtitle="No activity today"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    title="Pending Tasks"
-                    value="0"
-                    icon={<PendingActions />}
-                    color="#ee5a6f"
-                    subtitle="All tasks completed"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={4}>
-                  <StatCard
-                    title="Notifications"
-                    value="0"
-                    icon={<Notifications />}
-                    color="#667eea"
-                    subtitle="No new notifications"
-                  />
-                </Grid>
-              </Grid>
-            )}
-          </Grid>
-
-          {/* Right Side: Reports and Graphs */}
-          <Grid item xs={12} md={4}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 2, sm: 3 }, position: 'sticky', top: 20 }}>
-              {/* Institution Overview Report */}
-              {dashboardData && (
-                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', bgcolor: '#667eea', color: 'white' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, color: 'white' }}>
-                    Institution Overview Report
-                  </Typography>
-                  <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>Total Institutions</Typography>
-                    <Typography variant="h4" fontWeight="bold">{dashboardData.overview.totalInstitutions}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Active</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.statusBreakdown.active}</Typography>
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Inactive</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.statusBreakdown.inactive}</Typography>
-                    </Box>
-                  </Box>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Schools</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.typeBreakdown.schools}</Typography>
-                    </Box>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Colleges</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.institutions.typeBreakdown.colleges}</Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              )}
-
-              {/* User Distribution Report */}
-              {dashboardData && (
-                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', bgcolor: '#4facfe', color: 'white' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' }, color: 'white' }}>
-                    User Distribution Report
-                  </Typography>
-                  <Divider sx={{ mb: 2, borderColor: 'rgba(255,255,255,0.3)' }} />
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" sx={{ mb: 1, opacity: 0.9 }}>Total Users</Typography>
-                    <Typography variant="h4" fontWeight="bold">{dashboardData.users.total}</Typography>
-                  </Box>
-                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Students</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.students}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Teachers</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.teachers}</Typography>
-                    </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>Admins</Typography>
-                      <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.admins}</Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              )}
-
-              {/* Quick Actions */}
-              <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0' }}>
-                <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                  Quick Actions
-                </Typography>
-                <Divider sx={{ mb: 2 }} />
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: { xs: 1.5, sm: 2 } }}>
-                  <Button
-                    variant="contained"
-                    fullWidth
-                    onClick={() => navigate('/institutions')}
-                    startIcon={<Domain sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                    sx={{
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      py: { xs: 1.2, sm: 1.5 },
-                      fontSize: { xs: '0.875rem', sm: '1rem' },
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
-                      }
-                    }}
-                  >
-                    Manage Institutions
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    onClick={() => navigate('/admissions')}
-                    startIcon={<PersonAdd sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                    sx={{
-                      py: { xs: 1.2, sm: 1.5 },
-                      fontSize: { xs: '0.875rem', sm: '1rem' }
-                    }}
-                  >
-                    Manage Admissions
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    onClick={() => navigate('/fee-management')}
-                    startIcon={<Payment sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                    sx={{
-                      py: { xs: 1.2, sm: 1.5 },
-                      fontSize: { xs: '0.875rem', sm: '1rem' }
-                    }}
-                  >
-                    Fee Management
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    fullWidth
-                    onClick={() => navigate('/profile')}
-                    startIcon={<AccountCircle sx={{ fontSize: { xs: 18, sm: 20 } }} />}
-                    sx={{
-                      py: { xs: 1.2, sm: 1.5 },
-                      fontSize: { xs: '0.875rem', sm: '1rem' }
-                    }}
-                  >
-                    Profile Settings
-                  </Button>
-                </Box>
-              </Paper>
-            </Box>
-          </Grid>
-        </Grid>
-
-        {/* Detailed Statistics */}
+        {/* Main Layout Area */}
+        {/* Compact Stats Row */}
         {dashboardData && (
-          <>
-            <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mb: { xs: 4, sm: 5, md: 6 }, position: 'relative', zIndex: 1 }}>
-              {/* Institution Breakdown */}
-              <Grid item xs={12} md={6}>
-                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                    Institution Overview
-                  </Typography>
-                  <Divider sx={{ mb: { xs: 2, sm: 3 } }} />
-
-                  <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        Schools
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {dashboardData.institutions.typeBreakdown.schools}
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={dashboardData.institutions.total > 0 ? (dashboardData.institutions.typeBreakdown.schools / dashboardData.institutions.total) * 100 : 0}
-                      sx={{ height: { xs: 6, sm: 8 }, borderRadius: 4, bgcolor: '#667eea20', '& .MuiLinearProgress-bar': { bgcolor: '#667eea' } }}
-                    />
-                  </Box>
-
-                  <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        Colleges
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {dashboardData.institutions.typeBreakdown.colleges}
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={dashboardData.institutions.total > 0 ? (dashboardData.institutions.typeBreakdown.colleges / dashboardData.institutions.total) * 100 : 0}
-                      sx={{ height: { xs: 6, sm: 8 }, borderRadius: 4, bgcolor: '#f093fb20', '& .MuiLinearProgress-bar': { bgcolor: '#f093fb' } }}
-                    />
-                  </Box>
-
-                  <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, mt: { xs: 2, sm: 3 }, mb: 0 }}>
-                    <Box sx={{ flex: 1, p: { xs: 1.5, sm: 2 }, bgcolor: '#43e97b10', borderRadius: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <CheckCircle sx={{ fontSize: { xs: 18, sm: 20 }, color: '#43e97b', mr: 1 }} />
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Active</Typography>
-                      </Box>
-                      <Typography variant="h5" fontWeight="bold" color="#43e97b" sx={{ fontSize: { xs: '1.5rem', sm: '1.5rem' } }}>
-                        {dashboardData.institutions.statusBreakdown.active}
-                      </Typography>
-                    </Box>
-                    <Box sx={{ flex: 1, p: { xs: 1.5, sm: 2 }, bgcolor: '#ff616120', borderRadius: 2 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                        <Cancel sx={{ fontSize: { xs: 18, sm: 20 }, color: '#ff6161', mr: 1 }} />
-                        <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Inactive</Typography>
-                      </Box>
-                      <Typography variant="h5" fontWeight="bold" color="#ff6161" sx={{ fontSize: { xs: '1.5rem', sm: '1.5rem' } }}>
-                        {dashboardData.institutions.statusBreakdown.inactive}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Grid>
-
-              {/* User Breakdown */}
-              <Grid item xs={12} md={6}>
-                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, pb: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                    User Distribution
-                  </Typography>
-                  <Divider sx={{ mb: { xs: 2, sm: 3 } }} />
-
-                  <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        Students
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {dashboardData.users.roleBreakdown.students}
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={dashboardData.users.total > 0 ? (dashboardData.users.roleBreakdown.students / dashboardData.users.total) * 100 : 0}
-                      sx={{ height: { xs: 6, sm: 8 }, borderRadius: 4, bgcolor: '#4facfe20', '& .MuiLinearProgress-bar': { bgcolor: '#4facfe' } }}
-                    />
-                  </Box>
-
-                  <Box sx={{ mb: { xs: 2, sm: 3 } }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        Teachers
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {dashboardData.users.roleBreakdown.teachers}
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={dashboardData.users.total > 0 ? (dashboardData.users.roleBreakdown.teachers / dashboardData.users.total) * 100 : 0}
-                      sx={{ height: { xs: 6, sm: 8 }, borderRadius: 4, bgcolor: '#f093fb20', '& .MuiLinearProgress-bar': { bgcolor: '#f093fb' } }}
-                    />
-                  </Box>
-
-                  <Box sx={{ mb: 0 }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, alignItems: 'center' }}>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        Admins
-                      </Typography>
-                      <Typography variant="body2" fontWeight="bold" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                        {dashboardData.users.roleBreakdown.admins}
-                      </Typography>
-                    </Box>
-                    <LinearProgress
-                      variant="determinate"
-                      value={dashboardData.users.total > 0 ? (dashboardData.users.roleBreakdown.admins / dashboardData.users.total) * 100 : 0}
-                      sx={{ height: { xs: 6, sm: 8 }, borderRadius: 4, bgcolor: '#667eea20', '& .MuiLinearProgress-bar': { bgcolor: '#667eea' } }}
-                    />
-                  </Box>
-                </Paper>
-              </Grid>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                compact
+                title="Total Institutions"
+                value={dashboardData.overview.totalInstitutions}
+                icon={<Domain />}
+                color="#667eea"
+                subtitle={`${dashboardData.overview.activeInstitutions} active`}
+                trend={dashboardData.growth.institutionsLast30Days}
+              />
             </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                compact
+                title="Total Users"
+                value={dashboardData.overview.totalUsers}
+                icon={<People />}
+                color="#4facfe"
+                subtitle={`${dashboardData.users.roleBreakdown.students} students`}
+                trend={dashboardData.growth.usersLast30Days}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                compact
+                title="System Health"
+                value="100%"
+                icon={<Assessment />}
+                color="#43e97b"
+                subtitle="All systems operational"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <StatCard
+                compact
+                title="Today's Activity"
+                value="0"
+                icon={<Notifications />}
+                color="#fa709a"
+                subtitle="No alerts today"
+              />
+            </Grid>
+          </Grid>
+        )}
 
-            {/* Recent Institutions */}
-            <Grid container spacing={{ xs: 2, sm: 2, md: 3 }} sx={{ mt: { xs: 2, sm: 3 } }}>
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+          {/* Main Dashboard Area */}
+          <Grid item xs={12} md={8}>
+            <Grid container spacing={2}>
+              {/* Grouped Metrics Row */}
+              {dashboardData && (
+                <>
+                  <Grid item xs={12} sm={6}>
+                    <MetricGroup 
+                      title="Institution Distribution"
+                      color="#f093fb"
+                      metrics={[
+                        { label: 'Schools', value: dashboardData.institutions.typeBreakdown.schools || 0 },
+                        { label: 'Colleges', value: dashboardData.institutions.typeBreakdown.colleges || 0 },
+                        { label: 'Active', value: dashboardData.institutions.statusBreakdown.active || 0 },
+                      ]}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <MetricGroup 
+                      title="User Distribution"
+                      color="#4facfe"
+                      metrics={[
+                        { label: 'Students', value: dashboardData.users.roleBreakdown.students || 0 },
+                        { label: 'Staff', value: dashboardData.users.roleBreakdown.teachers || 0 },
+                        { label: 'Admins', value: dashboardData.users.roleBreakdown.admins || 0 },
+                      ]}
+                    />
+                  </Grid>
+                </>
+              )}
+
+              {/* Tabbed Breakdowns */}
               <Grid item xs={12}>
-                <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 2, border: '1px solid #e0e0e0' }}>
-                  <Typography variant="h6" fontWeight="bold" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
-                    Recently Added Institutions
-                  </Typography>
-                  <Divider sx={{ mb: { xs: 2, sm: 2 } }} />
-
-                  {dashboardData.recentInstitutions.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-                      No institutions added yet.
-                    </Typography>
-                  ) : (
-                    <Box>
-                      {dashboardData.recentInstitutions.map((institution, index) => (
-                        <Box
-                          key={institution._id}
-                          sx={{
-                            p: { xs: 1.5, sm: 2 },
-                            mb: index < dashboardData.recentInstitutions.length - 1 ? { xs: 1.5, sm: 2 } : 0,
-                            bgcolor: '#f8f9fa',
-                            borderRadius: 2,
-                            display: 'flex',
-                            flexDirection: { xs: 'column', sm: 'row' },
-                            alignItems: { xs: 'flex-start', sm: 'center' },
-                            justifyContent: 'space-between',
-                            gap: { xs: 1.5, sm: 2 }
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1.5, sm: 2 }, width: { xs: '100%', sm: 'auto' } }}>
-                            <Box sx={{
-                              p: { xs: 1, sm: 1.5 },
-                              bgcolor: institution.type === 'school' ? '#667eea20' : '#f093fb20',
-                              borderRadius: 2,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center'
-                            }}>
-                              {institution.type === 'school' ? (
-                                <School sx={{ color: '#667eea', fontSize: { xs: 20, sm: 24 } }} />
-                              ) : (
-                                <Business sx={{ color: '#f093fb', fontSize: { xs: 20, sm: 24 } }} />
-                              )}
-                            </Box>
-                            <Box sx={{ flex: 1, minWidth: 0 }}>
-                              <Typography variant="body1" fontWeight="bold" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' }, wordBreak: 'break-word' }}>
-                                {institution.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" sx={{ fontSize: { xs: '0.7rem', sm: '0.75rem' }, display: 'block' }}>
-                                Code: {institution.code} • Added {new Date(institution.createdAt).toLocaleDateString()}
-                              </Typography>
-                            </Box>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-                            <Chip
-                              label={institution.type}
-                              size="small"
-                              sx={{
-                                textTransform: 'capitalize',
-                                bgcolor: institution.type === 'school' ? '#667eea20' : '#f093fb20',
-                                color: institution.type === 'school' ? '#667eea' : '#f093fb',
-                                fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                                height: { xs: 24, sm: 28 }
-                              }}
-                            />
-                            <Chip
-                              label={institution.isActive ? 'Active' : 'Inactive'}
-                              size="small"
-                              color={institution.isActive ? 'success' : 'default'}
-                              sx={{
-                                fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                                height: { xs: 24, sm: 28 }
-                              }}
-                            />
-                          </Box>
-                        </Box>
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+                    <Tabs 
+                      value={breakdownTab} 
+                      onChange={(e, v) => setBreakdownTab(v)} 
+                      centered
+                      sx={{
+                        minHeight: 40,
+                        bgcolor: '#f1f5f9',
+                        borderRadius: 10,
+                        p: 0.5,
+                        '& .MuiTabs-indicator': {
+                          display: 'none'
+                        }
+                      }}
+                    >
+                      {[
+                        { label: 'Institution Overview', icon: <Business /> },
+                        { label: 'User Breakdown', icon: <People /> }
+                      ].map((tab, idx) => (
+                        <Tab 
+                          key={idx}
+                          label={tab.label}
+                          icon={React.cloneElement(tab.icon, { sx: { fontSize: 18 } })}
+                          iconPosition="start"
+                          sx={{ 
+                            textTransform: 'none', 
+                            fontWeight: 700, 
+                            minHeight: 32,
+                            borderRadius: 10,
+                            px: 3,
+                            fontSize: '0.8rem',
+                            color: 'text.secondary',
+                            '&.Mui-selected': {
+                              bgcolor: 'white',
+                              color: '#667eea',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
+                            },
+                            transition: 'all 0.2s ease'
+                          }} 
+                        />
                       ))}
+                    </Tabs>
+                  </Box>
+
+                  {dashboardData && (
+                    <Box sx={{ py: 1 }}>
+                      {breakdownTab === 0 ? (
+                        <Grid container spacing={3}>
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{ mb: 2 }}>
+                              <Box display="flex" justifyContent="space-between" mb={1}>
+                                <Typography variant="body2">Schools</Typography>
+                                <Typography variant="body2" fontWeight="bold">{dashboardData.institutions.typeBreakdown.schools}</Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={(dashboardData.institutions.typeBreakdown.schools / dashboardData.institutions.total) * 100} 
+                                sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { borderRadius: 5, background: 'linear-gradient(90deg, #667eea 0%, #764ba2 100%)' } }} 
+                              />
+                            </Box>
+                            <Box>
+                              <Box display="flex" justifyContent="space-between" mb={1}>
+                                <Typography variant="caption" fontWeight="bold">Colleges</Typography>
+                                <Typography variant="caption" fontWeight="bold">{dashboardData.institutions.typeBreakdown.colleges}</Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={(dashboardData.institutions.typeBreakdown.colleges / dashboardData.institutions.total) * 100} 
+                                sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { borderRadius: 5, background: 'linear-gradient(90deg, #f093fb 0%, #f5576c 100%)' } }} 
+                              />
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{ display: 'flex', gap: 2 }}>
+                              <Box sx={{ flex: 1, p: 2, bgcolor: '#43e97b10', borderRadius: 2, textAlign: 'center' }}>
+                                <Typography variant="caption" display="block" color="text.secondary">Active</Typography>
+                                <Typography variant="h5" fontWeight="bold" color="#43e97b">{dashboardData.institutions.statusBreakdown.active}</Typography>
+                              </Box>
+                              <Box sx={{ flex: 1, p: 2, bgcolor: '#ff616110', borderRadius: 2, textAlign: 'center' }}>
+                                <Typography variant="caption" display="block" color="text.secondary">Inactive</Typography>
+                                <Typography variant="h5" fontWeight="bold" color="#ff6161">{dashboardData.institutions.statusBreakdown.inactive}</Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      ) : (
+                        <Grid container spacing={3}>
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{ mb: 2 }}>
+                              <Box display="flex" justifyContent="space-between" mb={1}>
+                                <Typography variant="body2">Students</Typography>
+                                <Typography variant="body2" fontWeight="bold">{dashboardData.users.roleBreakdown.students}</Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={(dashboardData.users.roleBreakdown.students / dashboardData.users.total) * 100} 
+                                sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { borderRadius: 5, background: 'linear-gradient(90deg, #4facfe 0%, #00f2fe 100%)' } }} 
+                              />
+                            </Box>
+                            <Box>
+                              <Box display="flex" justifyContent="space-between" mb={1}>
+                                <Typography variant="caption" fontWeight="bold">Teachers</Typography>
+                                <Typography variant="caption" fontWeight="bold">{dashboardData.users.roleBreakdown.teachers}</Typography>
+                              </Box>
+                              <LinearProgress 
+                                variant="determinate" 
+                                value={(dashboardData.users.roleBreakdown.teachers / dashboardData.users.total) * 100} 
+                                sx={{ height: 10, borderRadius: 5, bgcolor: '#e2e8f0', '& .MuiLinearProgress-bar': { borderRadius: 5, background: 'linear-gradient(90deg, #f093fb 0%, #f5576c 100%)' } }} 
+                              />
+                            </Box>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 2, border: '1px dashed #e0e0e0', borderRadius: 2 }}>
+                              <Box textAlign="center">
+                                <Typography variant="caption" display="block" color="text.secondary">Admins</Typography>
+                                <Typography variant="h6" fontWeight="bold">{dashboardData.users.roleBreakdown.admins}</Typography>
+                              </Box>
+                              <Divider orientation="vertical" flexItem />
+                              <Box textAlign="center">
+                                <Typography variant="caption" display="block" color="text.secondary">Total</Typography>
+                                <Typography variant="h6" fontWeight="bold">{dashboardData.users.total}</Typography>
+                              </Box>
+                              <Divider orientation="vertical" flexItem />
+                              <Box textAlign="center">
+                                <Typography variant="caption" display="block" color="text.secondary">Growth</Typography>
+                                <Typography variant="h6" fontWeight="bold" color="success.main">+{dashboardData.growth.usersLast30Days}</Typography>
+                              </Box>
+                            </Box>
+                          </Grid>
+                        </Grid>
+                      )}
                     </Box>
                   )}
                 </Paper>
               </Grid>
             </Grid>
+          </Grid>
 
-            {/* Activity Feed */}
-            <Box sx={{ mt: { xs: 3, sm: 4 } }}>
-              <Grid container spacing={{ xs: 2, sm: 2, md: 3 }}>
-                <Grid item xs={12}>
-                  <ActivityFeed limit={15} />
+          {/* Right Side: Quick Actions & Brief Reports */}
+          <Grid item xs={12} md={4}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+                <Typography variant="subtitle2" fontWeight="bold" gutterBottom>Quick Actions</Typography>
+                <Grid container spacing={1}>
+                  {[
+                    { label: 'Admissions', icon: <PersonAdd />, route: '/admissions' },
+                    { label: 'Institutions', icon: <Domain />, route: '/institutions' },
+                    { label: 'Fees', icon: <Payment />, route: '/fee-management' },
+                    { label: 'Profile', icon: <AccountCircle />, route: '/profile' }
+                  ].map((action, i) => (
+                    <Grid item xs={6} key={i}>
+                      <Button
+                        variant="outlined"
+                        fullWidth
+                        size="small"
+                        onClick={() => navigate(action.route)}
+                        startIcon={React.cloneElement(action.icon, { sx: { fontSize: 16 } })}
+                        sx={{ textTransform: 'none', py: 1 }}
+                      >
+                        {action.label}
+                      </Button>
+                    </Grid>
+                  ))}
                 </Grid>
-              </Grid>
+              </Paper>
+
+              {dashboardData && (
+                <Paper elevation={0} sx={{ p: 2, borderRadius: 2, bgcolor: '#667eea', color: 'white' }}>
+                  <Typography variant="subtitle2" fontWeight="bold">Growth Overview</Typography>
+                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
+                    <Box>
+                      <Typography variant="caption" sx={{ opacity: 0.8 }}>New Institutions</Typography>
+                      <Typography variant="h6">+{dashboardData.growth.institutionsLast30Days}</Typography>
+                    </Box>
+                    <Divider orientation="vertical" flexItem sx={{ borderColor: 'rgba(255,255,255,0.2)' }} />
+                    <Box>
+                      <Typography variant="caption" sx={{ opacity: 0.8 }}>New Users</Typography>
+                      <Typography variant="h6">+{dashboardData.growth.usersLast30Days}</Typography>
+                    </Box>
+                  </Box>
+                </Paper>
+              )}
             </Box>
-          </>
-        )}
+        </Grid>
+      </Grid>
+
+        {/* Bottom Area: Feeds Side-by-Side */}
+        <Grid container spacing={2}>
+          <Grid item xs={12} md={6}>
+            <ActivityFeed limit={8} title="Recent Activity" />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 2, border: '1px solid #e0e0e0', height: '100%' }}>
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <School color="primary" sx={{ fontSize: 20 }} />
+                Recently Added Institutions
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                {dashboardData?.recentInstitutions.slice(0, 5).map((inst, i) => (
+                  <Box key={i} sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 2 }}>
+                    <Box sx={{ p: 1, bgcolor: '#f5f5f5', borderRadius: 1.5 }}>
+                      <Business sx={{ fontSize: 20, color: 'primary.main' }} />
+                    </Box>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight="bold" noWrap>{inst.name}</Typography>
+                      <Typography variant="caption" color="text.secondary" display="block">{inst.type} • {new Date(inst.createdAt).toLocaleDateString()}</Typography>
+                    </Box>
+                    <Chip label={inst.isActive ? 'Active' : 'Off'} size="small" variant="outlined" color={inst.isActive ? 'success' : 'default'} />
+                  </Box>
+                ))}
+              </Box>
+            </Paper>
+          </Grid>
+        </Grid>
           </Box>
         </Box>
       </Box>

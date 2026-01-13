@@ -160,31 +160,36 @@ const ActivityFeed = ({ limit = 10 }) => {
               <ListItem
                 sx={{
                   px: 0,
-                  py: 1.5,
-                  alignItems: 'flex-start'
+                  py: 2,
+                  alignItems: 'flex-start',
+                  transition: 'all 0.2s ease',
+                  '&:hover': { bgcolor: 'rgba(0,0,0,0.01)' }
                 }}
               >
-                <ListItemAvatar>
+                <ListItemAvatar sx={{ mt: 0.5 }}>
                   <Avatar
                     sx={{
                       bgcolor: `${getActionColor(activity.action) === 'success' ? '#43e97b' :
-                                  getActionColor(activity.action) === 'error' ? '#ff6161' :
-                                  getActionColor(activity.action) === 'info' ? '#4facfe' : '#667eea'}20`,
-                      width: { xs: 36, sm: 40 },
-                      height: { xs: 36, sm: 40 }
+                                   getActionColor(activity.action) === 'error' ? '#ff6161' :
+                                   getActionColor(activity.action) === 'info' ? '#4facfe' : '#667eea'}15`,
+                      width: 44,
+                      height: 44,
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                      border: '1px solid rgba(0,0,0,0.05)'
                     }}
                   >
-                    {getActionIcon(activity.action)}
+                    {React.cloneElement(getActionIcon(activity.action), { sx: { fontSize: 22 } })}
                   </Avatar>
                 </ListItemAvatar>
                 <ListItemText
                   primary={
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 0.5 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mb: 1 }}>
                       <Typography
                         variant="body2"
                         sx={{
-                          fontWeight: 600,
-                          fontSize: { xs: '0.875rem', sm: '0.875rem' }
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          color: 'text.primary'
                         }}
                       >
                         {activity.user?.name || 'Unknown User'}
@@ -192,41 +197,63 @@ const ActivityFeed = ({ limit = 10 }) => {
                       <Chip
                         label={activity.action}
                         size="small"
-                        color={getActionColor(activity.action)}
                         sx={{
-                          height: { xs: 20, sm: 22 },
-                          fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                          textTransform: 'capitalize'
+                          height: 20,
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: 0.5,
+                          bgcolor: `${getActionColor(activity.action)}.main`,
+                          color: 'white'
                         }}
                       />
-                      <Chip
-                        label={activity.resource}
-                        size="small"
-                        variant="outlined"
-                        sx={{
-                          height: { xs: 20, sm: 22 },
-                          fontSize: { xs: '0.65rem', sm: '0.75rem' },
-                          textTransform: 'capitalize'
-                        }}
-                      />
+                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, opacity: 0.8 }}>
+                        {formatTime(activity.createdAt)}
+                      </Typography>
                     </Box>
                   }
                   secondary={
-                    <Box>
+                    <Box sx={{ 
+                      bgcolor: '#f8fafc', 
+                      p: 1.5, 
+                      borderRadius: 2, 
+                      border: '1px solid #edf2f7',
+                      position: 'relative',
+                      '&::before': {
+                        content: '""',
+                        position: 'absolute',
+                        left: -6,
+                        top: 10,
+                        width: 12,
+                        height: 12,
+                        bgcolor: '#f8fafc',
+                        borderLeft: '1px solid #edf2f7',
+                        borderBottom: '1px solid #edf2f7',
+                        transform: 'rotate(45deg)'
+                      }
+                    }}>
                       <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ display: 'block', fontSize: { xs: '0.7rem', sm: '0.75rem' } }}
+                        variant="body2"
+                        color="text.primary"
+                        sx={{ fontSize: '0.85rem', lineHeight: 1.5 }}
                       >
                         {activity.details}
                       </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontSize: { xs: '0.65rem', sm: '0.7rem' }, mt: 0.5, display: 'block' }}
-                      >
-                        {formatTime(activity.createdAt)}
-                      </Typography>
+                      <Box sx={{ mt: 1, display: 'flex', gap: 1 }}>
+                        <Chip
+                          label={activity.resource}
+                          size="small"
+                          variant="outlined"
+                          sx={{
+                            height: 18,
+                            fontSize: '0.6rem',
+                            textTransform: 'capitalize',
+                            borderColor: '#e2e8f0',
+                            color: 'text.secondary',
+                            fontWeight: 600
+                          }}
+                        />
+                      </Box>
                     </Box>
                   }
                 />
