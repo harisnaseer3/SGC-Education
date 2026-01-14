@@ -604,7 +604,7 @@ const Dashboard = () => {
                     subtitle: 'No alerts today' 
                   }
                 ].map((stat, i) => (
-                  <Grid item xs={12} sm={6} md={3} key={i}>
+                  <Grid item xs={12} sm={6} lg={3} key={i}>
                     <StatCard compact {...stat} />
                   </Grid>
                 ))}
@@ -636,7 +636,7 @@ const Dashboard = () => {
                       subtitle: 'Previous month' 
                     }
                   ].map((fin, i) => (
-                    <Grid item xs={12} sm={6} md={4} key={i}>
+                    <Grid item xs={12} sm={6} lg={4} key={i}>
                       <StatCard compact {...fin} />
                     </Grid>
                   ))}
@@ -646,7 +646,7 @@ const Dashboard = () => {
               {/* Row 3: Admin Alerts & Quick Actions (Horizontal) */}
               <Grid container spacing={3} sx={{ mb: 4 }}>
                 {/* Admin Alerts */}
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} lg={6}>
                   <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
                     <Typography variant="subtitle1" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                       <Box sx={{ width: 6, height: 20, bgcolor: '#ff6b6b', borderRadius: 1 }} />
@@ -672,7 +672,7 @@ const Dashboard = () => {
                 </Grid>
 
                 {/* Quick Actions */}
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12} lg={6}>
                   <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
                     <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
                     <Grid container spacing={2}>

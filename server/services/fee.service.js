@@ -641,6 +641,13 @@ class FeeService {
     for (const [studentIdStr, studentFees] of studentFeesByStudent.entries()) {
       try {
         // Check if any fee already has a voucher for this month/year
+        // Crucial: check the CURRENT database state, not just local filter
+        // because we might have skipped fetching them if feeHeadIds was strict, 
+        // but checking contextually is safer. 
+        // However, here we stick to the user's filtered fee heads.
+        // If the user wants to generate vouchers for "Tuition", we check if "Tuition" already has a voucher 
+        // for this month.
+        
         const hasExistingVoucher = studentFees.some(sf => {
           return sf.vouchers && sf.vouchers.some(
             v => v.month === month && v.year === year
@@ -648,7 +655,7 @@ class FeeService {
         });
 
         if (hasExistingVoucher) {
-          // Skip if voucher already exists for this student/month/year
+          // Skip if voucher already exists for this student/month/year (for the selected heads)
           continue;
         }
 
@@ -656,20 +663,59 @@ class FeeService {
         voucherCounter++;
         
         // Generate unique voucher number: VCH-YYYY-MM-SEQ
-        // Format: VCH-2024-01-000001
         const voucherNumber = `VCH-${year}-${String(month).padStart(2, '0')}-${String(voucherCounter).padStart(6, '0')}`;
         
-        // Store voucher number for this student
         studentVoucherNumbers.set(studentIdStr, voucherNumber);
 
-        // Add the same voucher number to all fee heads for this student
+        // Process each fee head
         for (const studentFee of studentFees) {
-          // Add voucher to the array
-          if (!studentFee.vouchers) {
-            studentFee.vouchers = [];
+          let feeToUpdate = studentFee;
+          const isMonthly = studentFee.feeHead?.frequencyType === 'Monthly Fee/Annual Fee';
+
+          // Determine if we need to create a NEW StudentFee record
+          // For monthly fees, if the current record is "used" (has vouchers or is paid/partial), 
+          // we should create a new clean record for the new month.
+          const isUsed = (studentFee.vouchers && studentFee.vouchers.length > 0) || 
+                         studentFee.status === 'paid' || 
+                         studentFee.paidAmount > 0;
+
+          if (isMonthly && isUsed) {
+            // Create a clone for the new month
+            const newDueDate = new Date(year, month - 1, 20); // 20th of the voucher month
+            
+            // Adjust year if month < current month (implies next year? No, user passed specific month/year)
+            // The Date constructor handles month overflow but here month is 1-12. 
+            // new Date(2025, 0, 20) is Jan 20th 2025.
+            
+            feeToUpdate = new StudentFee({
+              institution: studentFee.institution,
+              student: studentFee.student,
+              feeStructure: studentFee.feeStructure,
+              class: studentFee.class,
+              feeHead: studentFee.feeHead,
+              baseAmount: studentFee.baseAmount,
+              discountAmount: studentFee.discountAmount,
+              discountType: studentFee.discountType,
+              discountReason: studentFee.discountReason,
+              finalAmount: studentFee.finalAmount,
+              paidAmount: 0,
+              remainingAmount: studentFee.finalAmount,
+              status: 'pending',
+              dueDate: newDueDate,
+              academicYear: studentFee.academicYear,
+              isActive: true,
+              createdBy: currentUser._id,
+              vouchers: [] // Start empty, will add below
+            });
+            // We'll save it at the end
           }
 
-          studentFee.vouchers.push({
+          // Add voucher to the record
+          if (!feeToUpdate.vouchers) {
+            feeToUpdate.vouchers = [];
+          }
+
+          feeToUpdate.vouchers.push({
             month: month,
             year: year,
             generatedAt: new Date(),
@@ -677,8 +723,8 @@ class FeeService {
             voucherNumber: voucherNumber
           });
 
-          await studentFee.save();
-          updatedStudentFees.push(studentFee);
+          await feeToUpdate.save();
+          updatedStudentFees.push(feeToUpdate);
         }
       } catch (error) {
         errors.push({
