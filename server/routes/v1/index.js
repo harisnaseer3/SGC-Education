@@ -21,6 +21,7 @@ const systemSettingRoutes = require('./systemSetting.routes');
 const academicCalendarRoutes = require('./academicCalendar.routes');
 const messageRoutes = require('./message.routes');
 const performanceRoutes = require('./performance.routes');
+const studentPromotionRoutes = require('./studentPromotion.routes');
 
 /**
  * API v1 Routes
@@ -46,6 +47,7 @@ router.use('/settings', systemSettingRoutes);
 router.use('/calendar', academicCalendarRoutes);
 router.use('/messages', messageRoutes);
 router.use('/performance', performanceRoutes);
+router.use('/student-promotions', studentPromotionRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

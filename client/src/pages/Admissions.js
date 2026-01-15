@@ -89,6 +89,7 @@ import {
   FileDownload,
   Edit,
   Delete,
+  SwapHoriz,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission } from '../services/admissionService';
@@ -974,6 +975,24 @@ const Admissions = () => {
                     }}
                   />
                 </ListItemButton>
+
+                {isAdmin && (
+                  <ListItemButton 
+                    sx={{ pl: 4 }}
+                    onClick={() => navigate('/student-promotion')}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <SwapHoriz fontSize="small" sx={{ color: '#10b981' }} />
+                    </ListItemIcon>
+                    <ListItemText 
+                      primary="Student Promotion"
+                      primaryTypographyProps={{
+                        fontSize: '0.875rem',
+                        color: 'text.secondary',
+                      }}
+                    />
+                  </ListItemButton>
+                )}
               </List>
             )}
 

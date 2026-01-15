@@ -65,6 +65,7 @@ import {
   Dashboard as DashboardIcon,
   Menu as MenuIcon,
   ChevronLeft as ChevronLeftIcon,
+  SwapHoriz,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -150,6 +151,7 @@ const Dashboard = () => {
   const modules = [
     { name: 'Inquiry', icon: <ContactMail />, color: '#667eea', route: null },
     { name: 'Admissions', icon: <PersonAdd />, color: '#f093fb', route: '/admissions' },
+    { name: 'Student Promotion', icon: <SwapHoriz />, color: '#10b981', route: '/student-promotion' },
     { name: 'Attendance', icon: <EventAvailable />, color: '#4facfe', route: null },
     { name: 'Fee Management', icon: <Payment />, color: '#43e97b', route: '/fee-management' },
     { name: 'Results', icon: <Assessment />, color: '#feca57', route: null },
