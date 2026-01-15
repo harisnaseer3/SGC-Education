@@ -248,7 +248,7 @@ const Dashboard = () => {
       p: 2, 
       borderRadius: 4, 
       border: '1px solid #edf2f7', 
-      height: '100%',
+      pb: 1.5,
       boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
       transition: 'all 0.3s ease',
       '&:hover': { 
@@ -732,7 +732,7 @@ const Dashboard = () => {
                   />
                 </Grid>
                 <Grid item xs={12} lg={4}>
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%', pb: 2 }}>
+                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                       <Typography variant="subtitle1" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                         <Box sx={{ width: 6, height: 20, bgcolor: '#667eea', borderRadius: 1 }} />
