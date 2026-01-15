@@ -284,7 +284,7 @@ const DashboardCharts = () => {
       <Grid container spacing={3}>
         {/* User Growth Trend */}
         <Grid item xs={12} lg={8}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#6366f115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <People sx={{ color: '#6366f1', fontSize: 28 }} />
@@ -353,7 +353,7 @@ const DashboardCharts = () => {
 
         {/* Payment Status Distribution */}
         <Grid item xs={12} lg={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ec489915', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Payment sx={{ color: '#ec4899', fontSize: 28 }} />
@@ -396,7 +396,7 @@ const DashboardCharts = () => {
 
         {/* Monthly Fee Collection */}
         <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#10b98115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <TrendingUp sx={{ color: '#10b981', fontSize: 28 }} />
@@ -453,7 +453,7 @@ const DashboardCharts = () => {
 
         {/* Revenue vs Outstanding */}
         <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#f59e0b15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AccountBalance sx={{ color: '#f59e0b', fontSize: 28 }} />
@@ -522,7 +522,7 @@ const DashboardCharts = () => {
         {/* Institution Type Distribution */}
         {chartData?.institutionTypes?.length > 0 && (
           <Grid item xs={12} lg={6}>
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                 <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#667eea15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <School sx={{ color: '#667eea', fontSize: 28 }} />
@@ -566,7 +566,7 @@ const DashboardCharts = () => {
 
         {/* Student Distribution by Class */}
         <Grid item xs={12} lg={chartData?.institutionTypes?.length > 0 ? 6 : 12}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Assessment sx={{ color: '#4facfe', fontSize: 28 }} />

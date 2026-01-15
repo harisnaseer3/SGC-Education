@@ -131,7 +131,7 @@ const AnalyticsCharts = () => {
       <Grid container spacing={3}>
         {/* Institution Growth */}
         <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', pb: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Institution Growth
             </Typography>
@@ -167,7 +167,7 @@ const AnalyticsCharts = () => {
 
         {/* Department Growth */}
         <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', pb: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Department Growth
             </Typography>
@@ -203,7 +203,7 @@ const AnalyticsCharts = () => {
 
         {/* User Growth by Role */}
         <Grid item xs={12}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', pb: 2 }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               User Growth by Role
             </Typography>

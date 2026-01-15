@@ -759,7 +759,7 @@ const Dashboard = () => {
               <Grid container spacing={3} sx={{ mb: 3 }}>
                 {/* Analysis Tabs */}
                 <Grid item xs={12}>
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7' }}>
+                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
                     <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
                       <Tabs 
                         value={breakdownTab} 
