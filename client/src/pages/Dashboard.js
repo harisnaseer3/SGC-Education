@@ -647,7 +647,7 @@ const Dashboard = () => {
               <Grid container spacing={3} sx={{ mb: 4 }}>
                 {/* Admin Alerts */}
                 <Grid item xs={12} lg={6}>
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 3 }}>
                       <Box sx={{ width: 6, height: 20, bgcolor: '#ff6b6b', borderRadius: 1 }} />
                       Admin Alerts
@@ -673,7 +673,7 @@ const Dashboard = () => {
 
                 {/* Quick Actions */}
                 <Grid item xs={12} lg={6}>
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', height: '100%' }}>
+                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
                     <Grid container spacing={2}>
                       {[
