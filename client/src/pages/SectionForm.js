@@ -19,7 +19,6 @@ import {
 import { Save, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
 const sessionsDefault = ['2025-2026', '2024-2025', '2023-2024'];
@@ -180,7 +179,6 @@ const SectionForm = () => {
   if (fetchLoading) {
     return (
       <Box>
-        <TopBar title={isEditMode ? 'Edit Section' : 'Add New Section'} />
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -190,7 +188,6 @@ const SectionForm = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
-      <TopBar title={isEditMode ? 'Edit Section' : 'Add New Section'} />
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
         <Box display="flex" alignItems="center" mb={3}>

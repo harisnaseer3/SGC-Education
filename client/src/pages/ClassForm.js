@@ -22,7 +22,6 @@ import {
 import { Save, ArrowBack, Add, Close } from '@mui/icons-material';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 
 const ClassForm = () => {
   const navigate = useNavigate();
@@ -277,7 +276,6 @@ const ClassForm = () => {
   if (fetchLoading) {
     return (
       <Box>
-        <TopBar title={isEditMode ? 'Edit Class' : 'Add New Class'} />
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -287,7 +285,6 @@ const ClassForm = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
-      <TopBar title={isEditMode ? 'Edit Class' : 'Add New Class'} />
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
         {/* Header */}

@@ -52,7 +52,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 import { notifyError, notifySuccess } from '../utils/notify';
 import {
@@ -1795,6 +1794,12 @@ const FeeManagement = () => {
         return;
       }
 
+      // Get voucher number from selected student if available
+      const voucherNumber = selectedManualDepositStudent?.lastVoucher && 
+                            selectedManualDepositStudent.lastVoucher !== 'N/A' 
+                            ? selectedManualDepositStudent.lastVoucher 
+                            : null;
+
       // Record payments for each selected fee
       const paymentPromises = [];
       Object.entries(selectedFeePayments).forEach(([studentFeeId, amount]) => {
@@ -1812,7 +1817,8 @@ const FeeManagement = () => {
                   remarks: manualDepositForm.remarks,
                   chequeNumber: manualDepositForm.chequeNumber,
                   bankName: manualDepositForm.bankName,
-                  transactionId: manualDepositForm.transactionId
+                  transactionId: manualDepositForm.transactionId,
+                  voucherNumber: voucherNumber
                 },
                 createAxiosConfig()
               )
@@ -2597,7 +2603,6 @@ const FeeManagement = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      <TopBar />
       <Box sx={{ mt: 3, mb: 3, flex: 1, px: 3, width: '100%' }}>
         <Paper sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>

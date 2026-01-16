@@ -48,7 +48,6 @@ import {
 import { useNavigate, useParams } from 'react-router-dom';
 import { createAdmission, updateAdmission, getAdmissionById, updateAdmissionStatus, approveAndEnroll } from '../services/admissionService';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
 const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -700,7 +699,6 @@ const AdmissionForm = () => {
   if (loading && isEditMode) {
     return (
       <Box>
-        <TopBar title={isEditMode ? 'Edit Admission' : 'New Admission'} />
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -710,7 +708,6 @@ const AdmissionForm = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f0f2f5', pb: 4 }}>
-      <TopBar title={isEditMode ? 'Edit Admission' : 'New Admission'} />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
         {/* Enhanced Header with Gradient */}
         <Paper 

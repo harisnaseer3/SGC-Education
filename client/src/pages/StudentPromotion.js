@@ -42,7 +42,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 import { useTablePagination } from '../hooks/useTablePagination';
 
 const API_URL = 'http://localhost:5000/api/v1';
@@ -487,7 +486,6 @@ const StudentPromotion = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      <TopBar title="Student Promotion & Transfer" />
       <Box sx={{ mt: 3, mb: 3, flex: 1, px: 3, width: '100%' }}>
         <Paper sx={{ p: 3 }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>

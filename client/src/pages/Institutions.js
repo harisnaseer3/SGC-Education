@@ -89,10 +89,11 @@ const Institutions = () => {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 4 }}>
-        {/* Header */}
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
+      <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
+        <Paper sx={{ p: 4 }}>
+          {/* Header */}
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
           <Box>
             <Typography variant="h4" gutterBottom fontWeight="bold">
               Institutions
@@ -227,6 +228,7 @@ const Institutions = () => {
         </TableContainer>
       </Paper>
     </Container>
+    </Box>
   );
 };
 

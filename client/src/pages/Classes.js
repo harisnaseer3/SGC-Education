@@ -38,7 +38,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
 const Classes = () => {
@@ -168,7 +167,6 @@ const Classes = () => {
   if (loading && classes.length === 0 && !error) {
     return (
       <Box>
-        <TopBar title="Classes Management" />
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -178,7 +176,6 @@ const Classes = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
-      <TopBar title="Classes Management" />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
         {/* Header */}

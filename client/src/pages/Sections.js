@@ -52,7 +52,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
 const Sections = () => {
@@ -488,18 +487,14 @@ const Sections = () => {
 
   if (loading && sections.length === 0 && !error) {
     return (
-      <Box>
-        <TopBar title="Sections Management" />
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
       </Box>
     );
   }
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
-      <TopBar title="Sections Management" />
       <Box sx={{ mt: 4, mb: 4, px: 3, width: '100%' }}>
       <Paper sx={{ p: 4 }}>
         {/* Header */}

@@ -39,7 +39,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 
 const InstitutionForm = () => {
   const navigate = useNavigate();
@@ -264,18 +263,14 @@ const InstitutionForm = () => {
 
   if (fetchLoading) {
     return (
-      <Box>
-        <TopBar title={isEditMode ? 'Edit Institution' : 'Create Institution'} />
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
       </Box>
     );
   }
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      <TopBar title={isEditMode ? 'Edit Institution' : 'Create Institution'} />
       
       <Container maxWidth="lg" sx={{ py: { xs: 3, sm: 4 } }}>
         {/* Header Section */}

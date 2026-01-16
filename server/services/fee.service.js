@@ -786,7 +786,7 @@ class FeeService {
    * Updates StudentFee paidAmount and status
    */
   async recordPayment(paymentData, currentUser) {
-    const { studentFeeId, amount, paymentMethod = 'cash', paymentDate, remarks, chequeNumber, bankName, transactionId } = paymentData;
+    const { studentFeeId, amount, paymentMethod = 'cash', paymentDate, remarks, chequeNumber, bankName, transactionId, voucherNumber } = paymentData;
 
     if (!studentFeeId || !amount || amount <= 0) {
       throw new ApiError(400, 'Student fee ID and valid payment amount are required');
@@ -809,6 +809,25 @@ class FeeService {
     const remainingAmount = studentFee.finalAmount - (studentFee.paidAmount || 0);
     if (amount > remainingAmount) {
       throw new ApiError(400, `Payment amount (${amount}) exceeds remaining amount (${remainingAmount})`);
+    }
+
+    // Determine voucher number if not provided
+    let finalVoucherNumber = voucherNumber || null;
+    
+    // If voucher number not provided, try to find it from StudentFee vouchers based on payment date
+    if (!finalVoucherNumber && paymentDate) {
+      const paymentDateObj = new Date(paymentDate);
+      const paymentMonth = paymentDateObj.getMonth() + 1; // 1-12
+      const paymentYear = paymentDateObj.getFullYear();
+      
+      if (studentFee.vouchers && Array.isArray(studentFee.vouchers)) {
+        const matchingVoucher = studentFee.vouchers.find(
+          v => v && v.month === paymentMonth && v.year === paymentYear && v.voucherNumber
+        );
+        if (matchingVoucher && matchingVoucher.voucherNumber) {
+          finalVoucherNumber = matchingVoucher.voucherNumber;
+        }
+      }
     }
 
     // Generate receipt number atomically using ReceiptCounter
@@ -835,6 +854,7 @@ class FeeService {
           student: studentFee.student,
           studentFee: studentFeeId,
           receiptNumber: receiptNumber,
+          voucherNumber: finalVoucherNumber,
           amount: amount,
           paymentDate: paymentDate || new Date(),
           paymentMethod: paymentMethod,
@@ -1129,9 +1149,11 @@ class FeeService {
     }
 
     const paymentsWithVoucher = payments.map(payment => {
-      let voucherNumber = null;
+      // Use stored voucher number if available (preferred)
+      let voucherNumber = payment.voucherNumber || null;
       
-      if (payment.paymentDate) {
+      // If no stored voucher number, try to find it from StudentFee vouchers (fallback)
+      if (!voucherNumber && payment.paymentDate) {
         const paymentDate = new Date(payment.paymentDate);
         const paymentMonth = paymentDate.getMonth() + 1; // 1-12
         const paymentYear = paymentDate.getFullYear();

@@ -23,6 +23,10 @@ const feePaymentSchema = new mongoose.Schema({
     uppercase: true,
     trim: true
   },
+  voucherNumber: {
+    type: String,
+    trim: true
+  },
   amount: {
     type: Number,
     required: [true, 'Please provide payment amount'],

@@ -12,7 +12,6 @@ import {
 import { Save, ArrowBack } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 
 const GroupForm = () => {
   const navigate = useNavigate();
@@ -250,7 +249,6 @@ const GroupForm = () => {
   if (fetchLoading) {
     return (
       <Box>
-        <TopBar title={isEditMode ? 'Edit Group' : 'Add New Group'} />
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -260,7 +258,6 @@ const GroupForm = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
-      <TopBar title={isEditMode ? 'Edit Group' : 'Add New Group'} />
       <Container maxWidth="sm" sx={{ mt: 4, mb: 4 }}>
         <Paper sx={{ p: 4 }}>
           <Box display="flex" alignItems="center" mb={3}>

@@ -1,7 +1,8 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material';
 import { NotificationProvider } from './components/notifications/NotificationProvider';
+import TopBar from './components/layout/TopBar';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
@@ -40,10 +41,69 @@ const theme = createTheme({
   },
 });
 
-// Protected Route Component
-const ProtectedRoute = ({ children }) => {
+// Protected Route Component with automatic TopBar
+const ProtectedRoute = ({ children, title }) => {
   const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  const location = useLocation();
+  
+  // Get page title from route or prop
+  const getPageTitle = () => {
+    if (title) return title;
+    
+    const path = location.pathname;
+    const titleMap = {
+      '/dashboard': 'Dashboard',
+      '/profile': 'Profile',
+      '/institutions': 'Institutions',
+      '/institutions/new': 'Create Institution',
+      '/classes': 'Classes',
+      '/sections': 'Sections',
+      '/groups': 'Groups',
+      '/admissions': 'Admissions',
+      '/users': 'Users',
+      '/notifications': 'Notifications',
+      '/fee-management': 'Fee Management',
+      '/reports': 'Reports',
+      '/settings': 'Settings',
+      '/calendar': 'Academic Calendar',
+      '/messages': 'Messages',
+      '/performance': 'Performance',
+      '/student-promotion': 'Student Promotion',
+    };
+    
+    // Check for edit routes
+    if (path.includes('/edit/')) {
+      if (path.includes('/institutions')) return 'Edit Institution';
+      if (path.includes('/classes')) return 'Edit Class';
+      if (path.includes('/sections')) return 'Edit Section';
+      if (path.includes('/groups')) return 'Edit Group';
+      if (path.includes('/admissions')) return 'Edit Admission';
+      if (path.includes('/users')) return 'Edit User';
+    }
+    
+    // Check for new routes
+    if (path.includes('/new')) {
+      if (path.includes('/institutions')) return 'Create Institution';
+      if (path.includes('/classes')) return 'Create Class';
+      if (path.includes('/sections')) return 'Create Section';
+      if (path.includes('/groups')) return 'Create Group';
+      if (path.includes('/admissions')) return 'New Admission';
+      if (path.includes('/users')) return 'Create User';
+    }
+    
+    return titleMap[path] || 'SGC Education';
+  };
+  
+  if (!token) {
+    return <Navigate to="/login" />;
+  }
+  
+  return (
+    <>
+      <TopBar title={getPageTitle()} />
+      {children}
+    </>
+  );
 };
 
 function App() {

@@ -30,7 +30,6 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import TopBar from '../components/layout/TopBar';
 
 const Groups = () => {
   const navigate = useNavigate();
@@ -103,7 +102,6 @@ const Groups = () => {
   if (loading && groups.length === 0 && !error) {
     return (
       <Box>
-        <TopBar title="Groups Management" />
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
           <CircularProgress />
         </Box>
@@ -113,7 +111,6 @@ const Groups = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4 }}>
-      <TopBar title="Groups Management" />
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
         {/* Header */}
