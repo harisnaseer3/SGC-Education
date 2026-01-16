@@ -33,10 +33,17 @@ const authorize = (...allowedRoles) => {
  * Check if user is super admin
  */
 const isSuperAdmin = (req, res, next) => {
-  if (!req.user || req.user.role !== 'super_admin') {
+  if (!req.user) {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Super Admin access required.'
+      message: 'Access denied. Authentication required.'
+    });
+  }
+  
+  if (req.user.role !== 'super_admin') {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Super Admin access required. Your role: ${req.user.role}`
     });
   }
   next();
@@ -46,10 +53,17 @@ const isSuperAdmin = (req, res, next) => {
  * Check if user is admin (institution admin or super admin)
  */
 const isAdmin = (req, res, next) => {
-  if (!req.user || !['super_admin', 'admin'].includes(req.user.role)) {
+  if (!req.user) {
     return res.status(403).json({
       success: false,
-      message: 'Access denied. Admin access required.'
+      message: 'Access denied. Authentication required.'
+    });
+  }
+  
+  if (!['super_admin', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({
+      success: false,
+      message: `Access denied. Admin access required. Your role: ${req.user.role}`
     });
   }
   next();

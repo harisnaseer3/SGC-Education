@@ -16,17 +16,21 @@ import {
   Alert,
   TextField,
   InputAdornment,
+  IconButton,
 } from '@mui/material';
 import {
   Business,
   SwapHoriz,
   Search,
+  Add,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000/api/v1';
 
 const InstitutionSwitcher = () => {
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -116,9 +120,27 @@ const InstitutionSwitcher = () => {
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Business />
-            <Typography variant="h6">Switch Institution</Typography>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Business />
+              <Typography variant="h6">Switch Institution</Typography>
+            </Box>
+            <IconButton
+              onClick={() => {
+                handleClose();
+                navigate('/institutions/new');
+              }}
+              sx={{
+                color: 'primary.main',
+                '&:hover': {
+                  bgcolor: 'primary.light',
+                  color: 'primary.dark',
+                },
+              }}
+              size="small"
+            >
+              <Add />
+            </IconButton>
           </Box>
         </DialogTitle>
         <DialogContent>

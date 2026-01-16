@@ -19,6 +19,11 @@ const institutionSchema = new mongoose.Schema({
     uppercase: true,
     trim: true
   },
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: [true, 'Please select an organization']
+  },
   email: {
     type: String,
     required: [true, 'Please provide institution email'],
@@ -111,5 +116,6 @@ institutionSchema.index({ code: 1 });
 institutionSchema.index({ type: 1 });
 institutionSchema.index({ isActive: 1 });
 institutionSchema.index({ createdAt: -1 });
+institutionSchema.index({ organization: 1 });
 
 module.exports = mongoose.model('Institution', institutionSchema);

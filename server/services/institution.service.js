@@ -21,6 +21,7 @@ class InstitutionService {
     // Apply filters
     if (filters.type) query.type = filters.type;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
+    if (filters.organization) query.organization = filters.organization;
     if (filters.search) {
       query.$or = [
         { name: { $regex: filters.search, $options: 'i' } },
@@ -30,6 +31,7 @@ class InstitutionService {
 
     const institutions = await Institution.find(query)
       .populate('createdBy', 'name email')
+      .populate('organization', 'name code')
       .sort({ createdAt: -1 });
 
     return institutions;
@@ -40,7 +42,8 @@ class InstitutionService {
    */
   async getInstitutionById(institutionId, currentUser) {
     const institution = await Institution.findById(institutionId)
-      .populate('createdBy', 'name email');
+      .populate('createdBy', 'name email')
+      .populate('organization', 'name code');
 
     if (!institution) {
       throw new ApiError(404, 'Institution not found');
