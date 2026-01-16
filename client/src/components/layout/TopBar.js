@@ -19,9 +19,17 @@ import {
 import { useNavigate } from 'react-router-dom';
 import InstitutionSwitcher from '../InstitutionSwitcher';
 
+// Logo configuration
+// To use your logo: 
+// 1. Place your logo file in client/public/logo.png (recommended: 40px height, transparent background)
+// 2. The logo will automatically appear in the navbar
+// 3. If logo.png doesn't exist, it will fallback to the School icon
+const LOGO_PATH = process.env.PUBLIC_URL + '/logo.png';
+
 const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actions = null }) => {
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState(null);
+  const [showLogo, setShowLogo] = useState(true);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
 
@@ -48,7 +56,33 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
   return (
     <AppBar position="static" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
       <Toolbar sx={{ px: { xs: 2, sm: 3 }, flexWrap: 'wrap', gap: 2 }}>
-        <School sx={{ mr: { xs: 1, sm: 2 }, display: { xs: 'none', sm: 'block' } }} />
+        {/* Logo Image - Falls back to School icon if logo.png doesn't exist */}
+        {showLogo ? (
+          <Box
+            component="img"
+            src={LOGO_PATH}
+            alt="Logo"
+            onError={() => setShowLogo(false)}
+            sx={{
+              height: { xs: 32, sm: 40 },
+              width: 'auto',
+              mr: { xs: 1, sm: 2 },
+              display: { xs: 'none', sm: 'block' },
+              cursor: 'pointer',
+              objectFit: 'contain'
+            }}
+            onClick={() => navigate('/dashboard')}
+          />
+        ) : (
+          <School 
+            sx={{ 
+              mr: { xs: 1, sm: 2 }, 
+              display: { xs: 'none', sm: 'block' },
+              cursor: 'pointer'
+            }}
+            onClick={() => navigate('/dashboard')}
+          />
+        )}
         <Typography 
           variant="h6" 
           component="div" 
