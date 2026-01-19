@@ -16,19 +16,10 @@ import {
   MenuItem,
   Grid,
   Typography,
-  AppBar,
-  Toolbar,
-  Menu,
-  MenuItem as MenuItemDropdown,
   Alert
 } from '@mui/material';
 import {
   Edit,
-  School,
-  AccountCircle,
-  ExitToApp,
-  Settings,
-  Add,
   PowerSettingsNew,
   PersonAdd
 } from '@mui/icons-material';
@@ -46,7 +37,6 @@ const Users = () => {
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [anchorEl, setAnchorEl] = useState(null);
 
   // Filters
   const [search, setSearch] = useState('');
@@ -146,24 +136,6 @@ const Users = () => {
     navigate(`/users/edit/${userId}`);
   };
 
-  const handleMenu = (event) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = () => {
-    setAnchorEl(null);
-  };
-
-  const handleProfile = () => {
-    handleClose();
-    navigate('/profile');
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
-  };
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -197,43 +169,6 @@ const Users = () => {
 
   return (
     <Box>
-      {/* Top Navigation Bar */}
-      <AppBar position="static" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-        <Toolbar>
-          <School sx={{ mr: 2 }} />
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            SGC Education - User Management
-          </Typography>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Typography variant="body2">
-              {currentUser.name}
-            </Typography>
-            <IconButton
-              size="large"
-              onClick={handleMenu}
-              color="inherit"
-            >
-              <AccountCircle />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItemDropdown onClick={handleProfile}>
-                <Settings sx={{ mr: 1 }} fontSize="small" />
-                Profile Settings
-              </MenuItemDropdown>
-              <MenuItemDropdown onClick={handleLogout}>
-                <ExitToApp sx={{ mr: 1 }} fontSize="small" />
-                Logout
-              </MenuItemDropdown>
-            </Menu>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
       {/* Main Content */}
       <Container maxWidth="xl" sx={{ mt: 4, mb: 4 }}>
         <PageHeader
