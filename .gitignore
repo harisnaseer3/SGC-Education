@@ -10,6 +10,9 @@ node_modules/
 .env.production.local
 server/.env
 
+# Allow client/.env.production to be tracked (for production deployment)
+!client/.env.production
+
 # Logs
 *.log
 npm-debug.log*
