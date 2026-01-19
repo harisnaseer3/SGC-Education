@@ -24,6 +24,7 @@ import {
   Business,
 } from '@mui/icons-material';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -50,7 +51,7 @@ const Login = () => {
   const fetchInstitutions = async (token) => {
     try {
       setLoadingInstitutions(true);
-      const response = await axios.get('http://localhost:5000/api/v1/institutions', {
+      const response = await axios.get(getApiUrl('institutions'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInstitutions(response.data.data || []);
@@ -67,7 +68,7 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await axios.post('http://localhost:5000/api/v1/auth/login', formData);
+      const response = await axios.post(getApiUrl('auth/login'), formData);
 
       const user = response.data.data.user;
       const token = response.data.data.token;

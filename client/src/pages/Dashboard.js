@@ -69,6 +69,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import InstitutionSwitcher from '../components/InstitutionSwitcher';
@@ -110,7 +111,7 @@ const Dashboard = () => {
       const institutionData = localStorage.getItem('selectedInstitution');
 
       // Build URL with institution parameter if available
-      let url = 'http://localhost:5000/api/v1/dashboard/stats';
+      let url = getApiUrl('dashboard/stats');
       if (institutionData) {
         try {
           const institution = JSON.parse(institutionData);

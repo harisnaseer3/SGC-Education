@@ -40,6 +40,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const Notifications = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -65,7 +66,7 @@ const Notifications = () => {
       const isRead = currentTab === 0 ? '' : currentTab === 1 ? 'false' : 'true';
 
       const response = await axios.get(
-        `http://localhost:5000/api/v1/notifications${isRead ? `?isRead=${isRead}` : ''}`,
+        `${getApiUrl('notifications')}${isRead ? `?isRead=${isRead}` : ''}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -84,7 +85,7 @@ const Notifications = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        'http://localhost:5000/api/v1/notifications/unread-count',
+        getApiUrl('notifications/unread-count'),
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -99,7 +100,7 @@ const Notifications = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/v1/notifications/${notificationId}/read`,
+        getApiUrl(`notifications/${notificationId}/read`),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -116,7 +117,7 @@ const Notifications = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        'http://localhost:5000/api/v1/notifications/mark-all-read',
+        getApiUrl('notifications/mark-all-read'),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -134,7 +135,7 @@ const Notifications = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
-        `http://localhost:5000/api/v1/notifications/${notificationId}`,
+        getApiUrl(`notifications/${notificationId}`),
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -150,7 +151,7 @@ const Notifications = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
-        'http://localhost:5000/api/v1/notifications/read',
+        getApiUrl('notifications/read'),
         {
           headers: { Authorization: `Bearer ${token}` }
         }

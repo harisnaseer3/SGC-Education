@@ -44,7 +44,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTablePagination } from '../hooks/useTablePagination';
 
-const API_URL = 'http://localhost:5000/api/v1';
+import { getApiUrl } from '../config/api';
 
 const StudentPromotion = () => {
   const navigate = useNavigate();
@@ -90,7 +90,7 @@ const StudentPromotion = () => {
     try {
       const token = localStorage.getItem('token');
       
-      let url = `${API_URL}/student-promotions?`;
+      let url = `${getApiUrl('student-promotions')}?`;
       const params = new URLSearchParams();
       
       if (filterInstitution) params.append('institution', filterInstitution);
@@ -177,7 +177,7 @@ const StudentPromotion = () => {
       const institutionData = localStorage.getItem('selectedInstitution');
 
       // Fetch institutions
-      const instRes = await axios.get(`${API_URL}/institutions`, {
+      const instRes = await axios.get(getApiUrl('institutions'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInstitutions(instRes.data.data || []);
@@ -207,7 +207,7 @@ const StudentPromotion = () => {
       const token = localStorage.getItem('token');
       const institutionData = localStorage.getItem('selectedInstitution');
 
-      let url = `${API_URL}/admissions?status=enrolled`;
+      let url = `${getApiUrl('admissions')}?status=enrolled`;
       if (institutionData) {
         try {
           const institution = JSON.parse(institutionData);
@@ -231,7 +231,7 @@ const StudentPromotion = () => {
   const fetchClasses = async (institutionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/classes?institution=${institutionId}`, {
+      const response = await axios.get(`${getApiUrl('classes')}?institution=${institutionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClasses(response.data.data || []);
@@ -243,7 +243,7 @@ const StudentPromotion = () => {
   const fetchToClasses = async (institutionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/classes?institution=${institutionId}`, {
+      const response = await axios.get(`${getApiUrl('classes')}?institution=${institutionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setToClasses(response.data.data || []);
@@ -255,7 +255,7 @@ const StudentPromotion = () => {
   const fetchSections = async (classId, institutionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/sections?class=${classId}&institution=${institutionId}`, {
+      const response = await axios.get(`${getApiUrl('sections')}?class=${classId}&institution=${institutionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setSections(response.data.data || []);
@@ -267,7 +267,7 @@ const StudentPromotion = () => {
   const fetchToSections = async (classId, institutionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`${API_URL}/sections?class=${classId}&institution=${institutionId}`, {
+      const response = await axios.get(`${getApiUrl('sections')}?class=${classId}&institution=${institutionId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setToSections(response.data.data || []);
@@ -422,7 +422,7 @@ const StudentPromotion = () => {
         remarks: remarks || undefined,
       };
 
-      const response = await axios.post(`${API_URL}/student-promotions`, payload, {
+      const response = await axios.post(getApiUrl('student-promotions'), payload, {
         headers: { Authorization: `Bearer ${token}` }
       });
 

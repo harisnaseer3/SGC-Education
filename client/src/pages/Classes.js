@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
 const Classes = () => {
@@ -81,7 +82,7 @@ const Classes = () => {
       }
 
       // Fetch classes
-      const classResponse = await axios.get('http://localhost:5000/api/v1/classes', {
+      const classResponse = await axios.get(getApiUrl('classes'), {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -100,7 +101,7 @@ const Classes = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/v1/classes/${classId}/toggle-status`,
+        getApiUrl(`classes/${classId}/toggle-status`),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }

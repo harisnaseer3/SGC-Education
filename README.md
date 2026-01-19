@@ -89,8 +89,44 @@ The client will run on `http://localhost:3000`
 - React.js
 - React Scripts
 
+## Deployment
+
+For production deployment, see the deployment guides:
+
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Comprehensive deployment guide with detailed instructions
+- **[DEPLOYMENT_QUICK_START.md](./DEPLOYMENT_QUICK_START.md)** - Quick deployment guide for experienced users
+
+### Quick Deployment
+
+1. Run the deployment preparation script:
+   ```bash
+   chmod +x deploy.sh
+   bash deploy.sh
+   ```
+
+2. Follow the instructions in [DEPLOYMENT.md](./DEPLOYMENT.md) to complete the setup.
+
+### Production Checklist
+
+- [ ] Server prepared (Node.js, MongoDB, Nginx)
+- [ ] Environment variables configured
+- [ ] Frontend built and deployed
+- [ ] Backend running with PM2
+- [ ] Nginx configured as reverse proxy
+- [ ] SSL certificate installed
+- [ ] Firewall configured
+- [ ] Database backups configured
+
+## API Configuration
+
+The frontend uses a centralized API configuration file at `client/src/config/api.js`. 
+
+For production, set the `REACT_APP_API_URL` environment variable in `client/.env.production`:
+
+```env
+REACT_APP_API_URL=https://yourdomain.com/api/v1
+```
+
 ## License
 
 ISC
-
-# SGCEducation

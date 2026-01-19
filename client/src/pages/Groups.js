@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const Groups = () => {
   const navigate = useNavigate();
@@ -77,7 +78,7 @@ const Groups = () => {
       }
 
       // Fetch groups (only search filter)
-      let url = 'http://localhost:5000/api/v1/groups';
+      let url = getApiUrl('groups');
       const params = [];
       if (searchTerm) params.push(`search=${encodeURIComponent(searchTerm)}`);
       if (params.length > 0) url += `?${params.join('&')}`;

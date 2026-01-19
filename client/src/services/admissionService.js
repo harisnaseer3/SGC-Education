@@ -1,6 +1,5 @@
 import axios from 'axios';
-
-const API_URL = 'http://localhost:5000/api/v1';
+import { getApiUrl } from '../config/api';
 
 const getAuthHeader = () => {
   const token = localStorage.getItem('token');
@@ -20,7 +19,7 @@ export const getAllAdmissions = async (filters = {}) => {
   if (filters.academicYear) params.append('academicYear', filters.academicYear);
   if (filters.search) params.append('search', filters.search);
 
-  const response = await axios.get(`${API_URL}/admissions?${params.toString()}`, {
+  const response = await axios.get(`${getApiUrl('admissions')}?${params.toString()}`, {
     headers: getAuthHeader()
   });
   return response.data;
@@ -28,7 +27,7 @@ export const getAllAdmissions = async (filters = {}) => {
 
 // Get admission by ID
 export const getAdmissionById = async (id) => {
-  const response = await axios.get(`${API_URL}/admissions/${id}`, {
+  const response = await axios.get(getApiUrl(`admissions/${id}`), {
     headers: getAuthHeader()
   });
   return response.data;
@@ -36,7 +35,7 @@ export const getAdmissionById = async (id) => {
 
 // Create admission
 export const createAdmission = async (admissionData) => {
-  const response = await axios.post(`${API_URL}/admissions`, admissionData, {
+  const response = await axios.post(getApiUrl('admissions'), admissionData, {
     headers: getAuthHeader()
   });
   return response.data;
@@ -44,7 +43,7 @@ export const createAdmission = async (admissionData) => {
 
 // Update admission
 export const updateAdmission = async (id, admissionData) => {
-  const response = await axios.put(`${API_URL}/admissions/${id}`, admissionData, {
+  const response = await axios.put(getApiUrl(`admissions/${id}`), admissionData, {
     headers: getAuthHeader()
   });
   return response.data;
@@ -53,7 +52,7 @@ export const updateAdmission = async (id, admissionData) => {
 // Update admission status
 export const updateAdmissionStatus = async (id, status, remarks) => {
   const response = await axios.put(
-    `${API_URL}/admissions/${id}/status`,
+    getApiUrl(`admissions/${id}/status`),
     { status, remarks },
     { headers: getAuthHeader() }
   );
@@ -63,7 +62,7 @@ export const updateAdmissionStatus = async (id, status, remarks) => {
 // Approve and enroll admission
 export const approveAndEnroll = async (id) => {
   const response = await axios.post(
-    `${API_URL}/admissions/${id}/approve-enroll`,
+    getApiUrl(`admissions/${id}/approve-enroll`),
     {},
     { headers: getAuthHeader() }
   );
@@ -73,7 +72,7 @@ export const approveAndEnroll = async (id) => {
 // Reject admission
 export const rejectAdmission = async (id, remarks) => {
   const response = await axios.put(
-    `${API_URL}/admissions/${id}/reject`,
+    getApiUrl(`admissions/${id}/reject`),
     { remarks },
     { headers: getAuthHeader() }
   );
@@ -82,7 +81,7 @@ export const rejectAdmission = async (id, remarks) => {
 
 // Delete admission
 export const deleteAdmission = async (id) => {
-  const response = await axios.delete(`${API_URL}/admissions/${id}`, {
+  const response = await axios.delete(getApiUrl(`admissions/${id}`), {
     headers: getAuthHeader()
   });
   return response.data;
@@ -94,7 +93,7 @@ export const getAdmissionStats = async (filters = {}) => {
   if (filters.institution) params.append('institution', filters.institution);
   if (filters.academicYear) params.append('academicYear', filters.academicYear);
 
-  const response = await axios.get(`${API_URL}/admissions/stats/overview?${params.toString()}`, {
+  const response = await axios.get(`${getApiUrl('admissions/stats/overview')}?${params.toString()}`, {
     headers: getAuthHeader()
   });
   return response.data;
@@ -102,7 +101,7 @@ export const getAdmissionStats = async (filters = {}) => {
 
 // Get admissions by department
 export const getAdmissionsByDepartment = async (departmentId) => {
-  const response = await axios.get(`${API_URL}/departments/${departmentId}/admissions`, {
+  const response = await axios.get(getApiUrl(`departments/${departmentId}/admissions`), {
     headers: getAuthHeader()
   });
   return response.data;
@@ -115,7 +114,7 @@ export const getAdmissionAnalytics = async (filters = {}) => {
   if (filters.academicYear) params.append('academicYear', filters.academicYear);
   if (filters.days) params.append('days', filters.days);
 
-  const response = await axios.get(`${API_URL}/admissions/analytics/charts?${params.toString()}`, {
+  const response = await axios.get(`${getApiUrl('admissions/analytics/charts')}?${params.toString()}`, {
     headers: getAuthHeader()
   });
   return response.data;

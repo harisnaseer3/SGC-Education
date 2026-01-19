@@ -52,6 +52,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
 const Sections = () => {
@@ -134,7 +135,7 @@ const Sections = () => {
       }
 
       // Fetch sections
-      let url = 'http://localhost:5000/api/v1/sections';
+      let url = getApiUrl('sections');
       if (selectedInstitution) {
         url += `?institution=${selectedInstitution}`;
       }
@@ -161,7 +162,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/v1/sections/${sectionId}/toggle-status`,
+        getApiUrl(`sections/${sectionId}/toggle-status`),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -222,7 +223,7 @@ const Sections = () => {
   const fetchTeachers = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/v1/users?role=teacher', {
+      const response = await axios.get(getApiUrl('users?role=teacher'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setTeachers(response.data.data || []);
@@ -235,7 +236,7 @@ const Sections = () => {
   const fetchSectionIncharge = async (sectionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/v1/sections/${sectionId}/incharge`, {
+      const response = await axios.get(getApiUrl(`sections/${sectionId}/incharge`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInchargeList(response.data.data || []);
@@ -257,7 +258,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        `http://localhost:5000/api/v1/sections/${selectedSection._id}/incharge`,
+        getApiUrl(`sections/${selectedSection._id}/incharge`),
         inchargeFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -286,7 +287,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
-        `http://localhost:5000/api/v1/sections/${selectedSection._id}/incharge/${inchargeId}`,
+        getApiUrl(`sections/${selectedSection._id}/incharge/${inchargeId}`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -319,7 +320,7 @@ const Sections = () => {
   const fetchSectionLeave = async (sectionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/v1/sections/${sectionId}/leave`, {
+      const response = await axios.get(getApiUrl(`sections/${sectionId}/leave`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setLeaveList(response.data.data || []);
@@ -341,7 +342,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        `http://localhost:5000/api/v1/sections/${selectedSection._id}/leave`,
+        getApiUrl(`sections/${selectedSection._id}/leave`),
         leaveFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -369,7 +370,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.delete(
-        `http://localhost:5000/api/v1/sections/${selectedSection._id}/leave/${leaveId}`,
+        getApiUrl(`sections/${selectedSection._id}/leave/${leaveId}`),
         { headers: { Authorization: `Bearer ${token}` } }
       );
       
@@ -407,7 +408,7 @@ const Sections = () => {
   const fetchRollNumberSetting = async (sectionId) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get(`http://localhost:5000/api/v1/sections/${sectionId}/roll-number-setting`, {
+      const response = await axios.get(getApiUrl(`sections/${sectionId}/roll-number-setting`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (response.data.data) {
@@ -431,7 +432,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/v1/sections/${selectedSection._id}/roll-number-setting`,
+        getApiUrl(`sections/${selectedSection._id}/roll-number-setting`),
         rollNumberFormData,
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -462,7 +463,7 @@ const Sections = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.post(
-        `http://localhost:5000/api/v1/sections/${selectedSection._id}/reset-roll-number`,
+        getApiUrl(`sections/${selectedSection._id}/reset-roll-number`),
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );

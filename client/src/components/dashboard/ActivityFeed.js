@@ -28,6 +28,7 @@ import {
   Refresh
 } from '@mui/icons-material';
 import axios from 'axios';
+import { getApiUrl } from '../../config/api';
 
 const ActivityFeed = ({ limit = 10 }) => {
   const [activities, setActivities] = useState([]);
@@ -45,7 +46,7 @@ const ActivityFeed = ({ limit = 10 }) => {
       const institutionData = localStorage.getItem('selectedInstitution');
 
       // Build URL with institution parameter if available
-      let url = `http://localhost:5000/api/v1/activity-logs/recent?limit=${limit}`;
+      let url = `${getApiUrl('activity-logs/recent')}?limit=${limit}`;
       if (institutionData) {
         try {
           const institution = JSON.parse(institutionData);

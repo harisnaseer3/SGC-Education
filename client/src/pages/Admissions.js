@@ -94,6 +94,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission } from '../services/admissionService';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import AdmissionCharts from '../components/admissions/AdmissionCharts';
 import InstitutionSwitcher from '../components/InstitutionSwitcher';
 import AdmissionByDateReport from '../components/reports/AdmissionByDateReport';
@@ -440,7 +441,7 @@ const Admissions = () => {
 
       // Fetch institutions if super admin
       if (isSuperAdmin) {
-        const instResponse = await axios.get('http://localhost:5000/api/v1/institutions', {
+        const instResponse = await axios.get(getApiUrl('institutions'), {
           headers: { Authorization: `Bearer ${token}` }
         });
         setInstitutions(instResponse.data.data || []);
@@ -449,7 +450,7 @@ const Admissions = () => {
       // Fetch departments
       if (selectedInstitution) {
         try {
-          const deptResponse = await axios.get(`http://localhost:5000/api/v1/departments?institution=${selectedInstitution}`, {
+          const deptResponse = await axios.get(`${getApiUrl('departments')}?institution=${selectedInstitution}`, {
             headers: { Authorization: `Bearer ${token}` }
           });
           setDepartments(deptResponse.data.data || []);
@@ -604,7 +605,7 @@ const Admissions = () => {
         reportType: reportType
       };
 
-      const response = await axios.get('http://localhost:5000/api/v1/admissions/reports', {
+      const response = await axios.get(getApiUrl('admissions/reports'), {
         headers: { Authorization: `Bearer ${token}` },
         params: filters
       });

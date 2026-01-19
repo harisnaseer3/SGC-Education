@@ -29,6 +29,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import axios from 'axios';
+import { getApiUrl } from '../../config/api';
 import { 
   TrendingUp, 
   Payment, 
@@ -57,7 +58,6 @@ const DashboardCharts = () => {
       const institutionData = localStorage.getItem('selectedInstitution');
 
       // Build URLs with institution parameter
-      const baseUrl = 'http://localhost:5000/api/v1';
       let institutionId = null;
       if (institutionData) {
         try {
@@ -86,16 +86,16 @@ const DashboardCharts = () => {
 
       // Fetch multiple data sources in parallel
       const [analyticsRes, statsRes, paymentsRes, studentFeesRes] = await Promise.all([
-        axios.get(`${baseUrl}/dashboard/analytics?${analyticsParams}`, {
+        axios.get(`${getApiUrl('dashboard/analytics')}?${analyticsParams}`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: { data: null } })),
-        axios.get(`${baseUrl}/dashboard/stats?${statsParams}`, {
+        axios.get(`${getApiUrl('dashboard/stats')}?${statsParams}`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: { data: null } })),
-        axios.get(`${baseUrl}/fees/payments?${paymentsParams}`, {
+        axios.get(`${getApiUrl('fees/payments')}?${paymentsParams}`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: { data: [] } })),
-        axios.get(`${baseUrl}/fees/student-fees?${studentFeesParams}`, {
+        axios.get(`${getApiUrl('fees/student-fees')}?${studentFeesParams}`, {
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => ({ data: { data: [] } }))
       ]);

@@ -24,6 +24,7 @@ import {
   ResponsiveContainer
 } from 'recharts';
 import axios from 'axios';
+import { getApiUrl } from '../../config/api';
 
 const AnalyticsCharts = () => {
   const [analyticsData, setAnalyticsData] = useState(null);
@@ -42,7 +43,7 @@ const AnalyticsCharts = () => {
       const institutionData = localStorage.getItem('selectedInstitution');
 
       // Build URL with institution parameter if available
-      let url = `http://localhost:5000/api/v1/dashboard/analytics?days=${period}`;
+      let url = `${getApiUrl('dashboard/analytics')}?days=${period}`;
       if (institutionData) {
         try {
           const institution = JSON.parse(institutionData);

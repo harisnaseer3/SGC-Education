@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 import PageHeader from '../components/layout/PageHeader';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
@@ -86,7 +87,7 @@ const Users = () => {
       if (statusFilter) params.append('isActive', statusFilter);
 
       const response = await axios.get(
-        `http://localhost:5000/api/v1/users?${params.toString()}`,
+        `${getApiUrl('users')}?${params.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -104,7 +105,7 @@ const Users = () => {
   const fetchInstitutions = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/v1/institutions', {
+      const response = await axios.get(getApiUrl('institutions'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setInstitutions(response.data.data);
@@ -116,7 +117,7 @@ const Users = () => {
   const fetchDepartments = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/v1/departments', {
+      const response = await axios.get(getApiUrl('departments'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       setDepartments(response.data.data);
@@ -129,7 +130,7 @@ const Users = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        `http://localhost:5000/api/v1/users/${userId}/toggle-status`,
+        getApiUrl(`users/${userId}/toggle-status`),
         {},
         {
           headers: { Authorization: `Bearer ${token}` }

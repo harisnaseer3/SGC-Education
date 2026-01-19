@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { Person, Lock, Save } from '@mui/icons-material';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const Profile = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -41,7 +42,7 @@ const Profile = () => {
   const fetchProfile = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('http://localhost:5000/api/v1/users/profile', {
+      const response = await axios.get(getApiUrl('users/profile'), {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -63,7 +64,7 @@ const Profile = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.put(
-        'http://localhost:5000/api/v1/users/profile',
+        getApiUrl('users/profile'),
         profileData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -105,7 +106,7 @@ const Profile = () => {
     try {
       const token = localStorage.getItem('token');
       await axios.put(
-        'http://localhost:5000/api/v1/users/change-password',
+        getApiUrl('users/change-password'),
         {
           currentPassword: passwordData.currentPassword,
           newPassword: passwordData.newPassword,
