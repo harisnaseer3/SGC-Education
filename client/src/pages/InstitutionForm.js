@@ -39,6 +39,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { getApiUrl } from '../config/api';
 
 const InstitutionForm = () => {
   const navigate = useNavigate();
@@ -103,7 +104,7 @@ const InstitutionForm = () => {
         return;
       }
 
-      const response = await axios.get('http://localhost:5000/api/v1/organizations', {
+      const response = await axios.get(getApiUrl('organizations'), {
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -135,7 +136,7 @@ const InstitutionForm = () => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.post(
-        'http://localhost:5000/api/v1/organizations',
+        getApiUrl('organizations'),
         orgFormData,
         {
           headers: { Authorization: `Bearer ${token}` }
@@ -174,7 +175,7 @@ const InstitutionForm = () => {
       setFetchLoading(true);
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `http://localhost:5000/api/v1/institutions/${id}`,
+        getApiUrl(`institutions/${id}`),
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -233,7 +234,7 @@ const InstitutionForm = () => {
 
       if (isEditMode) {
         await axios.put(
-          `http://localhost:5000/api/v1/institutions/${id}`,
+          getApiUrl(`institutions/${id}`),
           formData,
           {
             headers: { Authorization: `Bearer ${token}` }
@@ -242,7 +243,7 @@ const InstitutionForm = () => {
         setSuccess('Institution updated successfully!');
       } else {
         await axios.post(
-          'http://localhost:5000/api/v1/institutions',
+          getApiUrl('institutions'),
           formData,
           {
             headers: { Authorization: `Bearer ${token}` }
