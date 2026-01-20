@@ -34,3 +34,4 @@ build/
 dist/
 client/build/
 
+!.env.production

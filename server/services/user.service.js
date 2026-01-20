@@ -88,17 +88,31 @@ class UserService {
     // Institution filtering based on role
     if (currentUser.role === 'super_admin') {
       // Super admin can filter by institution if provided
-      if (filters.institution) {
+      // BUT: If filtering by super_admin role, don't apply institution filter
+      // because super admins don't have institutions
+      if (filters.institution && filters.role !== 'super_admin') {
         query.institution = filters.institution;
       }
+      // If filtering by super_admin role, we need to explicitly exclude institution filter
+      // to show super admins (who don't have institutions)
       // If no institution filter, super admin sees all users
     } else if (currentUser.institution) {
       // Regular admin only sees users from their institution
       query.institution = currentUser.institution;
     }
 
+    // Apply role filter
+    if (filters.role) {
+      query.role = filters.role;
+      // If filtering by super_admin, ensure we don't filter by institution
+      // because super admins don't have institutions
+      if (filters.role === 'super_admin') {
+        // Remove institution filter if it exists, so super admins are shown
+        delete query.institution;
+      }
+    }
+
     // Apply additional filters
-    if (filters.role) query.role = filters.role;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
     if (filters.search) {
       query.$or = [

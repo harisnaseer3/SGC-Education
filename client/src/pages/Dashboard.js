@@ -710,8 +710,8 @@ const Dashboard = () => {
                     <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
                     <Grid container spacing={2}>
                       {[
-                        { label: 'Register Student', icon: <PersonAdd />, color: '#667eea', path: '/students/register' },
-                        { label: 'Collect Fee', icon: <Payment />, color: '#10b981', path: '/finance/fees/collect' },
+                        { label: 'Register Student', icon: <PersonAdd />, color: '#667eea', path: '/admissions/new' },
+                        { label: 'Collect Fee', icon: <Payment />, color: '#10b981', path: '/fee-management?tab=fee-deposit' },
                         { label: 'Add Event', icon: <Event />, color: '#f093fb', path: '/calendar' },
                         { label: 'Reports', icon: <Assessment />, color: '#4facfe', path: '/reports' }
                       ].map((action, i) => (
