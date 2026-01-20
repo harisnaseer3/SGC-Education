@@ -159,7 +159,7 @@ const Dashboard = () => {
     { name: 'Student Promotion', icon: <SwapHoriz />, color: '#10b981', route: '/student-promotion' },
     { name: 'Attendance', icon: <EventAvailable />, color: '#4facfe', route: null },
     { name: 'Fee Management', icon: <Payment />, color: '#43e97b', route: '/fee-management' },
-    { name: 'Results', icon: <Assessment />, color: '#feca57', route: null },
+    { name: 'Results', icon: <Assessment />, color: '#feca57', route: '/results' },
     { name: 'SMS & Notification', icon: <Notifications />, color: '#fa709a', route: '/notifications' },
     { name: 'Complaints', icon: <Report />, color: '#ee5a6f', route: null },
     { name: 'Academics', icon: <MenuBook />, color: '#764ba2', route: null },
