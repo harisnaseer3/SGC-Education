@@ -63,10 +63,15 @@ import {
   BarChart,
   ExpandMore,
   ExpandLess,
-  ArrowForward,
   Dashboard as DashboardIcon,
-  Assignment,
-  People,
+  AssignmentInd,
+  PeopleAlt,
+  ListAlt,
+  NoteAdd,
+  HowToReg,
+  Insights,
+  PersonSearch,
+  ManageSearch,
   FamilyRestroom,
   DateRange,
   CloudUpload,
@@ -987,7 +992,7 @@ const Admissions = () => {
                 }}
               >
                 <ListItemIcon>
-                  <Assignment sx={{ color: admissionMenuOpen ? '#667eea' : 'inherit' }} />
+                  <AssignmentInd sx={{ color: admissionMenuOpen ? '#667eea' : 'inherit' }} />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Admission" 
@@ -1009,7 +1014,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('list')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'list' ? '#667eea' : 'inherit' }} />
+                    <ListAlt fontSize="small" sx={{ color: activeSection === 'list' ? '#667eea' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="All Admissions"
@@ -1026,7 +1031,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('new')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'new' ? '#667eea' : 'inherit' }} />
+                    <NoteAdd fontSize="small" sx={{ color: activeSection === 'new' ? '#667eea' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="New Admission"
@@ -1043,7 +1048,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('reports')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'reports' ? '#667eea' : 'inherit' }} />
+                    <Insights fontSize="small" sx={{ color: activeSection === 'reports' ? '#667eea' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Reports"
@@ -1060,7 +1065,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('register')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'register' ? '#667eea' : 'inherit' }} />
+                    <HowToReg fontSize="small" sx={{ color: activeSection === 'register' ? '#667eea' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Admission Register"
@@ -1077,7 +1082,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('analytics')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'analytics' ? '#667eea' : 'inherit' }} />
+                    <BarChart fontSize="small" sx={{ color: activeSection === 'analytics' ? '#667eea' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Analytics"
@@ -1117,7 +1122,7 @@ const Admissions = () => {
                 }}
               >
                 <ListItemIcon>
-                  <People sx={{ color: studentMenuOpen ? '#1976d2' : 'inherit' }} />
+                  <PeopleAlt sx={{ color: studentMenuOpen ? '#1976d2' : 'inherit' }} />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Students" 
@@ -1139,7 +1144,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('search-student')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'search-student' ? '#1976d2' : 'inherit' }} />
+                    <PersonSearch fontSize="small" sx={{ color: activeSection === 'search-student' ? '#1976d2' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Search Student"
@@ -1156,7 +1161,7 @@ const Admissions = () => {
                   onClick={() => navigateToSection('search-all-data')}
                 >
                   <ListItemIcon sx={{ minWidth: 32 }}>
-                    <ArrowForward fontSize="small" sx={{ color: activeSection === 'search-all-data' ? '#1976d2' : 'inherit' }} />
+                    <ManageSearch fontSize="small" sx={{ color: activeSection === 'search-all-data' ? '#1976d2' : 'inherit' }} />
                   </ListItemIcon>
                   <ListItemText 
                     primary="Search Student All Data"
