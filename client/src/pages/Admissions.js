@@ -52,7 +52,6 @@ import {
   AssignmentTurnedIn,
   Business,
   Download,
-  Refresh,
   AccountCircle,
   Settings,
   ExitToApp,
@@ -90,11 +89,13 @@ import {
   Edit,
   Delete,
   SwapHoriz,
+  Apps,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission } from '../services/admissionService';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
+import { getAvailableModules } from '../config/modules';
 import AdmissionCharts from '../components/admissions/AdmissionCharts';
 import InstitutionSwitcher from '../components/InstitutionSwitcher';
 import AdmissionByDateReport from '../components/reports/AdmissionByDateReport';
@@ -104,6 +105,7 @@ import { useTablePagination } from '../hooks/useTablePagination';
 const Admissions = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const availableModules = getAvailableModules();
   
   // Get section from URL path
   const getSectionFromPath = () => {
@@ -156,6 +158,7 @@ const Admissions = () => {
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [actionDialog, setActionDialog] = useState({ open: false, type: '', remarks: '' });
   const [anchorEl, setAnchorEl] = useState(null);
+  const [modulesAnchorEl, setModulesAnchorEl] = useState(null);
   const [studentMenuAnchor, setStudentMenuAnchor] = useState(null);
   const [selectedStudentForMenu, setSelectedStudentForMenu] = useState(null);
   const [searchType, setSearchType] = useState('all'); // 'all', 'studentId', 'applicationNumber', 'name', 'email'
@@ -564,8 +567,17 @@ const Admissions = () => {
     navigate('/login');
   };
 
-  const handleRefresh = () => {
-    fetchData();
+  const handleModulesMenu = (event) => {
+    setModulesAnchorEl(event.currentTarget);
+  };
+
+  const handleModulesClose = () => {
+    setModulesAnchorEl(null);
+  };
+
+  const handleModuleClick = (route) => {
+    handleModulesClose();
+    navigate(route);
   };
 
   const handleExport = () => {
@@ -824,6 +836,58 @@ const Admissions = () => {
 
           {/* Action Buttons */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+            {/* Modules Dropdown */}
+            <Button
+              variant="outlined"
+              startIcon={<Apps />}
+              onClick={handleModulesMenu}
+              sx={{
+                borderColor: 'rgba(255, 255, 255, 0.5)',
+                color: 'white',
+                '&:hover': {
+                  borderColor: 'white',
+                  bgcolor: 'rgba(255, 255, 255, 0.1)',
+                },
+              }}
+            >
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Modules</Box>
+              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>Apps</Box>
+            </Button>
+            <Menu
+              anchorEl={modulesAnchorEl}
+              open={Boolean(modulesAnchorEl)}
+              onClose={handleModulesClose}
+              PaperProps={{
+                sx: {
+                  maxHeight: '70vh',
+                  width: '280px',
+                  mt: 1,
+                }
+              }}
+            >
+              <MenuItem onClick={() => handleModuleClick('/dashboard')}>
+                <Home sx={{ mr: 2, fontSize: 20 }} />
+                Dashboard
+              </MenuItem>
+              <Divider />
+              {availableModules.map((module, index) => {
+                const IconComponent = module.icon;
+                return (
+                  <MenuItem
+                    key={index}
+                    onClick={() => handleModuleClick(module.route)}
+                    sx={{
+                      '&:hover': {
+                        bgcolor: `${module.color}10`,
+                      },
+                    }}
+                  >
+                    <IconComponent sx={{ mr: 2, fontSize: 20, color: module.color }} />
+                    {module.name}
+                  </MenuItem>
+                );
+              })}
+            </Menu>
             <Button
               variant="outlined"
               startIcon={<Home />}
@@ -840,14 +904,6 @@ const Admissions = () => {
               <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Back to Home</Box>
               <Box sx={{ display: { xs: 'block', sm: 'none' } }}>Home</Box>
             </Button>
-            <IconButton
-              size="small"
-              onClick={handleRefresh}
-              sx={{ color: 'white', bgcolor: 'rgba(255, 255, 255, 0.15)', '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.25)' } }}
-              title="Refresh"
-            >
-              <Refresh />
-            </IconButton>
             {isAdmin && (
               <Button
                 variant="contained"

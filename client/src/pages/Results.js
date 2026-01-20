@@ -45,6 +45,13 @@ import {
   Print,
   FileDownload,
   Close,
+  Badge,
+  Book,
+  Event,
+  EmojiEvents,
+  Description,
+  CheckCircle,
+  Star,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -682,102 +689,398 @@ const Results = () => {
         onClose={handleCloseViewDialog}
         maxWidth="md"
         fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          }
+        }}
       >
-        <DialogTitle>
+        <DialogTitle
+          sx={{
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            py: 2.5,
+            px: 3,
+          }}
+        >
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Result Details</Typography>
-            <IconButton onClick={handleCloseViewDialog} size="small">
+            <Box display="flex" alignItems="center" gap={2}>
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: 2,
+                  bgcolor: 'rgba(255, 255, 255, 0.2)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Assessment sx={{ fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="h5" fontWeight="bold">
+                  Result Details
+                </Typography>
+                <Typography variant="caption" sx={{ opacity: 0.9 }}>
+                  Complete examination information
+                </Typography>
+              </Box>
+            </Box>
+            <IconButton
+              onClick={handleCloseViewDialog}
+              size="small"
+              sx={{
+                color: 'white',
+                bgcolor: 'rgba(255, 255, 255, 0.2)',
+                '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' }
+              }}
+            >
               <Close />
             </IconButton>
           </Box>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 0 }}>
           {viewDialog.result && (
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Student</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.student?.user?.name || 'N/A'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Enrollment Number</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.student?.enrollmentNumber || 'N/A'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Exam Name</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.examName}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Exam Type</Typography>
-                <Typography variant="body1" fontWeight="medium" sx={{ textTransform: 'capitalize' }}>
-                  {viewDialog.result.examType}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Subject</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.subject}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Exam Date</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.examDate
-                    ? format(new Date(viewDialog.result.examDate), 'MMM dd, yyyy')
-                    : 'N/A'}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Marks Obtained</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.marks?.obtained || 0} / {viewDialog.result.marks?.total || 0}
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Percentage</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.marks?.percentage?.toFixed(1) || 0}%
-                </Typography>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">Grade</Typography>
-                <Chip
-                  label={viewDialog.result.marks?.grade || 'N/A'}
+            <Box sx={{ p: 3 }}>
+              {/* Student Information Card */}
+              <Card
+                elevation={0}
+                sx={{
+                  mb: 3,
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%)',
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={2.5}>
+                    <Person sx={{ fontSize: 24, color: '#667eea' }} />
+                    <Typography variant="h6" fontWeight="bold" color="#667eea">
+                      Student Information
+                    </Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <Person sx={{ fontSize: 14 }} />
+                          Student Name
+                        </Typography>
+                        <Typography variant="body1" fontWeight="600" color="text.primary">
+                          {viewDialog.result.student?.user?.name || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <Badge sx={{ fontSize: 14 }} />
+                          Enrollment Number
+                        </Typography>
+                        <Typography variant="body1" fontWeight="600" color="text.primary">
+                          {viewDialog.result.student?.enrollmentNumber || 'N/A'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Exam Information Card */}
+              <Card
+                elevation={0}
+                sx={{
+                  mb: 3,
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 3,
+                  background: 'linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%)',
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={2.5}>
+                    <Book sx={{ fontSize: 24, color: '#764ba2' }} />
+                    <Typography variant="h6" fontWeight="bold" color="#764ba2">
+                      Exam Information
+                    </Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <Assessment sx={{ fontSize: 14 }} />
+                          Exam Name
+                        </Typography>
+                        <Typography variant="body1" fontWeight="600" color="text.primary">
+                          {viewDialog.result.examName}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <School sx={{ fontSize: 14 }} />
+                          Exam Type
+                        </Typography>
+                        <Chip
+                          label={viewDialog.result.examType?.charAt(0).toUpperCase() + viewDialog.result.examType?.slice(1) || 'N/A'}
+                          size="small"
+                          sx={{
+                            mt: 0.5,
+                            bgcolor: '#764ba2',
+                            color: 'white',
+                            fontWeight: 'bold',
+                            textTransform: 'capitalize',
+                          }}
+                        />
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <Book sx={{ fontSize: 14 }} />
+                          Subject
+                        </Typography>
+                        <Typography variant="body1" fontWeight="600" color="text.primary">
+                          {viewDialog.result.subject}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
+                          <CalendarToday sx={{ fontSize: 14 }} />
+                          Exam Date
+                        </Typography>
+                        <Typography variant="body1" fontWeight="600" color="text.primary">
+                          {viewDialog.result.examDate
+                            ? format(new Date(viewDialog.result.examDate), 'MMM dd, yyyy')
+                            : 'N/A'}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Performance Card */}
+              <Card
+                elevation={0}
+                sx={{
+                  mb: 3,
+                  border: '1px solid #e0e0e0',
+                  borderRadius: 3,
+                  background: `linear-gradient(135deg, ${getGradeColor(viewDialog.result.marks?.grade)}15 0%, #ffffff 100%)`,
+                }}
+              >
+                <CardContent sx={{ p: 3 }}>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={2.5}>
+                    <EmojiEvents sx={{ fontSize: 24, color: getGradeColor(viewDialog.result.marks?.grade) }} />
+                    <Typography variant="h6" fontWeight="bold" sx={{ color: getGradeColor(viewDialog.result.marks?.grade) }}>
+                      Performance
+                    </Typography>
+                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} md={4}>
+                      <Box
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: 'white',
+                          border: `2px solid ${getGradeColor(viewDialog.result.marks?.grade)}30`,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                          Marks Obtained
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ color: getGradeColor(viewDialog.result.marks?.grade) }}>
+                          {viewDialog.result.marks?.obtained || 0}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          out of {viewDialog.result.marks?.total || 0}
+                        </Typography>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Box
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: 'white',
+                          border: `2px solid ${getGradeColor(viewDialog.result.marks?.grade)}30`,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                          Percentage
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ color: getGradeColor(viewDialog.result.marks?.grade) }}>
+                          {viewDialog.result.marks?.percentage?.toFixed(1) || 0}%
+                        </Typography>
+                        <Box sx={{ mt: 1 }}>
+                          <Chip
+                            label={viewDialog.result.marks?.grade || 'N/A'}
+                            sx={{
+                              bgcolor: getGradeColor(viewDialog.result.marks?.grade),
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.875rem',
+                              height: 28,
+                            }}
+                          />
+                        </Box>
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={4}>
+                      <Box
+                        sx={{
+                          p: 2.5,
+                          borderRadius: 3,
+                          bgcolor: 'white',
+                          border: `2px solid ${getGradeColor(viewDialog.result.marks?.grade)}30`,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600 }}>
+                          GPA
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ color: getGradeColor(viewDialog.result.marks?.grade) }}>
+                          {viewDialog.result.marks?.gpa?.toFixed(2) || 'N/A'}
+                        </Typography>
+                        <Box sx={{ mt: 1, display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                          {[...Array(4)].map((_, i) => (
+                            <Star
+                              key={i}
+                              sx={{
+                                fontSize: 16,
+                                color: (viewDialog.result.marks?.gpa || 0) >= (i + 1) * 1.0
+                                  ? getGradeColor(viewDialog.result.marks?.grade)
+                                  : '#e0e0e0',
+                              }}
+                            />
+                          ))}
+                        </Box>
+                      </Box>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Remarks Section */}
+              {(viewDialog.result.remarks || viewDialog.result.teacherRemarks) && (
+                <Card
+                  elevation={0}
                   sx={{
-                    bgcolor: getGradeColor(viewDialog.result.marks?.grade),
-                    color: 'white',
-                    fontWeight: 'bold'
+                    border: '1px solid #e0e0e0',
+                    borderRadius: 3,
+                    background: 'linear-gradient(135deg, #f5f7fa 0%, #ffffff 100%)',
                   }}
-                />
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <Typography variant="caption" color="text.secondary">GPA</Typography>
-                <Typography variant="body1" fontWeight="medium">
-                  {viewDialog.result.marks?.gpa?.toFixed(2) || 'N/A'}
-                </Typography>
-              </Grid>
-              {viewDialog.result.remarks && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">Remarks</Typography>
-                  <Typography variant="body1">{viewDialog.result.remarks}</Typography>
-                </Grid>
+                >
+                  <CardContent sx={{ p: 3 }}>
+                    <Box display="flex" alignItems="center" gap={1.5} mb={2.5}>
+                      <Description sx={{ fontSize: 24, color: '#4facfe' }} />
+                      <Typography variant="h6" fontWeight="bold" color="#4facfe">
+                        Additional Information
+                      </Typography>
+                    </Box>
+                    {viewDialog.result.remarks && (
+                      <Box
+                        sx={{
+                          p: 2,
+                          mb: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, fontWeight: 600 }}>
+                          <Description sx={{ fontSize: 14 }} />
+                          Remarks
+                        </Typography>
+                        <Typography variant="body2" color="text.primary">
+                          {viewDialog.result.remarks}
+                        </Typography>
+                      </Box>
+                    )}
+                    {viewDialog.result.teacherRemarks && (
+                      <Box
+                        sx={{
+                          p: 2,
+                          borderRadius: 2,
+                          bgcolor: '#f8f9fa',
+                          border: '1px solid #e9ecef',
+                        }}
+                      >
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 1, fontWeight: 600 }}>
+                          <CheckCircle sx={{ fontSize: 14 }} />
+                          Teacher Remarks
+                        </Typography>
+                        <Typography variant="body2" color="text.primary">
+                          {viewDialog.result.teacherRemarks}
+                        </Typography>
+                      </Box>
+                    )}
+                  </CardContent>
+                </Card>
               )}
-              {viewDialog.result.teacherRemarks && (
-                <Grid item xs={12}>
-                  <Typography variant="caption" color="text.secondary">Teacher Remarks</Typography>
-                  <Typography variant="body1">{viewDialog.result.teacherRemarks}</Typography>
-                </Grid>
-              )}
-            </Grid>
+            </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseViewDialog}>Close</Button>
+        <DialogActions sx={{ p: 2.5, bgcolor: '#f8f9fa', borderTop: '1px solid #e0e0e0' }}>
+          <Button
+            onClick={handleCloseViewDialog}
+            variant="contained"
+            sx={{
+              bgcolor: '#667eea',
+              '&:hover': { bgcolor: '#5568d3' },
+              px: 3,
+            }}
+          >
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>
