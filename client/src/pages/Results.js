@@ -58,6 +58,7 @@ const Results = () => {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
+  const [institutions, setInstitutions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -81,6 +82,12 @@ const Results = () => {
 
   // Fetch data on mount
   useEffect(() => {
+    // Fetch institutions for super admin
+    if (user.role === 'super_admin') {
+      fetchInstitutions();
+    }
+    // Fetch classes on mount (for non-super-admin, based on their institution)
+    fetchClasses();
     fetchData();
     fetchStats();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -134,11 +141,45 @@ const Results = () => {
     }
   };
 
+  const fetchInstitutions = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(getApiUrl('institutions'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setInstitutions(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching institutions:', err);
+    }
+  };
+
   const fetchClasses = async () => {
     try {
       const token = localStorage.getItem('token');
-      const params = selectedInstitution ? `?institution=${selectedInstitution}` : '';
-      const response = await axios.get(getApiUrl(`classes${params}`), {
+      const params = new URLSearchParams();
+      
+      // For super admin, use selectedInstitution if available
+      if (user.role === 'super_admin' && selectedInstitution) {
+        params.append('institution', selectedInstitution);
+      } else if (user.role !== 'super_admin') {
+        // For non-super-admin, use their institution or selected institution from localStorage
+        const institutionData = localStorage.getItem('selectedInstitution');
+        if (institutionData) {
+          try {
+            const institution = JSON.parse(institutionData);
+            params.append('institution', institution._id);
+          } catch (e) {
+            console.error('Failed to parse institution data', e);
+          }
+        } else if (user.institution) {
+          const institutionId = typeof user.institution === 'object' ? user.institution._id : user.institution;
+          params.append('institution', institutionId);
+        }
+      }
+      
+      const queryString = params.toString();
+      const url = queryString ? getApiUrl(`classes?${queryString}`) : getApiUrl('classes');
+      const response = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setClasses(response.data.data || []);
@@ -440,7 +481,11 @@ const Results = () => {
                       onChange={(e) => setSelectedInstitution(e.target.value)}
                     >
                       <MenuItem value="">All</MenuItem>
-                      {/* Institutions would be loaded here */}
+                      {institutions.map((inst) => (
+                        <MenuItem key={inst._id} value={inst._id}>
+                          {inst.name}
+                        </MenuItem>
+                      ))}
                     </Select>
                   </FormControl>
                 </Grid>
