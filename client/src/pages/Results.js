@@ -297,9 +297,9 @@ const Results = () => {
   }
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      <Box sx={{ mt: 3, mb: 3, flex: 1, px: 3, width: '100%' }}>
-        <Paper sx={{ p: 3 }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', overflowX: 'hidden' }}>
+      <Box sx={{ mt: 3, mb: 3, flex: 1, px: 3, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+        <Paper sx={{ p: 3, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
           {/* Header */}
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
             <Box>
@@ -327,7 +327,7 @@ const Results = () => {
 
           {/* Stats Cards */}
           {stats.total !== undefined && (
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 3, width: '100%', maxWidth: '100%' }}>
               <Grid item xs={12} sm={6} md={3}>
                 <Card>
                   <CardContent>
@@ -412,7 +412,7 @@ const Results = () => {
           )}
 
           {/* Filters */}
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 3, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
             <Grid container spacing={2}>
               <Grid item xs={12} md={3}>
                 <TextField
@@ -500,8 +500,8 @@ const Results = () => {
           </Box>
 
           {/* Results Table */}
-          <TableContainer>
-            <Table>
+          <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>
+            <Table sx={{ minWidth: 650 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: '#667eea' }}>
                   <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Student</TableCell>
