@@ -321,131 +321,16 @@ const Dashboard = () => {
 
   if (loading) {
     return (
-      <Box>
-        <AppBar position="static" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-          <Toolbar>
-            <School sx={{ mr: 2 }} />
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-              SGC Education - Dashboard
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Container maxWidth="lg" sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-          <CircularProgress />
-        </Container>
+      <Box sx={{ minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <CircularProgress />
       </Box>
     );
   }
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', pb: 4, overflow: 'visible' }}>
-      {/* Top Navigation Bar - Fixed */}
-      <AppBar position="fixed" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: '64px !important' }}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            edge="start"
-            sx={{ mr: 2 }}
-          >
-            {sidebarCollapsed ? <MenuIcon /> : <ChevronLeftIcon />}
-          </IconButton>
-          {/* Logo Image - Falls back to School icon if logo.png doesn't exist */}
-          {showLogo ? (
-            <Box
-              component="img"
-              src={`${process.env.PUBLIC_URL}/logo.png${logoCacheBuster}`}
-              alt="Logo"
-              onError={() => setShowLogo(false)}
-              sx={{
-                height: { xs: 32, sm: 40 },
-                width: 'auto',
-                mr: { xs: 1, sm: 2 },
-                display: { xs: 'none', sm: 'block' },
-                cursor: 'pointer',
-                objectFit: 'contain'
-              }}
-              onClick={() => navigate('/dashboard')}
-            />
-          ) : (
-            <School 
-              sx={{ 
-                mr: { xs: 1, sm: 2 }, 
-                display: { xs: 'none', sm: 'block' },
-                cursor: 'pointer'
-              }}
-              onClick={() => navigate('/dashboard')}
-            />
-          )}
-          <Typography variant="h6" component="div" sx={{ fontSize: { xs: '0.9rem', sm: '1.25rem' }, fontWeight: 700, cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
-            SGC Education
-          </Typography>
-
-          <Box sx={{ flexGrow: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, mx: 2 }}>
-            <Typography variant="h6" sx={{ fontSize: { xs: '0.9rem', sm: '1.1rem' }, fontWeight: 500 }}>
-              Welcome back, {user.name || 'Admin'}!
-            </Typography>
-            {selectedInstitution && (
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <Business sx={{ fontSize: 18, color: 'rgba(255,255,255,0.9)' }} />
-                <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.9)', fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>
-                  {selectedInstitution.name}
-                </Typography>
-                <Chip
-                  label={selectedInstitution.type}
-                  size="small"
-                  sx={{ 
-                    textTransform: 'capitalize',
-                    bgcolor: 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                    height: 24,
-                    fontSize: '0.7rem'
-                  }}
-                />
-                <Chip
-                  label={selectedInstitution.isActive ? 'Active' : 'Inactive'}
-                  size="small"
-                  sx={{
-                    bgcolor: selectedInstitution.isActive ? 'rgba(76, 175, 80, 0.3)' : 'rgba(158, 158, 158, 0.3)',
-                    color: 'white',
-                    height: 24,
-                    fontSize: '0.7rem'
-                  }}
-                />
-              </Box>
-            )}
-          </Box>
-
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 2 } }}>
-            <InstitutionSwitcher />
-            <IconButton
-              size="large"
-              onClick={handleMenu}
-              color="inherit"
-            >
-              <AccountCircle />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItem onClick={handleProfile}>
-                <Settings sx={{ mr: 1 }} fontSize="small" />
-                Profile Settings
-              </MenuItem>
-              <MenuItem onClick={handleLogout}>
-                <ExitToApp sx={{ mr: 1 }} fontSize="small" />
-                Logout
-              </MenuItem>
-            </Menu>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
       {/* Sidebar + Content Layout */}
-      <Box sx={{ display: 'flex', width: '100%' }}>
+      <Box sx={{ display: 'flex', width: '100%', mt: '64px' }}>
         {/* Sidebar */}
         <Drawer
           variant="permanent"

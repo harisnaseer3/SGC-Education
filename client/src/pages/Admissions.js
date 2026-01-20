@@ -156,9 +156,6 @@ const Admissions = () => {
   const [selectedInstitution, setSelectedInstitution] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(''); // For list page - single status
-  const [showLogo, setShowLogo] = useState(true); // For logo fallback
-  // Generate cache-busting parameter once on mount to ensure fresh logo
-  const [logoCacheBuster] = useState(() => `?t=${Date.now()}`);
   const [studentStatusFilter, setStudentStatusFilter] = useState([]); // For search student page - multi-select
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [actionDialog, setActionDialog] = useState({ open: false, type: '', remarks: '' });
@@ -686,44 +683,15 @@ const Admissions = () => {
 
   if (loading && admissions.length === 0 && !error) {
     return (
-      <Box>
-        <AppBar position="static" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-          <Toolbar sx={{ px: { xs: 2, sm: 3 } }}>
-            {/* Logo Image - Falls back to School icon if logo.png doesn't exist */}
-            {showLogo ? (
-              <Box
-                component="img"
-                src={`${process.env.PUBLIC_URL}/logo.png${logoCacheBuster}`}
-                alt="Logo"
-                onError={() => setShowLogo(false)}
-                sx={{
-                  height: { xs: 32, sm: 40 },
-                  width: 'auto',
-                  mr: { xs: 1, sm: 2 },
-                  display: { xs: 'none', sm: 'block' },
-                  cursor: 'pointer',
-                  objectFit: 'contain'
-                }}
-                onClick={() => navigate('/dashboard')}
-              />
-            ) : (
-              <School 
-                sx={{ 
-                  mr: { xs: 1, sm: 2 }, 
-                  display: { xs: 'none', sm: 'block' },
-                  cursor: 'pointer'
-                }}
-                onClick={() => navigate('/dashboard')}
-              />
-            )}
-            <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: { xs: '0.9rem', sm: '1.25rem' }, cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
-              Admissions Management
-            </Typography>
-          </Toolbar>
-        </AppBar>
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-          <CircularProgress />
-        </Box>
+      <Box
+        sx={{
+          minHeight: '60vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+        }}
+      >
+        <CircularProgress />
       </Box>
     );
   }
@@ -731,205 +699,7 @@ const Admissions = () => {
   const sidebarWidth = 280;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5' }}>
-      {/* Top Navigation Bar */}
-      <AppBar position="fixed" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: 1300 }}>
-        <Toolbar sx={{ px: { xs: 2, sm: 3 }, flexWrap: 'wrap', gap: 2 }}>
-            {/* Logo Image - Falls back to School icon if logo.png doesn't exist */}
-            {showLogo ? (
-              <Box
-                component="img"
-                src={`${process.env.PUBLIC_URL}/logo.png${logoCacheBuster}`}
-                alt="Logo"
-                onError={() => setShowLogo(false)}
-                sx={{
-                  height: { xs: 32, sm: 40 },
-                  width: 'auto',
-                  mr: { xs: 1, sm: 2 },
-                  display: { xs: 'none', sm: 'block' },
-                  cursor: 'pointer',
-                  objectFit: 'contain'
-                }}
-                onClick={() => navigate('/dashboard')}
-              />
-            ) : (
-              <School 
-                sx={{ 
-                  mr: { xs: 1, sm: 2 }, 
-                  display: { xs: 'none', sm: 'block' },
-                  cursor: 'pointer'
-                }}
-                onClick={() => navigate('/dashboard')}
-              />
-            )}
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1, fontSize: { xs: '0.9rem', sm: '1.25rem' }, cursor: 'pointer' }} onClick={() => navigate('/dashboard')}>
-            Admissions Management
-          </Typography>
-
-          {/* Institution Selector (for Super Admin) */}
-          {isSuperAdmin && (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 2 }}>
-              <InstitutionSwitcher />
-            </Box>
-          )}
-
-          {/* Search Bar */}
-          <Box sx={{ flexGrow: 1, minWidth: { xs: '100%', sm: '300px' }, maxWidth: { xs: '100%', sm: '500px' } }}>
-            <TextField
-              fullWidth
-              size="small"
-              placeholder="Search by student ID, application number, name, or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search sx={{ color: 'white' }} />
-                  </InputAdornment>
-                ),
-                endAdornment: searchTerm && (
-                  <InputAdornment position="end">
-                    <IconButton
-                      size="small"
-                      onClick={() => setSearchTerm('')}
-                      sx={{ color: 'white' }}
-                    >
-                      <Cancel fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ),
-                sx: {
-                  bgcolor: 'rgba(255, 255, 255, 0.15)',
-                  borderRadius: 1,
-                  '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.25)',
-                  },
-                  '& .MuiOutlinedInput-notchedOutline': {
-                    borderColor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                  '& .MuiInputBase-input': {
-                    color: 'white',
-                    '&::placeholder': {
-                      color: 'rgba(255, 255, 255, 0.7)',
-                    },
-                  },
-                },
-              }}
-            />
-          </Box>
-
-          {/* Action Buttons */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-            {/* Modules Dropdown */}
-            <Button
-              variant="outlined"
-              startIcon={<Apps />}
-              onClick={handleModulesMenu}
-              sx={{
-                borderColor: 'rgba(255, 255, 255, 0.5)',
-                color: 'white',
-                '&:hover': {
-                  borderColor: 'white',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                },
-              }}
-            >
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Modules</Box>
-              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>Apps</Box>
-            </Button>
-            <Menu
-              anchorEl={modulesAnchorEl}
-              open={Boolean(modulesAnchorEl)}
-              onClose={handleModulesClose}
-              PaperProps={{
-                sx: {
-                  maxHeight: '70vh',
-                  width: '280px',
-                  mt: 1,
-                }
-              }}
-            >
-              <MenuItem onClick={() => handleModuleClick('/dashboard')}>
-                <Home sx={{ mr: 2, fontSize: 20 }} />
-                Dashboard
-              </MenuItem>
-              <Divider />
-              {availableModules.map((module, index) => {
-                const IconComponent = module.icon;
-                return (
-                  <MenuItem
-                    key={index}
-                    onClick={() => handleModuleClick(module.route)}
-                    sx={{
-                      '&:hover': {
-                        bgcolor: `${module.color}10`,
-                      },
-                    }}
-                  >
-                    <IconComponent sx={{ mr: 2, fontSize: 20, color: module.color }} />
-                    {module.name}
-                  </MenuItem>
-                );
-              })}
-            </Menu>
-            <Button
-              variant="outlined"
-              startIcon={<Home />}
-              onClick={() => navigate('/dashboard')}
-              sx={{
-                borderColor: 'rgba(255, 255, 255, 0.5)',
-                color: 'white',
-                '&:hover': {
-                  borderColor: 'white',
-                  bgcolor: 'rgba(255, 255, 255, 0.1)',
-                },
-              }}
-            >
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Back to Home</Box>
-              <Box sx={{ display: { xs: 'block', sm: 'none' } }}>Home</Box>
-            </Button>
-            {isAdmin && (
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => navigate('/admissions/new')}
-                sx={{
-                  bgcolor: 'rgba(255, 255, 255, 0.2)',
-                  color: 'white',
-                  '&:hover': {
-                    bgcolor: 'rgba(255, 255, 255, 0.3)',
-                  },
-                }}
-              >
-                <Box sx={{ display: { xs: 'none', sm: 'block' } }}>New Application</Box>
-                <Box sx={{ display: { xs: 'block', sm: 'none' } }}>New</Box>
-              </Button>
-            )}
-            <IconButton
-              size="large"
-              onClick={handleMenu}
-              color="inherit"
-            >
-              <AccountCircle />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
-            >
-              <MenuItem onClick={handleProfile}>
-                <Settings sx={{ mr: 1 }} fontSize="small" />
-                Profile Settings
-              </MenuItem>
-              <MenuItem onClick={handleLogout}>
-                <ExitToApp sx={{ mr: 1 }} fontSize="small" />
-                Logout
-              </MenuItem>
-            </Menu>
-          </Box>
-        </Toolbar>
-      </AppBar>
-
+    <Box sx={{ minHeight: '100vh', bgcolor: '#f5f5f5', mt: '64px' }}>
       {/* Sidebar + Content Layout */}
       <Box sx={{ display: 'flex' }}>
         {/* Sidebar */}
