@@ -2146,9 +2146,8 @@ const FeeManagement = () => {
           // Calculate late fee fine if due date has passed
           const now = new Date();
           if (dueDate < now) {
-            // Calculate days overdue
-            const daysOverdue = Math.floor((now - dueDate) / (1000 * 60 * 60 * 24));
-            lateFeeFine = Math.max(0, daysOverdue * 50); // Rs. 50 per day (adjust as needed)
+            // Apply flat late fee of Rs. 200 after due date
+            lateFeeFine = 200;
           }
 
           totalAmount = feeHeads.reduce((sum, head) => sum + (head.amount || 0), 0);
@@ -4479,7 +4478,7 @@ const FeeManagement = () => {
                   {`
                     @media print {
                       body * {
-                        visibility: hidden;
+                          visibility: hidden;
                       }
                       #voucher-print-area, #voucher-print-area * {
                         visibility: visible;
@@ -4493,225 +4492,230 @@ const FeeManagement = () => {
                       .no-print {
                         display: none !important;
                       }
-                      .voucher-copy {
-                        page-break-after: always;
-                        margin-bottom: 20px;
-                      }
-                      .voucher-copy:last-child {
-                        page-break-after: auto;
+                      @page {
+                        size: landscape;
+                        margin: 10mm;
                       }
                     }
                   `}
                 </style>
 
-                {/* Helper function to render a voucher copy */}
-                {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
-                  <Paper 
-                    key={copyIndex}
-                    className="voucher-copy"
-                    sx={{ 
-                      p: 3, 
-                      mb: 3, 
-                      border: '2px solid #000',
-                      maxWidth: '100%',
-                      '@media print': {
-                        border: '2px solid #000',
-                        margin: '0',
-                        padding: '20px'
-                      }
-                    }}
-                  >
-                    {/* Copy Type Header */}
-                    <Typography 
-                      variant="h6" 
+                {/* Three-Column Voucher Layout */}
+                <Box sx={{ 
+                  display: 'flex', 
+                  gap: 2,
+                  '@media print': {
+                    gap: '10px'
+                  }
+                }}>
+                  {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
+                    <Box 
+                      key={copyIndex}
                       sx={{ 
-                        mb: 2, 
-                        textAlign: 'center', 
-                        fontWeight: 'bold',
-                        fontSize: '1.1rem',
-                        textTransform: 'uppercase'
+                        flex: 1,
+                        border: '2px solid #000',
+                        p: 1.5,
+                        fontSize: '0.75rem',
+                        '@media print': {
+                          fontSize: '9pt',
+                          padding: '8px'
+                        }
                       }}
                     >
-                      {copyType}
-                    </Typography>
-
-                    {/* Header Section with Voucher Number, Logo, and Institution Info */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2, flexWrap: 'wrap' }}>
-                      {/* Left: Voucher Number */}
-                      <Box>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', fontSize: '1.2rem' }}>
+                      {/* Header with Voucher Number and Copy Type */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid #000',
+                        pb: 0.5,
+                        mb: 1
+                      }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
                           Voucher#: {voucherData.voucherNo}
                         </Typography>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                          {copyType}
+                        </Typography>
                       </Box>
-                      
-                      {/* Center: Institution Logo and Info */}
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, mx: 2 }}>
+
+                      {/* Institution Logo and Name */}
+                      <Box sx={{ textAlign: 'center', mb: 1 }}>
                         <Box
                           component="img"
                           src={process.env.PUBLIC_URL + '/logo.png'}
-                          alt="Institution Logo"
+                          alt="Logo"
                           onError={(e) => { e.target.style.display = 'none'; }}
                           sx={{
-                            width: 80,
-                            height: 80,
+                            width: 40,
+                            height: 40,
                             borderRadius: '50%',
-                            border: '2px solid #000',
-                            mb: 1,
-                            objectFit: 'cover'
+                            border: '1px solid #000',
+                            objectFit: 'cover',
+                            mx: 'auto',
+                            display: 'block',
+                            mb: 0.5
                           }}
                         />
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', textAlign: 'center', fontSize: '1rem' }}>
-                          {voucherData.institution?.name || 'SGC Education'}
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold', lineHeight: 1.2 }}>
+                          {voucherData.institution?.name || 'TIGES - River Bliss Campus'}
                         </Typography>
-                        {voucherData.institution?.address?.city && (
-                          <Typography variant="body2" sx={{ textAlign: 'center' }}>
-                            {voucherData.institution.address.city}
-                            {voucherData.institution.address.state && `, ${voucherData.institution.address.state}`}
-                          </Typography>
-                        )}
+                        <Typography sx={{ fontSize: '0.65rem', lineHeight: 1.2 }}>
+                          {voucherData.institution?.address?.city || 'Muzaffarabad'}
+                        </Typography>
                       </Box>
-                      
-                      {/* Right: Empty space for alignment */}
-                      <Box sx={{ width: '120px' }} />
-                    </Box>
 
-                    <Divider sx={{ my: 2, borderWidth: 1 }} />
+                      {/* Voucher Details Table */}
+                      <table style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '0.65rem' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', width: '35%' }}>Voucher No:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{voucherData.voucherNo}</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', width: '25%' }}>Roll No:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{voucherData.rollNo}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Fee Month:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{voucherData.feeMonth}</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Valid Date:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{voucherData.validDate}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Issue Date:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{voucherData.issueDate}</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Due Date:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{voucherData.dueDate}</td>
+                          </tr>
+                        </tbody>
+                      </table>
 
-                    {/* Voucher Details Section */}
-                    <Grid container spacing={2} sx={{ mb: 2 }}>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Voucher No:</strong> {voucherData.voucherNo}</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Roll No:</strong> {voucherData.rollNo}</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Fee Month:</strong> {voucherData.feeMonth}</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Valid Date:</strong> {voucherData.validDate}</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Issue Date:</strong> {voucherData.issueDate}</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Due Date:</strong> {voucherData.dueDate}</Typography>
-                      </Grid>
-                    </Grid>
+                      {/* Student Details Table */}
+                      <table style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '0.65rem' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', width: '35%' }}>Student Id:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }} colSpan={3}>{voucherData.studentId}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Adm/Reg #:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }} colSpan={3}>{voucherData.admissionNo}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }} colSpan={4}>
+                              {voucherData.name}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Class:</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px' }} colSpan={3}>{voucherData.class}</td>
+                          </tr>
+                        </tbody>
+                      </table>
 
-                    <Divider sx={{ my: 2, borderWidth: 1 }} />
-
-                    {/* Student Details Section */}
-                    <Grid container spacing={2} sx={{ mb: 2 }}>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Student Id:</strong> {voucherData.studentId}</Typography>
-                      </Grid>
-                      <Grid item xs={6} sm={3}>
-                        <Typography variant="body2"><strong>Adm/Reg #:</strong> {voucherData.admissionNo}</Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2"><strong>Student Name:</strong> {voucherData.name}</Typography>
-                      </Grid>
-                      <Grid item xs={12} sm={6}>
-                        <Typography variant="body2"><strong>Class:</strong> {voucherData.class}</Typography>
-                      </Grid>
-                    </Grid>
-
-                    <Divider sx={{ my: 2, borderWidth: 1 }} />
-
-                    {/* Fee Breakdown Table */}
-                    <TableContainer sx={{ mb: 2, overflowX: 'auto', width: '100%' }}>
-                      <Table size="small" sx={{ border: '1px solid #000', minWidth: 650 }}>
-                        <TableHead>
-                          <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                            <TableCell sx={{ border: '1px solid #000', fontWeight: 'bold', width: '10%' }}>Sr No.</TableCell>
-                            <TableCell sx={{ border: '1px solid #000', fontWeight: 'bold' }}>Head Name</TableCell>
-                            <TableCell align="right" sx={{ border: '1px solid #000', fontWeight: 'bold', width: '25%' }}>Amount</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
+                      {/* Fee Breakdown Table */}
+                      <table style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '0.65rem' }}>
+                        <thead>
+                          <tr style={{ backgroundColor: '#f0f0f0' }}>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', width: '10%' }}>Sr No.</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Head Name</td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right', width: '25%' }}>Amount</td>
+                          </tr>
+                        </thead>
+                        <tbody>
                           {voucherData.feeHeads
                             .filter(h => h.amount > 0)
                             .map((head, idx) => (
-                            <TableRow key={idx}>
-                              <TableCell sx={{ border: '1px solid #ddd' }}>{idx + 1}</TableCell>
-                              <TableCell sx={{ border: '1px solid #ddd' }}>{head.name}</TableCell>
-                              <TableCell align="right" sx={{ border: '1px solid #ddd' }}>
+                            <tr key={idx}>
+                              <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{idx + 1}</td>
+                              <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{head.name}</td>
+                              <td style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'right' }}>
                                 {head.amount.toLocaleString()}
-                              </TableCell>
-                            </TableRow>
+                              </td>
+                            </tr>
                           ))}
-                          <TableRow>
-                            <TableCell colSpan={2} sx={{ border: '1px solid #ddd', fontWeight: 'bold' }}>
+                          <tr>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
                               Payable within due date:
-                            </TableCell>
-                            <TableCell align="right" sx={{ border: '1px solid #ddd', fontWeight: 'bold' }}>
+                            </td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                               {voucherData.payableWithinDueDate.toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                          <TableRow>
-                            <TableCell colSpan={2} sx={{ border: '1px solid #ddd', fontWeight: 'bold' }}>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                              Late fee fine:
+                            </td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                              {(voucherData.feeHeads.find(h => h.name === 'Late Fee Fine')?.amount || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                              Absent Fine:
+                            </td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                              0
+                            </td>
+                          </tr>
+                          <tr>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
                               Payable after due date:
-                            </TableCell>
-                            <TableCell align="right" sx={{ border: '1px solid #ddd', fontWeight: 'bold' }}>
+                            </td>
+                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                               {voucherData.payableAfterDueDate.toLocaleString()}
-                            </TableCell>
-                          </TableRow>
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
 
-                    {/* Payment Terms and Instructions */}
-                    <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f9f9f9', border: '1px solid #ddd' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        Note: Payment Terms
-                      </Typography>
-                      <Typography variant="body2" component="div" sx={{ fontSize: '0.85rem', lineHeight: 1.6 }}>
-                        <Box component="span" sx={{ display: 'block', mb: 0.5 }}>
-                          • A fine of Rs. 200 will be charged if the fee is not paid by the due date.
-                        </Box>
-                        <Box component="span" sx={{ display: 'block', mb: 0.5 }}>
-                          • A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.
-                        </Box>
-                        <Box component="span" sx={{ display: 'block', mb: 0.5 }}>
-                          • The fee may be deposited at any branch of Bank Islami using the prescribed challan form.
-                        </Box>
-                        <Box component="span" sx={{ display: 'block' }}>
-                          • Online payments can be made via Kuickpay. Please use the prefix 17340 followed by your challan number. (Transaction charges will apply.)
-                        </Box>
-                      </Typography>
-                    </Box>
-
-                    {/* Bank Details */}
-                    <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f9f9f9', border: '1px solid #ddd' }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>
-                        Fee Payable At Any Branch of
-                      </Typography>
-                      <Typography variant="body2" sx={{ fontSize: '0.9rem' }}>
-                        Bank Islami Pakistan Limited-310000223490001-The Integrity Global Education System
-                      </Typography>
-                    </Box>
-
-                    {/* Barcode Placeholder */}
-                    <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2, mb: 1 }}>
-                      <Box
-                        sx={{
-                          width: '200px',
-                          height: '60px',
-                          border: '1px solid #000',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          bgcolor: '#fff'
-                        }}
-                      >
-                        <Typography variant="caption" sx={{ color: '#666' }}>
-                          [Barcode: {voucherData.voucherNo}]
+                      {/* Notes Section */}
+                      <Box sx={{ mb: 1, fontSize: '0.55rem', lineHeight: 1.3 }}>
+                        <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', mb: 0.5 }}>Note:</Typography>
+                        <Typography sx={{ fontSize: '0.55rem', mb: 0.3 }}>Payment Terms</Typography>
+                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                          A fine of Rs. 200 will be charged if the fee is not paid by the due date.
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                          A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                          The fee may be deposited at any branch of Bank Islami using the prescribed challan form.
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                          Online payments can be made via Kuickpay. Please use the prefix 17340 followed by your challan number. (Transaction charges will apply.)
                         </Typography>
                       </Box>
+
+                      {/* Bank Details */}
+                      <Box sx={{ mb: 1, fontSize: '0.6rem', textAlign: 'center', fontWeight: 'bold' }}>
+                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 'bold' }}>
+                          Fee Payable At Any Branch of
+                        </Typography>
+                        <Typography sx={{ fontSize: '0.55rem' }}>
+                          Bank Islami Pakistan Limited-310000223490001-The Integrity Global Education System
+                        </Typography>
+                      </Box>
+
+                      {/* Barcode */}
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                        <Box
+                          sx={{
+                            width: '100%',
+                            height: '40px',
+                            border: '1px solid #000',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            bgcolor: '#fff'
+                          }}
+                        >
+                          <Typography sx={{ fontSize: '0.6rem', color: '#666', fontFamily: 'monospace' }}>
+                            |||||||||||||||||||||||||||
+                          </Typography>
+                        </Box>
+                      </Box>
                     </Box>
-                  </Paper>
-                ))}
+                  ))}
+                </Box>
               </Box>
             ) : null}
           </DialogContent>
