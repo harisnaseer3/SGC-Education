@@ -565,7 +565,7 @@ const Dashboard = () => {
                         count={dashboardData?.administrative?.overdueFees || 0} 
                         icon={<Report />} 
                         color="#f59e0b"
-                        onClick={() => navigate('/finance/fees/vouchers')}
+                        onClick={() => navigate('/fee-management?tab=fee-deposit')}
                       />
                     </Stack>
                   </Paper>
