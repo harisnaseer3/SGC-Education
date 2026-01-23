@@ -1713,10 +1713,11 @@ const FeeManagement = () => {
       
       setOutstandingFees(fees);
       
-      // Initialize selected payments with 0
+      // Initialize selected payments with remaining amounts
       const initialPayments = {};
       fees.forEach(fee => {
-        initialPayments[fee._id] = 0;
+        const remaining = fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0));
+        initialPayments[fee._id] = remaining;
       });
       setSelectedFeePayments(initialPayments);
     } catch (err) {
