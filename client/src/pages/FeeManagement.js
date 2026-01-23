@@ -295,6 +295,17 @@ const FeeManagement = () => {
   const [receipts, setReceipts] = useState([]);
   const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [hasSearchedReceipts, setHasSearchedReceipts] = useState(false);
+  const [expandedTransactions, setExpandedTransactions] = useState(new Set());
+
+  const toggleTransactionExpansion = (transactionId) => {
+    const newExpanded = new Set(expandedTransactions);
+    if (newExpanded.has(transactionId)) {
+      newExpanded.delete(transactionId);
+    } else {
+      newExpanded.add(transactionId);
+    }
+    setExpandedTransactions(newExpanded);
+  };
 
   // Institutions
   const [institutions, setInstitutions] = useState([]);
@@ -4173,71 +4184,200 @@ const FeeManagement = () => {
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {receipts.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={13} align="center">
-                                <Typography variant="body2" color="textSecondary">
-                                  No receipts found. Please search for receipts.
-                                </Typography>
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            getPaginatedData(receipts, 'receipt').map((receipt) => (
-                              <TableRow key={receipt._id} hover>
-                                <TableCell>
-                                  <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="primary" variant="outlined" />
-                                </TableCell>
-                                <TableCell>
-                                  {receipt.voucherNumber && receipt.voucherNumber !== 'N/A' && receipt.voucherNumber ? (
-                                    <Chip label={receipt.voucherNumber} size="small" color="secondary" variant="outlined" />
-                                  ) : (
-                                    'N/A'
-                                  )}
-                                </TableCell>
-                                <TableCell>
-                                  {receipt.paymentDate 
-                                    ? new Date(receipt.paymentDate).toLocaleDateString('en-GB')
-                                    : 'N/A'}
-                                </TableCell>
-                                <TableCell>{receipt.studentId || 'N/A'}</TableCell>
-                                <TableCell>{receipt.rollNumber || 'N/A'}</TableCell>
-                                <TableCell>{capitalizeFirstOnly(receipt.studentName || 'N/A')}</TableCell>
-                                <TableCell>{capitalizeFirstOnly(receipt.class || 'N/A')}</TableCell>
-                                <TableCell>{capitalizeFirstOnly(receipt.section || 'N/A')}</TableCell>
-                                <TableCell align="right">
-                                  Rs. {(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={receipt.paymentMethod ? receipt.paymentMethod.replace('_', ' ').toUpperCase() : 'N/A'}
-                                    size="small"
-                                    color="default"
-                                  />
-                                </TableCell>
-                                <TableCell>
-                                  {receipt.transactionId || 'N/A'}
-                                </TableCell>
-                                <TableCell>
-                                  <Chip
-                                    label={receipt.status || 'completed'}
-                                    size="small"
-                                    color={
-                                      receipt.status === 'completed' ? 'success' :
-                                      receipt.status === 'pending' ? 'warning' :
-                                      receipt.status === 'failed' ? 'error' : 'default'
-                                    }
-                                  />
-                                </TableCell>
-                                <TableCell>{receipt.collectedBy?.name || 'N/A'}</TableCell>
-                              </TableRow>
-                            ))
-                          )}
+                          {(() => {
+                            // Step 1: Group ALL receipts by transaction ID before pagination
+                            const allGroupedReceiptsMap = receipts.reduce((acc, receipt) => {
+                              const tid = receipt.transactionId || `no-tid-${receipt._id}`;
+                              if (!acc[tid]) {
+                                acc[tid] = [];
+                              }
+                              acc[tid].push(receipt);
+                              return acc;
+                            }, {});
+
+                            // Step 2: Create a list of group IDs in order of their first appearance in receipts
+                            const transactionGroupIds = [];
+                            const seenTids = new Set();
+                            receipts.forEach(r => {
+                              const tid = r.transactionId || `no-tid-${r._id}`;
+                              if (!seenTids.has(tid)) {
+                                transactionGroupIds.push(tid);
+                                seenTids.add(tid);
+                              }
+                            });
+
+                            // Step 3: Paginate the groups
+                            const paginatedGroupIds = getPaginatedData(transactionGroupIds, 'receipt');
+
+                            if (receipts.length === 0) {
+                              return (
+                                <TableRow>
+                                  <TableCell colSpan={13} align="center">
+                                    <Typography variant="body2" color="textSecondary">
+                                      No receipts found. Please search for receipts.
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            }
+
+                            return paginatedGroupIds.map((tid) => {
+                              const group = allGroupedReceiptsMap[tid];
+                              const isGroup = group.length > 1;
+                              const isExpanded = expandedTransactions.has(tid);
+                              const firstReceipt = group[0];
+                              const totalAmount = group.reduce((sum, r) => sum + (r.amount || 0), 0);
+                              
+                              // Check if all receipts in the group have the same voucher number
+                              const allSameVoucher = group.every(r => r.voucherNumber === firstReceipt.voucherNumber);
+                              const displayVoucher = allSameVoucher ? firstReceipt.voucherNumber : 'Multiple';
+
+                              return (
+                                <React.Fragment key={tid}>
+                                  {/* Main Row / Grouped Row */}
+                                  <TableRow 
+                                    hover 
+                                    onClick={() => isGroup && toggleTransactionExpansion(tid)}
+                                    sx={{ 
+                                      cursor: isGroup ? 'pointer' : 'default',
+                                      bgcolor: isGroup ? '#f9faff' : 'inherit',
+                                      '&:hover': { bgcolor: isGroup ? '#f0f4ff !important' : 'inherit' }
+                                    }}
+                                  >
+                                    <TableCell>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {isGroup && (
+                                          <IconButton size="small" onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleTransactionExpansion(tid);
+                                          }}>
+                                            {isExpanded ? <Close sx={{ fontSize: 16 }} /> : <Add sx={{ fontSize: 16 }} />}
+                                          </IconButton>
+                                        )}
+                                        <Chip 
+                                          label={isGroup ? `TRANS-${tid}` : (firstReceipt.receiptNumber || 'N/A')} 
+                                          size="small" 
+                                          color={isGroup ? "secondary" : "primary"} 
+                                          variant="outlined" 
+                                        />
+                                        {isGroup && (
+                                          <Chip label={`${group.length} Receipts`} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                                        )}
+                                      </Box>
+                                    </TableCell>
+                                    <TableCell>
+                                      {displayVoucher && displayVoucher !== 'N/A' ? (
+                                        <Chip label={displayVoucher} size="small" color="secondary" variant="outlined" />
+                                      ) : (
+                                        'N/A'
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {firstReceipt.paymentDate 
+                                        ? new Date(firstReceipt.paymentDate).toLocaleDateString('en-GB')
+                                        : 'N/A'}
+                                    </TableCell>
+                                    <TableCell>{firstReceipt.studentId || 'N/A'}</TableCell>
+                                    <TableCell>{firstReceipt.rollNumber || 'N/A'}</TableCell>
+                                    <TableCell>{capitalizeFirstOnly(firstReceipt.studentName || 'N/A')}</TableCell>
+                                    <TableCell>{capitalizeFirstOnly(firstReceipt.class || 'N/A')}</TableCell>
+                                    <TableCell>{capitalizeFirstOnly(firstReceipt.section || 'N/A')}</TableCell>
+                                    <TableCell align="right">
+                                      Rs. {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={firstReceipt.paymentMethod ? firstReceipt.paymentMethod.replace('_', ' ').toUpperCase() : 'N/A'}
+                                        size="small"
+                                        color="default"
+                                      />
+                                    </TableCell>
+                                    <TableCell>
+                                      {tid.startsWith('no-tid-') ? 'N/A' : tid}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Chip
+                                        label={firstReceipt.status || 'completed'}
+                                        size="small"
+                                        color={
+                                          firstReceipt.status === 'completed' ? 'success' :
+                                          firstReceipt.status === 'pending' ? 'warning' :
+                                          firstReceipt.status === 'failed' ? 'error' : 'default'
+                                        }
+                                      />
+                                    </TableCell>
+                                    <TableCell>{firstReceipt.collectedBy?.name || 'N/A'}</TableCell>
+                                  </TableRow>
+
+                                  {/* Expanded Child Rows */}
+                                  {isGroup && isExpanded && group.map((receipt) => (
+                                    <TableRow key={receipt._id} sx={{ bgcolor: '#fff' }}>
+                                      <TableCell sx={{ pl: 6 }}>
+                                        <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="primary" variant="outlined" sx={{ opacity: 0.8 }} />
+                                      </TableCell>
+                                      <TableCell>
+                                        {receipt.voucherNumber && receipt.voucherNumber !== 'N/A' ? (
+                                          <Chip label={receipt.voucherNumber} size="small" color="secondary" variant="outlined" sx={{ opacity: 0.8 }} />
+                                        ) : (
+                                          'N/A'
+                                        )}
+                                      </TableCell>
+                                      <TableCell>
+                                        {receipt.paymentDate 
+                                          ? new Date(receipt.paymentDate).toLocaleDateString('en-GB')
+                                          : 'N/A'}
+                                      </TableCell>
+                                      <TableCell>{receipt.studentId || 'N/A'}</TableCell>
+                                      <TableCell>{receipt.rollNumber || 'N/A'}</TableCell>
+                                      <TableCell>{capitalizeFirstOnly(receipt.studentName || 'N/A')}</TableCell>
+                                      <TableCell>{capitalizeFirstOnly(receipt.class || 'N/A')}</TableCell>
+                                      <TableCell>{capitalizeFirstOnly(receipt.section || 'N/A')}</TableCell>
+                                      <TableCell align="right">
+                                        Rs. {(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Chip
+                                          label={receipt.paymentMethod ? receipt.paymentMethod.replace('_', ' ').toUpperCase() : 'N/A'}
+                                          size="small"
+                                          color="default"
+                                          sx={{ opacity: 0.8 }}
+                                        />
+                                      </TableCell>
+                                      <TableCell>
+                                        {receipt.transactionId || 'N/A'}
+                                      </TableCell>
+                                      <TableCell>
+                                        <Chip
+                                          label={receipt.status || 'completed'}
+                                          size="small"
+                                          color={
+                                            receipt.status === 'completed' ? 'success' :
+                                            receipt.status === 'pending' ? 'warning' :
+                                            receipt.status === 'failed' ? 'error' : 'default'
+                                          }
+                                          sx={{ opacity: 0.8 }}
+                                        />
+                                      </TableCell>
+                                      <TableCell>{receipt.collectedBy?.name || 'N/A'}</TableCell>
+                                    </TableRow>
+                                  ))}
+                                </React.Fragment>
+                              );
+                            });
+                          })()}
                         </TableBody>
                       </Table>
                       {receipts.length > 0 && (
                         <TablePagination
                           component="div"
-                          count={receipts.length}
+                          count={(() => {
+                            const seenTids = new Set();
+                            receipts.forEach(r => {
+                              const tid = r.transactionId || `no-tid-${r._id}`;
+                              seenTids.add(tid);
+                            });
+                            return seenTids.size;
+                          })()}
                           page={pagination.receipt.page}
                           onPageChange={(e, newPage) => handleChangePage('receipt', e, newPage)}
                           rowsPerPage={pagination.receipt.rowsPerPage}
