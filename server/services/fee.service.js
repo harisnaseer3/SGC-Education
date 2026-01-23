@@ -515,7 +515,7 @@ class FeeService {
    * feeHeadIds (optional): Array of fee head IDs to filter by. If provided, only vouchers for these fee heads will be generated.
    */
   async generateVouchers(voucherData, currentUser) {
-    const { studentIds, month, year, feeHeadIds } = voucherData;
+    const { studentIds, month, year, feeHeadIds, dueDay = 20 } = voucherData;
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       throw new ApiError(400, 'Student IDs are required');
@@ -718,7 +718,7 @@ class FeeService {
              let feeToUpdate = latestFee;
              
              if (isUsed) {
-                const newDueDate = new Date(year, month - 1, 20);
+                const newDueDate = new Date(year, month - 1, dueDay);
                 feeToUpdate = new StudentFee({
                   institution: latestFee.institution,
                   student: latestFee.student,
