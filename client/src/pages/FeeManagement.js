@@ -238,7 +238,8 @@ const FeeManagement = () => {
 
   // Print Voucher
   const [printVoucherFilters, setPrintVoucherFilters] = useState({
-    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}` // Format: YYYY-MM for month input
+    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // Format: YYYY-MM for month input
+    voucherNumber: ''
   });
   const [printVoucherStudents, setPrintVoucherStudents] = useState([]);
   const [voucherDialogOpen, setVoucherDialogOpen] = useState(false);
@@ -966,7 +967,13 @@ const FeeManagement = () => {
       });
 
       const transformedStudents = Array.from(uniqueStudentsMap.values());
-      setPrintVoucherStudents(transformedStudents);
+      
+      // Filter by voucher number if provided
+      const filteredStudents = printVoucherFilters.voucherNumber 
+        ? transformedStudents.filter(s => s.voucherNumber.toLowerCase().includes(printVoucherFilters.voucherNumber.toLowerCase()))
+        : transformedStudents;
+
+      setPrintVoucherStudents(filteredStudents);
       
       if (transformedStudents.length === 0) {
         notifyError(`No students found with generated vouchers for ${month}/${year}`);
@@ -3603,7 +3610,7 @@ const FeeManagement = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Grid container spacing={2} sx={{ width: '100%', maxWidth: '100%' }}>
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={4}>
                     <TextField
                       fullWidth
                       label="Month/Year"
@@ -3615,7 +3622,18 @@ const FeeManagement = () => {
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={4}>
+                    <TextField
+                      fullWidth
+                      label="Voucher Number"
+                      value={printVoucherFilters.voucherNumber}
+                      onChange={(e) => {
+                        setPrintVoucherFilters({ ...printVoucherFilters, voucherNumber: e.target.value });
+                      }}
+                      placeholder="Search by voucher #"
+                    />
+                  </Grid>
+                  <Grid item xs={12} md={4}>
                     <Box sx={{ display: 'flex', gap: 2 }}>
                       <Button
                         variant="contained"

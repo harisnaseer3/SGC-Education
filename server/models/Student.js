@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const SequenceCounter = require('./SequenceCounter');
 
 const studentSchema = new mongoose.Schema({
   // Reference to User account
@@ -283,11 +284,14 @@ studentSchema.pre('save', async function() {
 
   // Generate unique enrollment number if not exists
   if (!this.enrollmentNumber || this.isNew) {
-    const year = new Date().getFullYear();
-    const count = await mongoose.model('Student').countDocuments({
-      institution: this.institution
-    });
-    this.enrollmentNumber = `ENR${year}${String(count + 1).padStart(6, '0')}`;
+    if (!this.enrollmentNumber) {
+      const counter = await SequenceCounter.findOneAndUpdate(
+        { institution: this.institution, type: 'enrollment' },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      this.enrollmentNumber = String(counter.seq);
+    }
   }
 });
 

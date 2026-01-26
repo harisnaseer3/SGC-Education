@@ -682,8 +682,8 @@ class FeeService {
         // Increment counter for unique voucher number (once per student)
         voucherCounter++;
         
-        // Generate unique voucher number: VCH-YYYY-MM-SEQ
-        const voucherNumber = `VCH-${year}-${String(month).padStart(2, '0')}-${String(voucherCounter).padStart(6, '0')}`;
+        // Generate unique voucher number: 17340-SEQ (5 digits)
+        const voucherNumber = `17340-${String(voucherCounter).padStart(5, '0')}`;
         studentVoucherNumbers.set(studentIdStr, voucherNumber);
 
         // Process each Fee Head Group

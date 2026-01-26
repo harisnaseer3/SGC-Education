@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const SequenceCounter = require('./SequenceCounter');
 
 const admissionSchema = new mongoose.Schema({
   // Application Details
@@ -292,11 +293,12 @@ admissionSchema.pre('save', async function() {
 
   // Generate unique application number if not exists
   if (!this.applicationNumber) {
-    const year = new Date().getFullYear();
-    const count = await mongoose.model('Admission').countDocuments({
-      institution: this.institution
-    });
-    this.applicationNumber = `ADM${year}${String(count + 1).padStart(6, '0')}`;
+    const counter = await SequenceCounter.findOneAndUpdate(
+      { institution: this.institution, type: 'admission' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.applicationNumber = String(counter.seq);
   }
 
   // Generate roll number if not exists and it's a new admission (or missing)
