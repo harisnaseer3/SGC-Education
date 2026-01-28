@@ -2118,6 +2118,20 @@ const FeeManagement = () => {
     }
   };
 
+  // Reset reconciliation dialog
+  const resetReconciliationDialog = () => {
+    setReconciliationDialogOpen(false);
+    setSelectedSuspenseEntry(null);
+    setSelectedReconciliationStudent(null);
+    setReconciliationStudents([]);
+    setOutstandingFees([]);
+    setReconciliationSearch({
+      id: '',
+      rollNumber: '',
+      studentName: ''
+    });
+  };
+
   // Handle reconciliation
   const handleReconcile = async (studentId, studentFeeId) => {
     try {
@@ -2133,11 +2147,7 @@ const FeeManagement = () => {
 
       await axios.post(`${API_URL}/fees/suspense/reconcile`, payload, createAxiosConfig());
       notifySuccess('Payment reconciled successfully');
-      setReconciliationDialogOpen(false);
-      setSelectedSuspenseEntry(null);
-      setSelectedReconciliationStudent(null);
-      setReconciliationStudents([]);
-      setOutstandingFees([]);
+      resetReconciliationDialog();
       fetchSuspenseEntries();
     } catch (err) {
       notifyError(err.response?.data?.message || 'Failed to reconcile payment');
@@ -5601,7 +5611,7 @@ const FeeManagement = () => {
         </Dialog>
 
         {/* Reconciliation Dialog */}
-        <Dialog open={reconciliationDialogOpen} onClose={() => setReconciliationDialogOpen(false)} maxWidth="md" fullWidth>
+        <Dialog open={reconciliationDialogOpen} onClose={resetReconciliationDialog} maxWidth="md" fullWidth>
           <DialogTitle>Reconcile Payment: Rs. {selectedSuspenseEntry?.amount.toLocaleString()}</DialogTitle>
           <DialogContent>
             <Box sx={{ mb: 2, mt: 1 }}>
@@ -5632,7 +5642,13 @@ const FeeManagement = () => {
               <TableContainer sx={{ maxHeight: 300 }}>
                 <Table stickyHeader size="small">
                   <TableBody>
-                    {reconciliationStudents.map((s) => (
+                    {reconciliationStudents.filter((s) => {
+                      const nameMatch = !reconciliationSearch.studentName || 
+                        s.name?.toLowerCase().includes(reconciliationSearch.studentName.toLowerCase());
+                      const rollMatch = !reconciliationSearch.rollNumber || 
+                        s.rollNumber?.toLowerCase().includes(reconciliationSearch.rollNumber.toLowerCase());
+                      return nameMatch && rollMatch;
+                    }).map((s) => (
                       <TableRow key={s._id} hover onClick={() => {
                           setSelectedReconciliationStudent(s);
                           const studentId = s.studentId?._id || s.studentId;
@@ -5695,11 +5711,7 @@ const FeeManagement = () => {
             )}
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => {
-                setReconciliationDialogOpen(false);
-                setSelectedReconciliationStudent(null);
-                setReconciliationStudents([]);
-            }}>Cancel</Button>
+            <Button onClick={resetReconciliationDialog}>Cancel</Button>
           </DialogActions>
         </Dialog>
         </Paper>
