@@ -131,6 +131,53 @@ const getStats = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   POST /api/v1/institutions/:id/upload-logo
+ * @desc    Upload institution logo
+ * @access  Private (Super Admin only)
+ */
+const uploadLogo = asyncHandler(async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: 'No file uploaded'
+    });
+  }
+
+  const institution = await institutionService.getInstitutionById(
+    req.params.id,
+    req.user
+  );
+
+  // Delete old logo file if it exists and is in uploads directory
+  if (institution.logo && institution.logo.startsWith('/uploads/')) {
+    const oldLogoPath = path.join(__dirname, '..', 'public', institution.logo);
+    if (fs.existsSync(oldLogoPath)) {
+      fs.unlinkSync(oldLogoPath);
+    }
+  }
+
+  // Update institution with new logo path
+  const logoPath = `/uploads/institutions/${req.file.filename}`;
+  const updatedInstitution = await institutionService.updateInstitution(
+    req.params.id,
+    { logo: logoPath },
+    req.user
+  );
+
+  res.json({
+    success: true,
+    message: 'Logo uploaded successfully',
+    data: {
+      logo: logoPath,
+      institution: updatedInstitution
+    }
+  });
+});
+
 module.exports = {
   getInstitutions,
   getInstitutionById,
@@ -138,5 +185,6 @@ module.exports = {
   updateInstitution,
   deleteInstitution,
   toggleStatus,
-  getStats
+  getStats,
+  uploadLogo
 };

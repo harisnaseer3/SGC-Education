@@ -5016,7 +5016,13 @@ const FeeManagement = () => {
                       <Box sx={{ textAlign: 'center', mb: 1 }}>
                         <Box
                           component="img"
-                          src={process.env.PUBLIC_URL + '/logo.png'}
+                          src={
+                            voucherData.institution?.logo 
+                              ? (voucherData.institution.logo.startsWith('http') 
+                                  ? voucherData.institution.logo 
+                                  : `${API_URL.replace('/api/v1', '')}${voucherData.institution.logo}`)
+                              : process.env.PUBLIC_URL + '/logo.png'
+                          }
                           alt="Logo"
                           onError={(e) => { e.target.style.display = 'none'; }}
                           sx={{

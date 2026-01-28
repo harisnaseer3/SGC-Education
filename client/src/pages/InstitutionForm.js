@@ -64,6 +64,11 @@ const InstitutionForm = () => {
   const [orgLoading, setOrgLoading] = useState(false);
   const [orgError, setOrgError] = useState('');
 
+  // Logo upload state
+  const [logoFile, setLogoFile] = useState(null);
+  const [logoPreview, setLogoPreview] = useState(null);
+  const [logoUploading, setLogoUploading] = useState(false);
+
   const [formData, setFormData] = useState({
     organization: '',
     name: '',
@@ -84,8 +89,16 @@ const InstitutionForm = () => {
       phone: ''
     },
     establishedYear: new Date().getFullYear(),
-    website: ''
+    website: '',
+    logo: ''
   });
+
+  // Check if user is super admin
+  useEffect(() => {
+    if (!isSuperAdmin) {
+      navigate('/dashboard');
+    }
+  }, [isSuperAdmin, navigate]);
 
   useEffect(() => {
     fetchOrganizations();
@@ -187,6 +200,12 @@ const InstitutionForm = () => {
         ...data,
         organization: data.organization?._id || data.organization || ''
       });
+      // Set logo preview if logo exists
+      if (data.logo) {
+        // Construct proper URL for static files (remove /api/v1 from base URL)
+        const baseUrl = getApiUrl('').replace('/api/v1/', '').replace('/api/v1', '');
+        setLogoPreview(`${baseUrl}${data.logo}`);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch institution');
     } finally {
@@ -221,6 +240,83 @@ const InstitutionForm = () => {
         [name]: value
       });
     }
+  };
+
+  const handleLogoFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        setError('Only image files (JPEG, JPG, PNG, GIF, WEBP) are allowed');
+        return;
+      }
+      
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('File size must be less than 5MB');
+        return;
+      }
+
+      setLogoFile(file);
+      // Generate preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setLogoPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setError('');
+    }
+  };
+
+  const handleLogoUpload = async () => {
+    if (!logoFile || !id) {
+      setError('Please select a file and save the institution first');
+      return;
+    }
+
+    try {
+      setLogoUploading(true);
+      setError('');
+      
+      const formDataToSend = new FormData();
+      formDataToSend.append('logo', logoFile);
+
+      const token = localStorage.getItem('token');
+      const response = await axios.post(
+        getApiUrl(`institutions/${id}/upload-logo`),
+        formDataToSend,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          }
+        }
+      );
+
+      setSuccess('Logo uploaded successfully!');
+      setFormData({ ...formData, logo: response.data.data.logo });
+      setLogoFile(null);
+      
+      // Refresh institution data
+      await fetchInstitution();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to upload logo');
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const handleRemoveLogo = () => {
+    setLogoFile(null);
+    if (formData.logo) {
+      // Construct proper URL for static files
+      const baseUrl = getApiUrl('').replace('/api/v1/', '').replace('/api/v1', '');
+      setLogoPreview(`${baseUrl}${formData.logo}`);
+    } else {
+      setLogoPreview(null);
+    }
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -513,6 +609,90 @@ const InstitutionForm = () => {
                       ),
                     }}
                   />
+                </Grid>
+
+                <Grid item xs={12}>
+                  <Box>
+                    <Typography variant="subtitle2" sx={{ mb: 1, fontWeight: 600 }}>
+                      Institution Logo
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                      Upload a logo image to be displayed on fee vouchers (max 5MB, JPEG/PNG/GIF/WEBP)
+                    </Typography>
+                    
+                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                      {/* Logo Preview */}
+                      {logoPreview && (
+                        <Box
+                          component="img"
+                          src={logoPreview}
+                          alt="Logo Preview"
+                          sx={{
+                            width: 100,
+                            height: 100,
+                            objectFit: 'cover',
+                            borderRadius: 2,
+                            border: '2px solid #e0e0e0'
+                          }}
+                        />
+                      )}
+                      
+                      {/* Upload Controls */}
+                      <Box sx={{ flex: 1 }}>
+                        <input
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          id="logo-file-input"
+                          type="file"
+                          onChange={handleLogoFileChange}
+                        />
+                        <label htmlFor="logo-file-input">
+                          <Button
+                            variant="outlined"
+                            component="span"
+                            startIcon={<Add />}
+                            sx={{ mr: 1 }}
+                          >
+                            Choose File
+                          </Button>
+                        </label>
+                        
+                        {logoFile && (
+                          <>
+                            <Button
+                              variant="contained"
+                              onClick={handleLogoUpload}
+                              disabled={logoUploading || !id}
+                              startIcon={logoUploading ? <CircularProgress size={16} /> : null}
+                              sx={{ mr: 1, bgcolor: '#667eea' }}
+                            >
+                              {logoUploading ? 'Uploading...' : 'Upload'}
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              onClick={handleRemoveLogo}
+                              disabled={logoUploading}
+                            >
+                              Cancel
+                            </Button>
+                          </>
+                        )}
+                        
+                        {logoFile && (
+                          <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                            Selected: {logoFile.name}
+                          </Typography>
+                        )}
+                        
+                        {!id && !isEditMode && (
+                          <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 1 }}>
+                            Save the institution first before uploading a logo
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  </Box>
                 </Grid>
               </Grid>
             </CardContent>

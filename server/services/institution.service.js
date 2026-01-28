@@ -134,7 +134,7 @@ class InstitutionService {
   }
 
   /**
-   * Delete institution (soft delete)
+   * Delete institution (hard delete with cascade)
    */
   async deleteInstitution(institutionId, currentUser) {
     if (currentUser.role !== 'super_admin') {
@@ -147,17 +147,48 @@ class InstitutionService {
       throw new ApiError(404, 'Institution not found');
     }
 
-    // Check if institution has users
-    const usersCount = await User.countDocuments({ institution: institutionId });
-    if (usersCount > 0) {
-      throw new ApiError(400, `Cannot delete institution. It has ${usersCount} associated users. Please deactivate instead.`);
-    }
+    // Import all required models for cascade deletion
+    const Admission = require('../models/Admission');
+    const Class = require('../models/Class');
+    const Section = require('../models/Section');
+    const Group = require('../models/Group');
+    const FeeStructure = require('../models/FeeStructure');
+    const FeePayment = require('../models/FeePayment');
+    const FeeVoucher = require('../models/FeeVoucher');
+    const SuspenseEntry = require('../models/SuspenseEntry');
+    const Result = require('../models/Result');
+    const StudentFee = require('../models/StudentFee');
+    const Student = require('../models/Student');
 
-    // Soft delete - just deactivate
-    institution.isActive = false;
-    await institution.save();
+    // Cascade delete all related data
+    await Promise.all([
+      // Delete students/admissions
+      Admission.deleteMany({ institution_id: institutionId }),
+      Student.deleteMany({ institution_id: institutionId }),
+      
+      // Delete classes, sections, groups
+      Class.deleteMany({ institution_id: institutionId }),
+      Section.deleteMany({ institution_id: institutionId }),
+      Group.deleteMany({ institution_id: institutionId }),
+      
+      // Delete fee-related data (these use 'institution' field, not 'institution_id')
+      FeeStructure.deleteMany({ institution_id: institutionId }),
+      FeePayment.deleteMany({ institution_id: institutionId }),
+      FeeVoucher.deleteMany({ institution: institutionId }),
+      StudentFee.deleteMany({ institution: institutionId }),
+      SuspenseEntry.deleteMany({ institution_id: institutionId }),
+      
+      // Delete results
+      Result.deleteMany({ institution_id: institutionId }),
+      
+      // Delete users belonging to this institution
+      User.deleteMany({ institution: institutionId }),
+    ]);
 
-    return { message: 'Institution deactivated successfully' };
+    // Finally delete the institution itself
+    await Institution.findByIdAndDelete(institutionId);
+
+    return { message: 'Institution and all related data deleted successfully' };
   }
 
   /**

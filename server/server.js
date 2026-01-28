@@ -26,6 +26,10 @@ if (process.env.NODE_ENV === 'development') {
   });
 }
 
+// Serve uploaded files statically
+const path = require('path');
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 const PORT = process.env.PORT || 5000;
 
 // Routes

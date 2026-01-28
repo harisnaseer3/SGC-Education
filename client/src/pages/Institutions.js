@@ -18,6 +18,11 @@ import {
   CircularProgress,
   Alert,
   TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Add,
@@ -27,6 +32,7 @@ import {
   Search,
   ToggleOn,
   ToggleOff,
+  Delete,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -39,7 +45,19 @@ const Institutions = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [institutionToDelete, setInstitutionToDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const pagination = useTablePagination(12);
+
+  // Check if user is super admin
+  useEffect(() => {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    if (user.role !== 'super_admin') {
+      // Redirect non-super-admins to dashboard
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   useEffect(() => {
     fetchInstitutions();
@@ -77,6 +95,39 @@ const Institutions = () => {
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to toggle status');
     }
+  };
+
+  const handleDeleteClick = (institution) => {
+    setInstitutionToDelete(institution);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!institutionToDelete) return;
+
+    try {
+      setDeleting(true);
+      const token = localStorage.getItem('token');
+      await axios.delete(
+        getApiUrl(`institutions/${institutionToDelete._id}`),
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      setDeleteDialogOpen(false);
+      setInstitutionToDelete(null);
+      fetchInstitutions();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete institution');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setInstitutionToDelete(null);
   };
 
   const filteredInstitutions = institutions.filter((inst) =>
@@ -209,6 +260,7 @@ const Institutions = () => {
                         size="small"
                         color="primary"
                         onClick={() => navigate(`/institutions/edit/${institution._id}`)}
+                        title="Edit"
                       >
                         <Edit fontSize="small" />
                       </IconButton>
@@ -216,12 +268,21 @@ const Institutions = () => {
                         size="small"
                         color={institution.isActive ? 'warning' : 'success'}
                         onClick={() => handleToggleStatus(institution._id)}
+                        title={institution.isActive ? 'Deactivate' : 'Activate'}
                       >
                         {institution.isActive ? (
                           <ToggleOff fontSize="small" />
                         ) : (
                           <ToggleOn fontSize="small" />
                         )}
+                      </IconButton>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDeleteClick(institution)}
+                        title="Delete"
+                      >
+                        <Delete fontSize="small" />
                       </IconButton>
                     </TableCell>
                   </TableRow>
@@ -244,6 +305,50 @@ const Institutions = () => {
           )}
         </TableContainer>
       </Paper>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleDeleteCancel}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ color: 'error.main', fontWeight: 'bold' }}>
+          Delete Institution?
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete <strong>{institutionToDelete?.name}</strong>?
+          </DialogContentText>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            <strong>Warning:</strong> This action cannot be undone. 
+            All data belonging to this institution will be permanently deleted, including:
+            <ul style={{ marginTop: '8px', marginBottom: 0 }}>
+              <li>Students and admission records</li>
+              <li>Fee structures and transactions</li>
+              <li>Classes, sections, and groups</li>
+              <li>All other related data</li>
+            </ul>
+          </Alert>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={handleDeleteCancel}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={deleting}
+            startIcon={deleting ? <CircularProgress size={16} /> : <Delete />}
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
     </Box>
   );
