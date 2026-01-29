@@ -44,6 +44,11 @@ router.get('/reports', admissionController.getAdmissionReports);
 router.get('/reports/by-date', admissionController.getAdmissionByDateReport);
 router.get('/reports/by-month-detailed', admissionController.getAdmissionByMonthDetailedReport);
 
+// Import route - must be before /:id to avoid route conflicts
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage() });
+router.post('/import', upload.single('file'), admissionController.importAdmissions);
+
 // Parameterized routes (must come after all specific routes)
 // Add validation middleware to ensure only valid ObjectIds match
 router.get('/:id', validateObjectId, admissionController.getAdmissionById);
@@ -57,11 +62,5 @@ router.put('/:id/status', validateObjectId, isAdmin, admissionController.updateA
 router.post('/:id/approve-enroll', validateObjectId, isAdmin, admissionController.approveAndEnroll);
 router.put('/:id/reject', validateObjectId, isAdmin, admissionController.rejectAdmission);
 router.delete('/:id', validateObjectId, isAdmin, admissionController.deleteAdmission);
-
-const multer = require('multer');
-const upload = multer({ storage: multer.memoryStorage() });
-
-// Import route
-router.post('/import', upload.single('file'), admissionController.importAdmissions);
 
 module.exports = router;
