@@ -349,6 +349,30 @@ const restoreAdmissions = asyncHandler(async (req, res) => {
   });
 });
 
+
+
+/**
+ * @route   POST /api/v1/admissions/bulk-status-update
+ * @desc    Bulk update admission status
+ * @access  Private (Admin only)
+ */
+const bulkUpdateStatus = asyncHandler(async (req, res) => {
+  const { admissionIds, status, remarks } = req.body;
+
+  const results = await admissionService.bulkUpdateStatus(
+    admissionIds, 
+    status, 
+    remarks, 
+    req.user
+  );
+
+  res.json({
+    success: true,
+    message: `Successfully updated ${results.updatedAdmissions} admission(s)`,
+    data: results
+  });
+});
+
 module.exports = {
   getAdmissions,
   getAdmissionById,
@@ -367,5 +391,6 @@ module.exports = {
   getNextRollNumber,
   importAdmissions,
   bulkSoftDeleteAdmissions,
-  restoreAdmissions
+  restoreAdmissions,
+  bulkUpdateStatus
 };

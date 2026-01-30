@@ -2042,6 +2042,80 @@ class AdmissionService {
 
     return results;
   }
+
+  /**
+   * Bulk update admission status
+   */
+  async bulkUpdateStatus(admissionIds, status, remarks, currentUser) {
+    if (!Array.isArray(admissionIds) || admissionIds.length === 0) {
+      throw new ApiError(400, 'Please provide admission IDs to update');
+    }
+
+    if (!status) {
+      throw new ApiError(400, 'Please provide a status');
+    }
+
+    // Check permissions
+    if (currentUser.role !== 'super_admin' && currentUser.role !== 'admin') {
+      throw new ApiError(403, 'Only admins can update admission status');
+    }
+
+    const results = {
+      updatedAdmissions: 0,
+      errors: []
+    };
+
+    for (const admissionId of admissionIds) {
+      try {
+        const admission = await Admission.findById(admissionId);
+
+        if (!admission) {
+          results.errors.push({
+            admissionId,
+            error: 'Admission not found'
+          });
+          continue;
+        }
+
+        // Check permissions for non-super admins
+        if (currentUser.role !== 'super_admin' &&
+            admission.institution.toString() !== currentUser.institution?.toString()) {
+          results.errors.push({
+            admissionId,
+            error: 'Access denied to this admission'
+          });
+          continue;
+        }
+
+        // Update status
+        const oldStatus = admission.status;
+        admission.status = status;
+        
+        // Add to history
+        admission.statusHistory.push({
+          status,
+          remarks: remarks || `Bulk update from ${oldStatus}`,
+          changedBy: currentUser._id,
+          changedAt: new Date()
+        });
+
+        await admission.save();
+        results.updatedAdmissions++;
+
+        // If status changed to 'approved' and it wasn't before, maybe trigger some action?
+        // e.g. if (status === 'enrolled' && oldStatus !== 'enrolled') ...
+        // For now, we just update the status.
+
+      } catch (err) {
+        results.errors.push({
+          admissionId,
+          error: err.message
+        });
+      }
+    }
+
+    return results;
+  }
 }
 
 module.exports = new AdmissionService();
