@@ -76,6 +76,7 @@ const createInitialFormData = (userCtx) => ({
   markAsEnrolled: false,
   orphan: 'NO',
   studentPicture: null,
+  status: 'pending',
 
   // Address - Present
   presentAddress: {
@@ -398,6 +399,7 @@ const AdmissionForm = () => {
         institution: admission.institution?._id || admission.institution || prev.institution,
         academicYear: admission.academicYear || student?.academicYear || prev.academicYear,
         program: admission.program || student?.program || prev.program,
+        status: admission.status || 'pending',
         // Address - Present (from currentAddress)
         presentAddress: {
           address: admission.contactInfo?.currentAddress?.street || '',
@@ -608,6 +610,7 @@ const AdmissionForm = () => {
         class: formData.class || undefined,
         section: formData.section || undefined,
         rollNumber: formData.rollNumber || undefined,
+        status: isEditMode ? formData.status : undefined, // Include status only in edit mode
         personalInfo: {
           name,
           dateOfBirth: formData.dateOfBirth,
@@ -963,6 +966,35 @@ const AdmissionForm = () => {
                     }}
                   />
                 </Grid>
+
+                {/* Status Field - Only visible in Edit Mode */}
+                {isEditMode && (
+                  <Grid item xs={12} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel>STATUS</InputLabel>
+                      <Select
+                        value={formData.status}
+                        onChange={(e) => handleChange('status', e.target.value)}
+                        label="STATUS"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
+                      >
+                        <MenuItem value="pending">Pending</MenuItem>
+                        <MenuItem value="under_review">Under Review</MenuItem>
+                        <MenuItem value="approved">Approved</MenuItem>
+                        <MenuItem value="rejected">Rejected</MenuItem>
+                        <MenuItem value="enrolled">Enrolled</MenuItem>
+                        <MenuItem value="cancelled">Cancelled</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
+                )}
 
                 {/* Row 2 */}
                 <Grid item xs={12} md={3}>

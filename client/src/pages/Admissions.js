@@ -173,6 +173,12 @@ const Admissions = () => {
   const [selectedAdmissions, setSelectedAdmissions] = useState([]);
   const [showDeleted, setShowDeleted] = useState(false);
 
+  // Admissions Register Filters
+  const [filterStudentName, setFilterStudentName] = useState('');
+  const [filterRollNumber, setFilterRollNumber] = useState('');
+  const [filterClass, setFilterClass] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+
   // Search Student All Data state
   const allStudentStatusOptions = [
     'Enrolled',
@@ -2266,23 +2272,103 @@ const Admissions = () => {
               </Box>
             </Box>
 
-            {/* Search Bar */}
-            <Box sx={{ mb: 2 }}>
-              <TextField
-                fullWidth
-                placeholder="Search..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search />
-                    </InputAdornment>
-                  ),
-                }}
-                size="small"
-              />
-            </Box>
+
+            {/* Advanced Filters */}
+            <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa' }}>
+              <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
+                Search Filters
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    label="Student Name"
+                    placeholder="Search by name..."
+                    value={filterStudentName}
+                    onChange={(e) => setFilterStudentName(e.target.value)}
+                    size="small"
+                    InputProps={{
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search fontSize="small" />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <TextField
+                    fullWidth
+                    label="Roll Number"
+                    placeholder="Search roll no..."
+                    value={filterRollNumber}
+                    onChange={(e) => setFilterRollNumber(e.target.value)}
+                    size="small"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Class</InputLabel>
+                    <Select
+                      value={filterClass}
+                      onChange={(e) => setFilterClass(e.target.value)}
+                      label="Class"
+                    >
+                      <MenuItem value="">All Classes</MenuItem>
+                      {Array.from(new Map(admissions
+                        .filter(a => a.class)
+                        .map(a => {
+                          const classId = a.class?._id || a.class;
+                          const className = a.class?.name || 'Unknown';
+                          return [classId, { _id: classId, name: className }];
+                        })
+                      ).values()).map((cls) => (
+                        <MenuItem key={cls._id} value={cls._id}>
+                          {cls.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid item xs={12} sm={6} md={2}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel>Status</InputLabel>
+                    <Select
+                      value={filterStatus}
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      label="Status"
+                    >
+                      <MenuItem value="">All Status</MenuItem>
+                      <MenuItem value="pending">Pending</MenuItem>
+                      <MenuItem value="under_review">Under Review</MenuItem>
+                      <MenuItem value="approved">Approved</MenuItem>
+                      <MenuItem value="rejected">Rejected</MenuItem>
+                      <MenuItem value="enrolled">Enrolled</MenuItem>
+                      <MenuItem value="cancelled">Cancelled</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <Button
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      setFilterStudentName('');
+                      setFilterRollNumber('');
+                      setFilterClass('');
+
+                      setFilterStatus('');
+                      setSearchTerm('');
+                    }}
+                    sx={{ height: '40px' }}
+                  >
+                    Clear
+                  </Button>
+                </Grid>
+              </Grid>
+            </Paper>
 
             {/* Table */}
             {loading ? (
@@ -2301,20 +2387,27 @@ const Admissions = () => {
                           sx={{ color: 'white', '&.Mui-checked': { color: 'white' } }}
                           indeterminate={selectedAdmissions.length > 0 && selectedAdmissions.length < (() => {
                             const filteredRegisterAdmissions = admissions.filter((admission) => {
-                              // Filter by show deleted toggle
                               if (showDeleted && admission.isActive !== false) return false;
                               if (!showDeleted && admission.isActive === false) return false;
-                              // Search filter
-                              if (!searchTerm) return true;
-                              const search = searchTerm.toLowerCase();
-                              const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
-                              const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                              const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                              const phone = (admission.contactInfo?.phone || '').toLowerCase();
-                              return studentName.includes(search) || 
-                                     fatherName.includes(search) || 
-                                     admissionNo.includes(search) ||
-                                     phone.includes(search);
+                              if (filterStudentName) {
+                                const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                                const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                                if (!studentName.includes(filterStudentName.toLowerCase()) && !admissionName.includes(filterStudentName.toLowerCase())) return false;
+                              }
+                              if (filterRollNumber && !(admission.studentId?.rollNumber || '').toString().toLowerCase().includes(filterRollNumber.toLowerCase())) return false;
+                              if (filterClass && (admission.class?._id || admission.class) !== filterClass) return false;
+
+                              if (filterStatus && admission.status !== filterStatus) return false;
+                              if (searchTerm) {
+                                const search = searchTerm.toLowerCase();
+                                const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                                const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                                const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                                const phone = (admission.contactInfo?.phone || '').toLowerCase();
+                                const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                                if (!studentName.includes(search) && !fatherName.includes(search) && !admissionNo.includes(search) && !phone.includes(search) && !admissionName.includes(search)) return false;
+                              }
+                              return true;
                             });
                             return filteredRegisterAdmissions.length;
                           })()}
@@ -2322,32 +2415,50 @@ const Admissions = () => {
                             const filteredRegisterAdmissions = admissions.filter((admission) => {
                               if (showDeleted && admission.isActive !== false) return false;
                               if (!showDeleted && admission.isActive === false) return false;
-                              if (!searchTerm) return true;
-                              const search = searchTerm.toLowerCase();
-                              const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
-                              const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                              const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                              const phone = (admission.contactInfo?.phone || '').toLowerCase();
-                              return studentName.includes(search) || 
-                                     fatherName.includes(search) || 
-                                     admissionNo.includes(search) ||
-                                     phone.includes(search);
+                              if (filterStudentName) {
+                                const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                                const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                                if (!studentName.includes(filterStudentName.toLowerCase()) && !admissionName.includes(filterStudentName.toLowerCase())) return false;
+                              }
+                              if (filterRollNumber && !(admission.studentId?.rollNumber || '').toString().toLowerCase().includes(filterRollNumber.toLowerCase())) return false;
+                              if (filterClass && (admission.class?._id || admission.class) !== filterClass) return false;
+
+                              if (filterStatus && admission.status !== filterStatus) return false;
+                              if (searchTerm) {
+                                const search = searchTerm.toLowerCase();
+                                const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                                const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                                const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                                const phone = (admission.contactInfo?.phone || '').toLowerCase();
+                                const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                                if (!studentName.includes(search) && !fatherName.includes(search) && !admissionNo.includes(search) && !phone.includes(search) && !admissionName.includes(search)) return false;
+                              }
+                              return true;
                             });
                             return filteredRegisterAdmissions.length > 0 && selectedAdmissions.length === filteredRegisterAdmissions.length;
                           })()}
                           onChange={(e) => handleSelectAll(e, admissions.filter((admission) => {
                             if (showDeleted && admission.isActive !== false) return false;
                             if (!showDeleted && admission.isActive === false) return false;
-                            if (!searchTerm) return true;
-                            const search = searchTerm.toLowerCase();
-                            const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
-                            const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                            const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                            const phone = (admission.contactInfo?.phone || '').toLowerCase();
-                            return studentName.includes(search) || 
-                                    fatherName.includes(search) || 
-                                   admissionNo.includes(search) ||
-                                   phone.includes(search);
+                            if (filterStudentName) {
+                              const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                              const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                              if (!studentName.includes(filterStudentName.toLowerCase()) && !admissionName.includes(filterStudentName.toLowerCase())) return false;
+                            }
+                            if (filterRollNumber && !(admission.studentId?.rollNumber || '').toString().toLowerCase().includes(filterRollNumber.toLowerCase())) return false;
+                            if (filterClass && (admission.class?._id || admission.class) !== filterClass) return false;
+
+                            if (filterStatus && admission.status !== filterStatus) return false;
+                            if (searchTerm) {
+                              const search = searchTerm.toLowerCase();
+                              const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                              const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                              const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                              const phone = (admission.contactInfo?.phone || '').toLowerCase();
+                              const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                              if (!studentName.includes(search) && !fatherName.includes(search) && !admissionNo.includes(search) && !phone.includes(search) && !admissionName.includes(search)) return false;
+                            }
+                            return true;
                           }))}
                         />
                       </TableCell>
@@ -2363,10 +2474,6 @@ const Admissions = () => {
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Residence</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class To Which Admitted</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Arrears Dues</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class From Which Withdrawn</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date Of Withdrawal</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Remarks</TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
                     </TableRow>
                   </TableHead>
@@ -2377,23 +2484,63 @@ const Admissions = () => {
                         if (showDeleted && admission.isActive !== false) return false;
                         if (!showDeleted && admission.isActive === false) return false;
                         
-                        // Search filter
-                        if (!searchTerm) return true;
-                        const search = searchTerm.toLowerCase();
-                        const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
-                        const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                        const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                        const phone = (admission.contactInfo?.phone || '').toLowerCase();
-                        return studentName.includes(search) || 
-                               fatherName.includes(search) || 
-                               admissionNo.includes(search) ||
-                               phone.includes(search);
+                        // Filter by Student Name
+                        if (filterStudentName) {
+                          const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                          const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                          const searchName = filterStudentName.toLowerCase();
+                          if (!studentName.includes(searchName) && !admissionName.includes(searchName)) {
+                            return false;
+                          }
+                        }
+
+                        // Filter by Roll Number
+                        if (filterRollNumber) {
+                          const rollNumber = (admission.studentId?.rollNumber || '').toString().toLowerCase();
+                          if (!rollNumber.includes(filterRollNumber.toLowerCase())) {
+                            return false;
+                          }
+                        }
+
+                        // Filter by Class
+                        if (filterClass) {
+                          const admissionClass = admission.class?._id || admission.class;
+                          if (admissionClass !== filterClass) {
+                            return false;
+                          }
+                        }
+
+                        // Filter by Status
+                        if (filterStatus) {
+                          if (admission.status !== filterStatus) {
+                            return false;
+                          }
+                        }
+                        
+                        // Legacy search filter (keep for backward compatibility)
+                        if (searchTerm) {
+                          const search = searchTerm.toLowerCase();
+                          const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+                          const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+                          const admissionNo = (admission.applicationNumber || '').toLowerCase();
+                          const phone = (admission.contactInfo?.phone || '').toLowerCase();
+                          const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+                          if (!studentName.includes(search) && 
+                              !fatherName.includes(search) && 
+                              !admissionNo.includes(search) &&
+                              !phone.includes(search) &&
+                              !admissionName.includes(search)) {
+                            return false;
+                          }
+                        }
+
+                        return true;
                       });
 
                       if (filteredRegisterAdmissions.length === 0) {
                         return (
                           <TableRow>
-                            <TableCell colSpan={18} align="center" sx={{ py: 4 }}>
+                            <TableCell colSpan={14} align="center" sx={{ py: 4 }}>
                               <Typography variant="body2" color="text.secondary">
                                 No admissions found
                               </Typography>
@@ -2464,21 +2611,15 @@ const Admissions = () => {
                             </TableCell>
                             <TableCell>{className}</TableCell>
                             <TableCell>
-                              {admission.applicationFee?.amount && !admission.applicationFee?.paid 
-                                ? admission.applicationFee.amount 
-                                : '0'}
-                            </TableCell>
-                            <TableCell>{admission.withdrawnClass || ''}</TableCell>
-                            <TableCell>
-                              {admission.withdrawalDate 
-                                ? new Date(admission.withdrawalDate).toLocaleDateString('en-GB')
-                                : ''}
-                            </TableCell>
-                            <TableCell sx={{ maxWidth: 150, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {admission.remarks || ''}
-                            </TableCell>
-                            <TableCell>
                               <Box sx={{ display: 'flex', gap: 0.5 }}>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => navigate(`/admissions/edit/${admission._id}`)}
+                                  sx={{ color: '#28a745' }}
+                                  title="View"
+                                >
+                                  <Visibility fontSize="small" />
+                                </IconButton>
                                 <IconButton
                                   size="small"
                                   onClick={() => navigate(`/admissions/edit/${admission._id}`)}
