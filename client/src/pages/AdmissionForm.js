@@ -1441,8 +1441,12 @@ const AdmissionForm = () => {
                 </Box>
               </Box>
               
-              <Grid container spacing={2}>
-                  {/* Father Details */}
+              <Box sx={{ mt: 2 }}>
+                {/* Father Details Sub-section */}
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#495057', mb: 2, borderBottom: '1px solid #dee2e6', pb: 1 }}>
+                  Father's Details
+                </Typography>
+                <Grid container spacing={2} sx={{ mb: 4 }}>
                   <Grid item xs={12} md={4}>
                     <TextField
                       fullWidth
@@ -1479,46 +1483,13 @@ const AdmissionForm = () => {
                       </Select>
                     </FormControl>
                   </Grid>
+                </Grid>
 
-                  {/* Mother Details */}
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="MOTHER NAME"
-                      value={formData.mother.name}
-                      onChange={(e) => handleNestedChange('mother', 'name', e.target.value)}
-                      placeholder="Mother Name"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      label="MOTHER MOBILE"
-                      value={formData.mother.mobileNumber}
-                      onChange={(e) => handleNestedChange('mother', 'mobileNumber', e.target.value)}
-                      placeholder="e.g: 923001234567"
-                      error={formData.mother.mobileNumber && !validatePhone(formData.mother.mobileNumber)}
-                      helperText={formData.mother.mobileNumber && !validatePhone(formData.mother.mobileNumber) ? 'Invalid phone number (min 10 digits)' : ''}
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth>
-                      <InputLabel>MOTHER OPERATOR</InputLabel>
-                      <Select
-                        value={formData.mother.mobileOperator}
-                        onChange={(e) => handleNestedChange('mother', 'mobileOperator', e.target.value)}
-                        label="MOTHER OPERATOR"
-                      >
-                        {mobileOperators.map((op) => (
-                          <MenuItem key={op} value={op}>
-                            {op}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-
-                  {/* Guardian Details */}
+                {/* Guardian Details Sub-section */}
+                <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#495057', mb: 2, borderBottom: '1px solid #dee2e6', pb: 1 }}>
+                  Guardian's Details (Optional)
+                </Typography>
+                <Grid container spacing={2}>
                   <Grid item xs={12} md={4}>
                     <TextField
                       fullWidth
@@ -1560,7 +1531,7 @@ const AdmissionForm = () => {
                       helperText={formData.guardian.mobileNumber && !validatePhone(formData.guardian.mobileNumber) ? 'Invalid phone number (min 10 digits)' : ''}
                     />
                   </Grid>
-                  <Grid item xs={12} md={6}>
+                  <Grid item xs={12} md={4}>
                     <FormControl fullWidth>
                       <InputLabel>MOBILE OPERATOR</InputLabel>
                       <Select
@@ -1577,6 +1548,7 @@ const AdmissionForm = () => {
                     </FormControl>
                   </Grid>
                 </Grid>
+              </Box>
             </Box>
 
             {/* Save Button */}
