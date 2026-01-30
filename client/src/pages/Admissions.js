@@ -96,6 +96,7 @@ import {
   Delete,
   SwapHoriz,
   Apps,
+  Code,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission, bulkSoftDeleteAdmissions, restoreAdmissions } from '../services/admissionService';
@@ -1005,6 +1006,22 @@ const Admissions = () => {
                     primaryTypographyProps={{
                       fontSize: '0.875rem',
                       color: activeSection === 'register' ? '#667eea' : 'text.secondary',
+                    }}
+                  />
+                </ListItemButton>
+
+                {/* TEST ITEM FOR DEPLOYMENT VERIFICATION */}
+                <ListItemButton 
+                  sx={{ pl: 4 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 32 }}>
+                    <Code fontSize="small" sx={{ color: '#ef4444' }} />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary="Test"
+                    primaryTypographyProps={{
+                      fontSize: '0.875rem',
+                      color: 'text.secondary',
                     }}
                   />
                 </ListItemButton>
