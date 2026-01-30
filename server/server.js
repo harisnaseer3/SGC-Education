@@ -8,9 +8,32 @@ const { errorHandler, notFound } = require('./middleware/error.middleware');
 const app = express();
 
 // Connect to MongoDB
-connectDB().then(() => {
+const mongoose = require('mongoose'); // Ensure mongoose is imported
+
+// Connect to MongoDB
+connectDB().then(async () => {
   // Create super admin if doesn't exist
-  createSuperAdmin();
+  await createSuperAdmin();
+
+  // === DB MIGRATION: FIX DUPLICATE INDEXES ===
+  // Check for the incorrect global unique index on applicationNumber and drop it
+  try {
+    const collections = await mongoose.connection.db.listCollections({ name: 'admissions' }).toArray();
+    if (collections.length > 0) {
+      const indexes = await mongoose.connection.db.collection('admissions').indexes();
+      const needsDrop = indexes.find(idx => idx.name === 'applicationNumber_1');
+      
+      if (needsDrop) {
+        console.log('⚠️  Found incorrect global unique index "applicationNumber_1". Dropping it to fix cross-institution imports...');
+        await mongoose.connection.db.collection('admissions').dropIndex('applicationNumber_1');
+        console.log('✅ Index dropped successfully. Application numbers act unique per institution now.');
+      } else {
+        console.log('✅ Database indexes verified. No incorrectly indexed fields found.');
+      }
+    }
+  } catch (idxError) {
+    console.error('❌ Index migration check failed:', idxError.message);
+  }
 });
 
 // Middleware

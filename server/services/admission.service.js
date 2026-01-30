@@ -1650,6 +1650,50 @@ class AdmissionService {
     // Load all sections (no institution filter since we support multi-institution import)
     // Sections will be filtered per-row based on class ID and institution
     const allSections = await Section.find({});
+
+    // === CRITICAL FIX: SYNC SEQUENCE COUNTERS ===
+    // Identify all unique institutions in the data to sync their counters
+    const uniqueInstitutionIds = new Set();
+    
+    // Quick pass to find institutions
+    for (const row of data) {
+      let instId = currentUser.institution;
+      if (row['School Type Name']) {
+        const key = row['School Type Name'].toString().trim().toLowerCase();
+        if (institutionMap[key]) instId = institutionMap[key];
+      }
+      if (instId) uniqueInstitutionIds.add(instId.toString());
+    }
+
+    // Sync counters for each unique institution
+    console.log(`Syncing sequence counters for ${uniqueInstitutionIds.size} institutions...`);
+    const SequenceCounter = require('../models/SequenceCounter');
+    
+    for (const instId of uniqueInstitutionIds) {
+      try {
+        // Find max application number for this institution
+        const maxAdmission = await Admission.findOne({ institution: instId })
+          .sort({ applicationNumber: -1 })
+          .collation({ locale: 'en_US', numericOrdering: true }) // Numeric sort ensures "10" > "2"
+          .select('applicationNumber');
+
+        if (maxAdmission && maxAdmission.applicationNumber) {
+          const maxNum = parseInt(maxAdmission.applicationNumber, 10);
+          if (!isNaN(maxNum)) {
+            // Update counter to at least this number
+            await SequenceCounter.findOneAndUpdate(
+              { institution: instId, type: 'admission' },
+              { $max: { seq: maxNum } }, // Use $max operator to only update if strictly greater
+              { upsert: true, new: true }
+            );
+            console.log(`Synced counter for institution ${instId} to ${maxNum}`);
+          }
+        }
+      } catch (syncErr) {
+        console.error(`Failed to sync counter for institution ${instId}:`, syncErr);
+        // Continue anyway, don't block import
+      }
+    }
     
     let successCount = 0;
     let errorCount = 0;
