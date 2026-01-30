@@ -413,33 +413,38 @@ const AdmissionForm = () => {
           city: admission.contactInfo?.permanentAddress?.city || 'Sialkot',
         },
         father: {
-          ...prev.father,
           name: guardianInfo?.fatherName || '',
           occupation: guardianInfo?.fatherOccupation || '',
           mobileNumber: guardianInfo?.fatherPhone || '',
-          // CNIC doesn't exist in either model
           cnic: '',
-          // Father email exists in Student model but not in Admission model
           emailAddress: guardianInfo?.fatherEmail || '',
+          mobileOperator: 'Jazz',
+          forApplicationLogin: false,
+          forSMS: false,
+          forWhatsappSMS: false,
+          phoneNumberOffice: '',
+          whatsappMobileNumber: '',
         },
         mother: {
-          ...prev.mother,
           name: guardianInfo?.motherName || '',
           occupation: guardianInfo?.motherOccupation || '',
           mobileNumber: guardianInfo?.motherPhone || '',
-          // CNIC doesn't exist in either model
           cnic: '',
-          // Mother email exists in Student model but not in Admission model
           emailAddress: guardianInfo?.motherEmail || '',
+          mobileOperator: 'Jazz',
+          forApplicationLogin: false,
+          forSMS: false,
+          forWhatsappSMS: false,
+          phoneNumberOffice: '',
+          whatsappMobileNumber: '',
         },
         guardian: {
-          ...prev.guardian,
           name: guardianInfo?.guardianName || '',
           relation: guardianInfo?.guardianRelation || '',
           mobileNumber: guardianInfo?.guardianPhone || '',
           emailAddress: guardianInfo?.guardianEmail || '',
-          // CNIC doesn't exist in either model
           cnic: '',
+          mobileOperator: 'Jazz',
         },
       }));
     } catch (err) {
