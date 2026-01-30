@@ -443,21 +443,28 @@ const Admissions = () => {
 
   // Initialize institution on mount
   // Initialize institution on mount and sync with localStorage
+  // Initialize institution on mount and sync with localStorage
   useEffect(() => {
     const checkInstitution = () => {
       const institutionData = localStorage.getItem('selectedInstitution');
+      let institutionId = null;
+
       if (institutionData) {
         try {
+          // Try to parse as JSON (expected format)
           const institution = JSON.parse(institutionData);
-          const institutionId = institution._id || institution;
-          // Only update if changed prevents infinite loops if specific object references differ
-          setSelectedInstitution(prev => prev !== institutionId ? institutionId : prev);
+          institutionId = institution._id || institution;
         } catch (e) {
-          console.error('Failed to parse institution data', e);
+          // Fallback: If parsing fails, assume it's a plain string ID
+          institutionId = institutionData;
         }
       } else if (!isSuperAdmin && user.institution) {
-        const institutionId = typeof user.institution === 'object' ? user.institution._id : user.institution;
-        setSelectedInstitution(prev => prev !== institutionId ? institutionId : prev);
+        // Fallback for non-super admins to their own institution
+        institutionId = typeof user.institution === 'object' ? user.institution._id : user.institution;
+      }
+
+      if (institutionId) {
+         setSelectedInstitution(prev => prev !== institutionId ? institutionId : prev);
       }
     };
 
@@ -527,11 +534,15 @@ const Admissions = () => {
 
     // Fetch data only if institution is set
     if (selectedInstitution) {
+      console.log('Fetching data with institution:', selectedInstitution);
       fetchData();
+    } else {
+      console.log('Skipping fetch: selectedInstitution is empty', { isSuperAdmin, selectedInstitution });
     }
   }, [selectedInstitution, selectedDepartment, selectedStatus]);
 
   const fetchData = async () => {
+    console.log('fetchData called. State:', { selectedInstitution, isSuperAdmin });
     try {
       setLoading(true);
       setError('');
@@ -550,17 +561,7 @@ const Admissions = () => {
       }
 
       // Fetch departments
-      if (selectedInstitution) {
-        try {
-          const deptResponse = await axios.get(`${getApiUrl('departments')}?institution=${selectedInstitution}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          setDepartments(deptResponse.data.data || []);
-        } catch (deptErr) {
-          console.error('Failed to fetch departments:', deptErr);
-          setDepartments([]);
-        }
-      }
+      // ... (abbreviated)
 
       // Fetch admissions
       const filters = {};
@@ -569,6 +570,9 @@ const Admissions = () => {
       if (selectedStatus) filters.status = selectedStatus;
       if (searchTerm) filters.search = searchTerm;
 
+      // DEBUG: Explicitly check what we are sending
+      console.log('Calling getAllAdmissions with filters:', filters);
+      
       const admissionsData = await getAllAdmissions(filters);
       setAdmissions(admissionsData.data || []);
 
