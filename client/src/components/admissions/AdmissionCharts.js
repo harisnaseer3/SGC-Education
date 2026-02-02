@@ -58,6 +58,7 @@ const AdmissionCharts = ({ filters = {} }) => {
       const analytics = await getAdmissionAnalytics({
         ...filters,
         days,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
       setAnalyticsData(analytics.data);
     } catch (err) {
@@ -135,29 +136,7 @@ const AdmissionCharts = ({ filters = {} }) => {
       </Box>
 
       <Grid container spacing={3}>
-        {/* Conversion Rate Card */}
-        <Grid item xs={12} sm={6} md={3}>
-          <Card
-            elevation={0}
-            sx={{
-              background: 'linear-gradient(135deg, #667eea15 0%, #764ba205 100%)',
-              border: '1px solid #667eea30',
-              borderRadius: 2,
-            }}
-          >
-            <CardContent>
-              <Typography color="text.secondary" variant="body2" gutterBottom>
-                Conversion Rate
-              </Typography>
-              <Typography variant="h3" fontWeight="bold" color="#667eea">
-                {analyticsData.conversionRate}%
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {analyticsData.convertedApplications} of {analyticsData.totalApplications} converted
-              </Typography>
-            </CardContent>
-          </Card>
-        </Grid>
+
 
         {/* Status Breakdown Pie Chart */}
         <Grid item xs={12} md={6}>
@@ -260,7 +239,7 @@ const AdmissionCharts = ({ filters = {} }) => {
                 No data available for this period
               </Typography>
             ) : (
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={analyticsData.applicationTrends.map(item => ({
                   date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
                   count: item.count
@@ -296,7 +275,7 @@ const AdmissionCharts = ({ filters = {} }) => {
                 No data available for this period
               </Typography>
             ) : (
-              <ResponsiveContainer width="100%" height={350}>
+              <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={statusTrendsData}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" style={{ fontSize: '12px' }} />
@@ -344,6 +323,55 @@ const AdmissionCharts = ({ filters = {} }) => {
                     dot={{ fill: COLORS.enrolled }}
                   />
                 </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Section-wise Strength Details */}
+        <Grid item xs={12}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+            <Typography variant="h6" fontWeight="bold" gutterBottom>
+              Section-wise Student Strength
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            {!analyticsData.sectionStats || analyticsData.sectionStats.length === 0 ? (
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                No sections available
+              </Typography>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={analyticsData.sectionStats} layout="horizontal">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis 
+                    dataKey="label" 
+                    angle={-45} 
+                    textAnchor="end" 
+                    height={120} 
+                    style={{ fontSize: '11px' }}
+                  />
+                  <YAxis />
+                  <Tooltip 
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <Box sx={{ bgcolor: 'white', p: 2, border: '1px solid #ccc', borderRadius: 1 }}>
+                            <Typography variant="body2" fontWeight="bold">{data.label}</Typography>
+                            <Typography variant="caption" display="block">Capacity: {data.capacity}</Typography>
+                            <Typography variant="caption" display="block">Current: {data.currentStrength}</Typography>
+                            <Typography variant="caption" display="block">Available: {data.availableSeats}</Typography>
+                          </Box>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Legend />
+                  <Bar dataKey="capacity" fill="#43e97b" name="Capacity" />
+                  <Bar dataKey="currentStrength" fill="#667eea" name="Current Strength" />
+                  <Bar dataKey="availableSeats" fill="#f093fb" name="Available Seats" />
+                </BarChart>
               </ResponsiveContainer>
             )}
           </Paper>
@@ -416,54 +444,7 @@ const AdmissionCharts = ({ filters = {} }) => {
           </Paper>
         </Grid>
 
-        {/* Section-wise Strength Details */}
-        <Grid item xs={12}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Section-wise Student Strength
-            </Typography>
-            <Divider sx={{ mb: 2 }} />
-            {!analyticsData.sectionStats || analyticsData.sectionStats.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                No sections available
-              </Typography>
-            ) : (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={analyticsData.sectionStats} layout="horizontal">
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="label" 
-                    angle={-45} 
-                    textAnchor="end" 
-                    height={120} 
-                    style={{ fontSize: '11px' }}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    content={({ active, payload }) => {
-                      if (active && payload && payload.length) {
-                        const data = payload[0].payload;
-                        return (
-                          <Box sx={{ bgcolor: 'white', p: 2, border: '1px solid #ccc', borderRadius: 1 }}>
-                            <Typography variant="body2" fontWeight="bold">{data.label}</Typography>
-                            <Typography variant="caption" display="block">Capacity: {data.capacity}</Typography>
-                            <Typography variant="caption" display="block">Current: {data.currentStrength}</Typography>
-                            <Typography variant="caption" display="block">Available: {data.availableSeats}</Typography>
-                          </Box>
-                        );
-                      }
-                      return null;
-                    }}
-                  />
-                  <Legend />
-                  <Bar dataKey="capacity" fill="#43e97b" name="Capacity" />
-                  <Bar dataKey="currentStrength" fill="#667eea" name="Current Strength" />
-                  <Bar dataKey="availableSeats" fill="#f093fb" name="Available Seats" />
-                </BarChart>
-              </ResponsiveContainer>
-            )}
-          </Paper>
-        </Grid>
+
       </Grid>
     </Box>
   );

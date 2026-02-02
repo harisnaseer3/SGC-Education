@@ -183,11 +183,11 @@ const getAdmissionStats = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getAdmissionAnalytics = asyncHandler(async (req, res) => {
-  const { institution, academicYear, days } = req.query;
+  const { institution, academicYear, days, timezone } = req.query;
 
   try {
     const analytics = await admissionService.getAdmissionAnalytics(
-      { institution, academicYear, days: parseInt(days) },
+      { institution, academicYear, days: parseInt(days), timezone },
       req.user
     );
 

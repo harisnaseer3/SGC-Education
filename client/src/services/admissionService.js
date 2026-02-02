@@ -113,6 +113,7 @@ export const getAdmissionAnalytics = async (filters = {}) => {
   if (filters.institution) params.append('institution', filters.institution);
   if (filters.academicYear) params.append('academicYear', filters.academicYear);
   if (filters.days) params.append('days', filters.days);
+  if (filters.timezone) params.append('timezone', filters.timezone);
 
   const response = await axios.get(`${getApiUrl('admissions/analytics/charts')}?${params.toString()}`, {
     headers: getAuthHeader()

@@ -599,7 +599,7 @@ class AdmissionService {
       {
         $group: {
           _id: {
-            $dateToString: { format: '%Y-%m-%d', date: '$createdAt' }
+            $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: filters.timezone || 'UTC' }
           },
           count: { $sum: 1 }
         }
@@ -607,7 +607,11 @@ class AdmissionService {
       { $sort: { _id: 1 } }
     ]);
 
-    // Status trends over time
+    // Fill gaps for Application Trends
+    const appTrendMap = new Map(applicationTrends.map(item => [item._id, item.count]));
+    const timeZone = filters.timezone || 'UTC';
+
+    // Status trends over time (Moved up to use in loop)
     const statusTrends = await Admission.aggregate([
       {
         $match: {
@@ -618,7 +622,7 @@ class AdmissionService {
       {
         $group: {
           _id: {
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: filters.timezone || 'UTC' } },
             status: '$status'
           },
           count: { $sum: 1 }
@@ -626,6 +630,54 @@ class AdmissionService {
       },
       { $sort: { '_id.date': 1 } }
     ]);
+
+    // Map status trends for lookup
+    const statusTrendMap = new Map();
+    statusTrends.forEach(item => {
+      const date = item._id.date;
+      if (!statusTrendMap.has(date)) statusTrendMap.set(date, []);
+      statusTrendMap.get(date).push(item);
+    });
+
+    // Generate dates and fill trends
+    const filledApplicationTrends = [];
+    const filledStatusTrends = [];
+    const trackedStatuses = ['pending', 'approved', 'enrolled', 'rejected', 'under_review'];
+    const endDate = new Date(); // Define endDate as today
+
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      const dateKey = new Intl.DateTimeFormat('en-CA', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        timeZone: filters.timezone || 'UTC'
+      }).format(d);
+
+      // Prevent duplicates if daylight savings or day boundaries cause issues
+      if (filledApplicationTrends.length > 0 && filledApplicationTrends[filledApplicationTrends.length - 1]._id === dateKey) {
+          continue;
+      }
+
+      // Fill Application Trends
+      filledApplicationTrends.push({
+        _id: dateKey,
+        count: appTrendMap.get(dateKey) || 0
+      });
+
+      // Fill Status Trends
+      if (statusTrendMap.has(dateKey)) {
+        filledStatusTrends.push(...statusTrendMap.get(dateKey));
+      } else {
+        // Fill 0 for all tracked statuses
+        trackedStatuses.forEach(s => {
+          filledStatusTrends.push({
+            _id: { date: dateKey, status: s },
+            count: 0
+          });
+        });
+      }
+    }
+
 
     // Monthly application count
     const monthlyTrends = await Admission.aggregate([
@@ -638,7 +690,7 @@ class AdmissionService {
       {
         $group: {
           _id: {
-            $dateToString: { format: '%Y-%m', date: '$createdAt' }
+            $dateToString: { format: '%Y-%m', date: '$createdAt', timezone: filters.timezone || 'UTC' }
           },
           count: { $sum: 1 }
         }
@@ -715,7 +767,7 @@ class AdmissionService {
           as: 'classInfo'
         }
       },
-      { $unwind: { path: '$classInfo', preserveNullAndEmptyArrays: false } },
+      { $unwind: { path: '$classInfo', preserveNullAndEmptyArrays: true } },
       {
         $group: {
           _id: '$admissionInfo.class',
@@ -827,11 +879,11 @@ class AdmissionService {
         program: item._id || 'Unknown',
         count: item.count
       })),
-      applicationTrends: applicationTrends.map(item => ({
+      applicationTrends: filledApplicationTrends.map(item => ({
         date: item._id,
         count: item.count
       })),
-      statusTrends: statusTrends.map(item => ({
+      statusTrends: filledStatusTrends.map(item => ({
         date: item._id.date,
         status: item._id.status,
         count: item.count
@@ -1797,7 +1849,7 @@ class AdmissionService {
         // Prepare Admission Data
         const admissionData = {
           institution: rowInstitutionId, // Use per-row institution
-          academicYear: '2025-2026', // Default or calculate?
+          academicYear: '2026-2027', // Default to current year
           program: 'General',
           class: classId,
           section: sectionId,
