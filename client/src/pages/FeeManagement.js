@@ -2402,9 +2402,21 @@ const FeeManagement = () => {
       // Format dates correctly
       const issueDate = new Date().toISOString().split('T')[0];
       const formattedDueDate = dueDate.toISOString().split('T')[0];
-      // Valid date should be end of the month
-      const lastDayOfMonth = new Date(year, month, 0).getDate();
-      const validDate = new Date(year, month - 1, lastDayOfMonth).toISOString().split('T')[0];
+      
+      // Valid date logic: If due date is in a future month/year (beyond voucher month),
+      // set valid date equal to due date. Otherwise, set to last day of voucher month.
+      let validDate;
+      const dueDateMonth = dueDate.getMonth() + 1; // 1-indexed
+      const dueDateYear = dueDate.getFullYear();
+      
+      if (dueDateYear > year || (dueDateYear === year && dueDateMonth > month)) {
+        // Due date is in a future month/year - use due date as valid date
+        validDate = formattedDueDate;
+      } else {
+        // Due date is in current or past voucher month - use last day of voucher month
+        const lastDayOfMonth = new Date(year, month, 0).getDate();
+        validDate = new Date(year, month - 1, lastDayOfMonth).toISOString().split('T')[0];
+      }
 
       // Get student name - use personalInfo.name (single field)
       let studentName = 'N/A';
