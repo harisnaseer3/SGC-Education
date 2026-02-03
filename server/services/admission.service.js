@@ -10,6 +10,10 @@ const fs = require('fs');
 const path = require('path');
 
 const StudentPromotion = require('../models/StudentPromotion');
+const StudentFee = require('../models/StudentFee');
+const FeeVoucher = require('../models/FeeVoucher');
+const FeePayment = require('../models/FeePayment');
+const Result = require('../models/Result');
 
 /**
  * Admission Service - Handles admission-related business logic
@@ -452,6 +456,98 @@ class AdmissionService {
     await admission.save();
 
     return { message: 'Admission cancelled successfully' };
+  }
+
+  /**
+   * Permanently delete admission and all related data
+   * WARNING: This action is irreversible
+   */
+  async permanentlyDeleteAdmission(admissionId, currentUser) {
+    const admission = await Admission.findById(admissionId);
+
+    if (!admission) {
+      throw new ApiError(404, 'Admission not found');
+    }
+
+    // Check permissions
+    if (currentUser.role !== 'super_admin' &&
+        admission.institution.toString() !== currentUser.institution?.toString()) {
+      throw new ApiError(403, 'You can only delete admissions in your institution');
+    }
+
+    // Perform cleanup of related data
+    try {
+      // 1. If student exists, delete all student related data
+      if (admission.studentId) {
+        const student = await Student.findById(admission.studentId);
+        
+        if (student) {
+          const studentId = student._id;
+
+          // Delete Student Fees
+          await StudentFee.deleteMany({ student: studentId });
+
+          // Delete Fee Vouchers
+          await FeeVoucher.deleteMany({ student: studentId });
+
+          // Delete Fee Payments (Receipts)
+          await FeePayment.deleteMany({ student: studentId });
+
+          // Delete Student Promotions
+          await StudentPromotion.deleteMany({ student: studentId });
+
+          // Delete Results
+          await Result.deleteMany({ student: studentId });
+
+          // Delete User Account if linked
+          if (student.user) {
+            await User.findByIdAndDelete(student.user);
+          }
+
+          // Delete Student Record
+          await Student.findByIdAndDelete(studentId);
+        }
+      }
+
+      // 2. Delete the Admission Record
+      await Admission.findByIdAndDelete(admissionId);
+
+      return { 
+        message: 'Admission and all related data permanently deleted',
+        admissionId
+      };
+    } catch (error) {
+      console.error('Error during permanent deletion:', error);
+      throw new ApiError(500, 'Failed to fully delete admission data: ' + error.message);
+    }
+  }
+
+  /**
+   * Bulk permanently delete admissions
+   */
+  async bulkPermanentlyDeleteAdmissions(admissionIds, currentUser) {
+    if (!Array.isArray(admissionIds) || admissionIds.length === 0) {
+      throw new ApiError(400, 'No admission IDs provided');
+    }
+
+    let deletedCount = 0;
+    const errors = [];
+
+    for (const id of admissionIds) {
+      try {
+        await this.permanentlyDeleteAdmission(id, currentUser);
+        deletedCount++;
+      } catch (error) {
+        console.error(`Failed to delete admission ${id}:`, error);
+        errors.push({ id, error: error.message });
+      }
+    }
+
+    return {
+      message: `Permanently deleted ${deletedCount} admission(s)`,
+      deletedCount,
+      errors
+    };
   }
 
   /**
@@ -1523,7 +1619,7 @@ class AdmissionService {
   /**
    * Import admissions from XLSX
    */
-  async importAdmissions(fileBuffer, currentUser) {
+  async importAdmissions(fileBuffer, currentUser, overrideInstitutionId = null) {
     const xlsx = require('xlsx');
     
     console.log('Importing file, buffer size:', fileBuffer ? fileBuffer.length : 'null');
@@ -1670,12 +1766,15 @@ class AdmissionService {
     // Load all classes (no institution filter since we support multi-institution import)
     const classes = await Class.find({});
 
-    // Build class map (Name -> Class Object) to include institution info
+    // Build class map (Name -> Array of Class Objects) to include institution info
     const classMap = {};
     classes.forEach(cls => {
       if (cls.name) {
         const key = cls.name.toLowerCase().trim();
-        classMap[key] = cls; // Store entire class object, not just ID
+        if (!classMap[key]) {
+          classMap[key] = [];
+        }
+        classMap[key].push(cls);
       }
     });
 
@@ -1710,7 +1809,11 @@ class AdmissionService {
     // Quick pass to find institutions
     for (const row of data) {
       let instId = currentUser.institution;
-      if (row['School Type Name']) {
+      
+      // If override provided, use it strictly
+      if (overrideInstitutionId) {
+        instId = overrideInstitutionId;
+      } else if (row['School Type Name']) {
         const key = row['School Type Name'].toString().trim().toLowerCase();
         if (institutionMap[key]) instId = institutionMap[key];
       }
@@ -1763,7 +1866,12 @@ class AdmissionService {
         // === INSTITUTION MAPPING FROM "School Type Name" COLUMN ===
         let rowInstitutionId = currentUser.institution; // Default fallback
         
-        if (row['School Type Name']) {
+        // If override ID is provided (from selected institution in frontend), FORCE it.
+        if (overrideInstitutionId) {
+          rowInstitutionId = overrideInstitutionId;
+          // Verify that this user has access to this institution (if not super admin)
+          // (Though unlikely to reach here if passed from controller which trusts req.user check, but explicitly safer)
+        } else if (row['School Type Name']) {
           const schoolTypeName = row['School Type Name'].toString().trim().toLowerCase();
           const matchedInstitutionId = institutionMap[schoolTypeName];
           
@@ -1803,19 +1911,21 @@ class AdmissionService {
         let classObj = null;
         if (row['Class Name']) {
           const classNameLower = row['Class Name'].toString().trim().toLowerCase();
-          classObj = classMap[classNameLower];
+          const potentialClasses = classMap[classNameLower];
           
-          if (!classObj) {
+          if (!potentialClasses || potentialClasses.length === 0) {
              // Class not found - show available classes
              const availableClasses = Object.keys(classMap).map(k => {
-               return classMap[k].name;
+               return classMap[k][0].name;
              }).join(', ');
              throw new Error('Class "' + row['Class Name'] + '" not found. Available: ' + availableClasses);
           }
           
-          // Validate class belongs to the correct institution
-          if (classObj.institution.toString() !== rowInstitutionId.toString()) {
-            throw new Error(`Class "${row['Class Name']}" does not belong to institution "${row['School Type Name'] || 'your institution'}". It belongs to a different institution.`);
+          // Find class belonging to the correct institution
+          classObj = potentialClasses.find(c => c.institution.toString() === rowInstitutionId.toString());
+          
+          if (!classObj) {
+            throw new Error(`Class "${row['Class Name']}" exists but not for institution "${row['School Type Name'] || 'your institution'}". Please check if the class is created in this institution.`);
           }
           
           classId = classObj._id;
@@ -1925,10 +2035,19 @@ class AdmissionService {
         // Save
         const newAdmission = new Admission(admissionData);
         
-        // If 'Admission Effective Date' is provided
-        if (row['Admission Effective Date']) {
-          newAdmission.createdAt = new Date(row['Admission Effective Date']);
-          newAdmission.admissionDate = new Date(row['Admission Effective Date']);
+        // Set Admission Date and Effective Date from 'Admission Effective Date' column
+        const effectiveDateInput = row['Admission Effective Date'] || row['Admission Date'];
+        if (effectiveDateInput) {
+          const effectiveDate = new Date(effectiveDateInput);
+          // Check if date is valid
+          if (!isNaN(effectiveDate.getTime())) {
+            newAdmission.admissionDate = effectiveDate;
+            newAdmission.admissionEffectiveDate = effectiveDate;
+            // Also update legacy timestamp fields to match historical date
+            newAdmission.createdAt = effectiveDate;
+            newAdmission.submittedAt = effectiveDate; // Map to submittedAt
+            newAdmission.updatedAt = effectiveDate;
+          }
         }
         
         await newAdmission.save();

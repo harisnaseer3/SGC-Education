@@ -96,10 +96,10 @@ import {
   Delete,
   SwapHoriz,
   Apps,
-
+  DeleteForever,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission, bulkSoftDeleteAdmissions, restoreAdmissions, bulkUpdateStatus } from '../services/admissionService';
+import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission, bulkSoftDeleteAdmissions, restoreAdmissions, bulkUpdateStatus, permanentlyDeleteAdmission, bulkPermanentlyDeleteAdmissions } from '../services/admissionService';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
 import { getAvailableModules } from '../config/modules';
@@ -681,6 +681,37 @@ const Admissions = () => {
     } catch (err) {
       console.error('Error restoring admissions:', err);
       setError(err.response?.data?.message || 'Failed to restore admissions');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Bulk permanent delete handler
+  const handleBulkPermanentDelete = async () => {
+    if (selectedAdmissions.length === 0) {
+      alert('Please select admissions to permanently delete');
+      return;
+    }
+
+    if (!window.confirm(`WARNING: Are you sure you want to PERMANENTLY delete ${selectedAdmissions.length} selected admission(s)?\n\nThis action CANNOT be undone and will delete ALL associated data including:\n- Student Profile\n- User Account\n- Fee Records\n- Exam Results\n\nClick OK to confirm permanent deletion.`)) {
+      return;
+    }
+
+    // Double confirmation for safety
+    if (!window.confirm(`Are you ABSOLUTELY SURE? This is your last chance to cancel.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+      const result = await bulkPermanentlyDeleteAdmissions(selectedAdmissions);
+      alert(result.message || 'Admissions permanently deleted');
+      setSelectedAdmissions([]);
+      fetchData(); // Refresh the list
+    } catch (err) {
+      console.error('Error permanently deleting admissions:', err);
+      setError(err.response?.data?.message || 'Failed to permanently delete admissions');
     } finally {
       setLoading(false);
     }
@@ -2408,6 +2439,23 @@ const Admissions = () => {
                     }}
                   >
                     Restore Selected ({selectedAdmissions.length})
+                  </Button>
+                )}
+
+                {/* Bulk Permanent Delete Button */}
+                {selectedAdmissions.length > 0 && showDeleted && (
+                  <Button
+                    variant="contained"
+                    startIcon={<DeleteForever />}
+                    onClick={handleBulkPermanentDelete}
+                    sx={{
+                      bgcolor: '#dc3545',
+                      '&:hover': { bgcolor: '#c82333' },
+                      textTransform: 'none',
+                      ml: 1
+                    }}
+                  >
+                    Permanent Delete ({selectedAdmissions.length})
                   </Button>
                 )}
 

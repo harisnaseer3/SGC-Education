@@ -159,6 +159,23 @@ const deleteAdmission = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @route   DELETE /api/v1/admissions/:id/permanent
+ * @desc    Permanently delete admission and all related data
+ * @access  Private (Admin)
+ */
+const permanentlyDeleteAdmission = asyncHandler(async (req, res) => {
+  const result = await admissionService.permanentlyDeleteAdmission(
+    req.params.id,
+    req.user
+  );
+
+  res.json({
+    success: true,
+    message: result.message
+  });
+});
+
+/**
  * @route   GET /api/v1/admissions/stats/overview
  * @desc    Get admission statistics
  * @access  Private
@@ -306,7 +323,8 @@ const importAdmissions = asyncHandler(async (req, res) => {
 
   const result = await admissionService.importAdmissions(
     req.file.buffer,
-    req.user
+    req.user,
+    req.body.institutionId // Pass optional institution ID Override
   );
 
   res.json({
@@ -345,6 +363,23 @@ const restoreAdmissions = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: `Successfully restored ${results.restoredAdmissions} admission(s) and ${results.restoredStudents} student(s)`,
+    data: results
+  });
+});
+
+/**
+ * @route   POST /api/v1/admissions/bulk-permanent-delete
+ * @desc    Bulk permanently delete admissions
+ * @access  Private (Admin only)
+ */
+const bulkPermanentlyDeleteAdmissions = asyncHandler(async (req, res) => {
+  const { admissionIds } = req.body;
+
+  const results = await admissionService.bulkPermanentlyDeleteAdmissions(admissionIds, req.user);
+
+  res.json({
+    success: true,
+    message: results.message,
     data: results
   });
 });
@@ -392,5 +427,7 @@ module.exports = {
   importAdmissions,
   bulkSoftDeleteAdmissions,
   restoreAdmissions,
-  bulkUpdateStatus
+  bulkUpdateStatus,
+  permanentlyDeleteAdmission,
+  bulkPermanentlyDeleteAdmissions
 };

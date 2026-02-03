@@ -54,6 +54,19 @@ const ImportStudents = () => {
       const formData = new FormData();
       formData.append('file', file);
 
+      // Get selected institution from localStorage
+      const selectedInstitutionStr = localStorage.getItem('selectedInstitution');
+      if (selectedInstitutionStr) {
+        try {
+          const selectedInstitution = JSON.parse(selectedInstitutionStr);
+          if (selectedInstitution && selectedInstitution._id) {
+            formData.append('institutionId', selectedInstitution._id);
+          }
+        } catch (e) {
+          console.error('Error parsing selected institution:', e);
+        }
+      }
+
       const token = localStorage.getItem('token');
       const response = await axios.post(getApiUrl('admissions/import'), formData, {
         headers: {

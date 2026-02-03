@@ -30,6 +30,13 @@ const admissionSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Section'
   },
+  admissionDate: {
+    type: Date,
+    default: Date.now
+  },
+  admissionEffectiveDate: {
+    type: Date
+  },
   rollNumber: {
     type: String,
     uppercase: true,

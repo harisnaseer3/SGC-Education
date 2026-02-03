@@ -164,6 +164,24 @@ export const bulkUpdateStatus = async (admissionIds, status, remarks) => {
   return response.data;
 };
 
+// Permanently delete admission
+export const permanentlyDeleteAdmission = async (id) => {
+  const response = await axios.delete(getApiUrl(`admissions/${id}/permanent`), {
+    headers: getAuthHeader()
+  });
+  return response.data;
+};
+
+// Bulk permanently delete admissions
+export const bulkPermanentlyDeleteAdmissions = async (admissionIds) => {
+  const response = await axios.post(
+    getApiUrl('admissions/bulk-permanent-delete'),
+    { admissionIds },
+    { headers: getAuthHeader() }
+  );
+  return response.data;
+};
+
 export default {
   getAllAdmissions,
   getAdmissionById,
@@ -177,7 +195,8 @@ export default {
   getAdmissionsByDepartment,
   getAdmissionAnalytics,
   getNextRollNumber,
-  bulkSoftDeleteAdmissions,
   restoreAdmissions,
-  bulkUpdateStatus
+  bulkUpdateStatus,
+  permanentlyDeleteAdmission,
+  bulkPermanentlyDeleteAdmissions
 };

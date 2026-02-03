@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-30T10:34:04.017Z",
+  "timestamp": "2026-02-03T12:17:03.711Z",
   "totalRecords": 91,
   "sampleRecords": [
     {
@@ -148,542 +148,667 @@
     "Student Search 3"
   ],
   "availableClasses": {
-    "play group": {
-      "schedule": {
-        "days": []
+    "play group": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 2,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "693ff79912daa6760b51a943",
+        "name": "Play Group",
+        "code": "01",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe36a127b866bb64737c1",
+        "group": "693fb899127b866bb647340e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-15T11:57:13.552Z",
+        "updatedAt": "2026-01-27T07:06:03.722Z",
+        "__v": 0
       },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69721ed0ff085e0d24df0145",
+        "name": "Play Group",
+        "code": "01",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-22T12:57:52.149Z",
+        "updatedAt": "2026-01-30T04:52:38.549Z",
+        "__v": 0
       },
-      "_id": "697c890a25c3dfc63107ccdb",
-      "name": "Play Group",
-      "code": "00",
-      "institution": "693958d0e7f0c105a13a2986",
-      "academicYear": "2026-2027",
-      "group": "697c88f425c3dfc63107cc80",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T10:33:46.478Z",
-      "updatedAt": "2026-01-30T10:33:46.479Z",
-      "__v": 0
-    },
-    "core montessory": {
-      "schedule": {
-        "days": []
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c890a25c3dfc63107ccdb",
+        "name": "Play Group",
+        "code": "00",
+        "institution": "693958d0e7f0c105a13a2986",
+        "academicYear": "2026-2027",
+        "group": "697c88f425c3dfc63107cc80",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T10:33:46.478Z",
+        "updatedAt": "2026-01-30T10:33:46.479Z",
+        "__v": 0
+      }
+    ],
+    "core montessory": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "693fffcd12daa6760b51ab75",
+        "name": "core montessory",
+        "code": "02",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe480127b866bb64737c9",
+        "group": "693fb88c127b866bb64733e6",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-15T12:32:13.012Z",
+        "updatedAt": "2025-12-15T12:32:13.012Z",
+        "__v": 0
+      }
+    ],
+    "advance montessori": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439035a6fe226c4638e6d8",
+        "name": "Advance Montessori",
+        "code": "1",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe3fc127b866bb64737c5",
+        "group": "693fb88c127b866bb64733e6",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:25:09.983Z",
+        "updatedAt": "2026-01-27T07:09:01.938Z",
+        "__v": 0
       },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3b043d5693280dacaac8",
+        "name": "Advance Montessori",
+        "code": "002",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fe5cb127b866bb64737ed",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:00:52.336Z",
+        "updatedAt": "2026-01-30T05:00:52.337Z",
+        "__v": 0
+      }
+    ],
+    "grade-1": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439054a6fe226c4638e702",
+        "name": "Grade-1",
+        "code": "001",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe4a4127b866bb64737cd",
+        "group": "693fb899127b866bb647340e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:25:40.635Z",
+        "updatedAt": "2026-02-03T11:46:58.056Z",
+        "__v": 0
       },
-      "_id": "693fffcd12daa6760b51ab75",
-      "name": "core montessory",
-      "code": "02",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe480127b866bb64737c9",
-      "group": "693fb88c127b866bb64733e6",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-15T12:32:13.012Z",
-      "updatedAt": "2025-12-15T12:32:13.012Z",
-      "__v": 0
-    },
-    "advance montessori": {
-      "schedule": {
-        "days": []
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3b2f3d5693280dacaae9",
+        "name": "Grade-1",
+        "code": "1",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:01:35.687Z",
+        "updatedAt": "2026-01-30T05:01:35.687Z",
+        "__v": 0
+      }
+    ],
+    "grade-2": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439079a6fe226c4638e72c",
+        "name": "Grade-2",
+        "code": "05",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe4b3127b866bb64737d1",
+        "group": "693fb684127b866bb6473312",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:26:17.253Z",
+        "updatedAt": "2026-02-03T11:47:35.817Z",
+        "__v": 0
       },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3b483d5693280dacab0a",
+        "name": "Grade-2",
+        "code": "2",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:02:00.272Z",
+        "updatedAt": "2026-01-30T05:02:00.272Z",
+        "__v": 0
+      }
+    ],
+    "grade-3": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "694390a1a6fe226c4638e756",
+        "name": "Grade-3",
+        "code": "06",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe4c5127b866bb64737d5",
+        "group": "693fb684127b866bb6473312",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:26:57.480Z",
+        "updatedAt": "2026-02-03T11:47:56.162Z",
+        "__v": 0
       },
-      "_id": "697c3b043d5693280dacaac8",
-      "name": "Advance Montessori",
-      "code": "002",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fe5cb127b866bb64737ed",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:00:52.336Z",
-      "updatedAt": "2026-01-30T05:00:52.337Z",
-      "__v": 0
-    },
-    "one": {
-      "schedule": {
-        "days": []
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3b603d5693280dacab2b",
+        "name": "Grade-3",
+        "code": "03",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:02:24.578Z",
+        "updatedAt": "2026-01-30T05:02:24.578Z",
+        "__v": 0
+      }
+    ],
+    "grade-4": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439106a6fe226c4638e780",
+        "name": "Grade-4",
+        "code": "07",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe4d4127b866bb64737d9",
+        "group": "693fb899127b866bb647340e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:28:38.848Z",
+        "updatedAt": "2026-02-03T11:48:06.922Z",
+        "__v": 0
       },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3b7f3d5693280dacab4c",
+        "name": "Grade-4",
+        "code": "04",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:02:55.566Z",
+        "updatedAt": "2026-01-30T05:02:55.566Z",
+        "__v": 0
+      }
+    ],
+    "grade-5": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439132a6fe226c4638e7aa",
+        "name": "Grade-5",
+        "code": "08",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe506127b866bb64737dd",
+        "group": "693fb899127b866bb647340e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:29:22.255Z",
+        "updatedAt": "2026-02-03T11:48:34.561Z",
+        "__v": 0
       },
-      "_id": "69439054a6fe226c4638e702",
-      "name": "One",
-      "code": "001",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe4a4127b866bb64737cd",
-      "group": "693fb899127b866bb647340e",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:25:40.635Z",
-      "updatedAt": "2026-01-27T07:08:42.388Z",
-      "__v": 0
-    },
-    "two": {
-      "schedule": {
-        "days": []
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3b923d5693280dacab6d",
+        "name": "Grade-5",
+        "code": "05",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:03:14.318Z",
+        "updatedAt": "2026-01-30T05:03:14.319Z",
+        "__v": 0
+      }
+    ],
+    "grade-6": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439153a6fe226c4638e7d4",
+        "name": "Grade-6",
+        "code": "09",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe51e127b866bb64737e1",
+        "group": "693fb8ad127b866bb647345e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:29:55.212Z",
+        "updatedAt": "2026-02-03T11:48:45.147Z",
+        "__v": 0
       },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3ba33d5693280dacab8e",
+        "name": "Grade-6",
+        "code": "06",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:03:31.288Z",
+        "updatedAt": "2026-01-30T05:03:31.288Z",
+        "__v": 0
+      }
+    ],
+    "grade-7": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439171a6fe226c4638e7fe",
+        "name": "Grade-7",
+        "code": "10",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe52d127b866bb64737e5",
+        "group": "693fb8ad127b866bb647345e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:30:25.944Z",
+        "updatedAt": "2026-02-03T11:48:58.817Z",
+        "__v": 0
       },
-      "_id": "697864a5774148aebf6bafbb",
-      "name": "Two",
-      "code": "02",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2026-2027",
-      "group": "693fb684127b866bb6473312",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-27T07:09:25.685Z",
-      "updatedAt": "2026-01-27T07:09:25.685Z",
-      "__v": 0
-    },
-    "three": {
-      "schedule": {
-        "days": []
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3bca3d5693280dacabaf",
+        "name": "Grade-7",
+        "code": "07",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:04:10.550Z",
+        "updatedAt": "2026-01-30T05:04:10.550Z",
+        "__v": 0
+      }
+    ],
+    "grade-8": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69439196a6fe226c4638e828",
+        "name": "Grade-8",
+        "code": "11",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "grade": "693fe538127b866bb64737e9",
+        "group": "693fb684127b866bb6473312",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "693bff26a82941f27584aba7",
+        "createdAt": "2025-12-18T05:31:02.361Z",
+        "updatedAt": "2026-02-03T11:49:14.176Z",
+        "__v": 0
       },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3bee3d5693280dacabd0",
+        "name": "Grade-8",
+        "code": "08",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:04:46.374Z",
+        "updatedAt": "2026-01-30T05:04:46.375Z",
+        "__v": 0
+      }
+    ],
+    "9th": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "694632b2b5943dd4170cf5bf",
+        "name": "9th",
+        "code": "009",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2025-2026",
+        "group": "693fb8ad127b866bb647345e",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2025-12-20T05:22:58.314Z",
+        "updatedAt": "2025-12-20T05:22:58.319Z",
+        "__v": 0
+      }
+    ],
+    "core montessori": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 1,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "69707d855df2c79b5043e925",
+        "name": "Core Montessori",
+        "code": "10",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2026-2027",
+        "group": "693fb8bb127b866bb6473486",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-21T07:17:25.412Z",
+        "updatedAt": "2026-02-03T11:46:27.792Z",
+        "__v": 0
       },
-      "_id": "694390a1a6fe226c4638e756",
-      "name": "Three",
-      "code": "06",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe4c5127b866bb64737d5",
-      "group": "693fb684127b866bb6473312",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:26:57.480Z",
-      "updatedAt": "2025-12-18T05:26:57.480Z",
-      "__v": 0
-    },
-    "four": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "69439106a6fe226c4638e780",
-      "name": "Four",
-      "code": "07",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe4d4127b866bb64737d9",
-      "group": "693fb899127b866bb647340e",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:28:38.848Z",
-      "updatedAt": "2025-12-18T05:28:38.848Z",
-      "__v": 0
-    },
-    "5th": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "69439132a6fe226c4638e7aa",
-      "name": "5th",
-      "code": "08",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe506127b866bb64737dd",
-      "group": "693fb899127b866bb647340e",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:29:22.255Z",
-      "updatedAt": "2025-12-18T05:29:22.255Z",
-      "__v": 0
-    },
-    "6th": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "69439153a6fe226c4638e7d4",
-      "name": "6th",
-      "code": "09",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe51e127b866bb64737e1",
-      "group": "693fb8ad127b866bb647345e",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:29:55.212Z",
-      "updatedAt": "2025-12-18T05:29:55.212Z",
-      "__v": 0
-    },
-    "7th": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "69439171a6fe226c4638e7fe",
-      "name": "7th",
-      "code": "10",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe52d127b866bb64737e5",
-      "group": "693fb8ad127b866bb647345e",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:30:25.944Z",
-      "updatedAt": "2025-12-18T05:30:25.945Z",
-      "__v": 0
-    },
-    "8th": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "69439196a6fe226c4638e828",
-      "name": "8th",
-      "code": "11",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "grade": "693fe538127b866bb64737e9",
-      "group": "693fb684127b866bb6473312",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "693bff26a82941f27584aba7",
-      "createdAt": "2025-12-18T05:31:02.361Z",
-      "updatedAt": "2025-12-18T05:31:02.362Z",
-      "__v": 0
-    },
-    "9th": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "694632b2b5943dd4170cf5bf",
-      "name": "9th",
-      "code": "009",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2025-2026",
-      "group": "693fb8ad127b866bb647345e",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2025-12-20T05:22:58.314Z",
-      "updatedAt": "2025-12-20T05:22:58.319Z",
-      "__v": 0
-    },
-    "cor.mon": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 1,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "69707d855df2c79b5043e925",
-      "name": "Cor.Mon",
-      "code": "10",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2026-2027",
-      "group": "693fb8bb127b866bb6473486",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-21T07:17:25.412Z",
-      "updatedAt": "2026-01-27T07:07:18.761Z",
-      "__v": 0
-    },
-    "11th": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697082535df2c79b5043ed26",
-      "name": "11th",
-      "code": "11",
-      "institution": "692d701e9f96bcdcb121598c",
-      "academicYear": "2026-2027",
-      "group": "693fb8bb127b866bb6473486",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-21T07:37:55.323Z",
-      "updatedAt": "2026-01-21T07:37:55.324Z",
-      "__v": 0
-    },
-    "core montessori": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3ae33d5693280dacaaa7",
-      "name": "Core Montessori",
-      "code": "02",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:00:19.269Z",
-      "updatedAt": "2026-01-30T05:00:19.276Z",
-      "__v": 0
-    },
-    "grade-1": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3b2f3d5693280dacaae9",
-      "name": "Grade-1",
-      "code": "1",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:01:35.687Z",
-      "updatedAt": "2026-01-30T05:01:35.687Z",
-      "__v": 0
-    },
-    "grade-2": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3b483d5693280dacab0a",
-      "name": "Grade-2",
-      "code": "2",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:02:00.272Z",
-      "updatedAt": "2026-01-30T05:02:00.272Z",
-      "__v": 0
-    },
-    "grade-3": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3b603d5693280dacab2b",
-      "name": "Grade-3",
-      "code": "03",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:02:24.578Z",
-      "updatedAt": "2026-01-30T05:02:24.578Z",
-      "__v": 0
-    },
-    "grade-4": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3b7f3d5693280dacab4c",
-      "name": "Grade-4",
-      "code": "04",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:02:55.566Z",
-      "updatedAt": "2026-01-30T05:02:55.566Z",
-      "__v": 0
-    },
-    "grade-5": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3b923d5693280dacab6d",
-      "name": "Grade-5",
-      "code": "05",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:03:14.318Z",
-      "updatedAt": "2026-01-30T05:03:14.319Z",
-      "__v": 0
-    },
-    "grade-6": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3ba33d5693280dacab8e",
-      "name": "Grade-6",
-      "code": "06",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:03:31.288Z",
-      "updatedAt": "2026-01-30T05:03:31.288Z",
-      "__v": 0
-    },
-    "grade-7": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3bca3d5693280dacabaf",
-      "name": "Grade-7",
-      "code": "07",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:04:10.550Z",
-      "updatedAt": "2026-01-30T05:04:10.550Z",
-      "__v": 0
-    },
-    "grade-8": {
-      "schedule": {
-        "days": []
-      },
-      "stats": {
-        "totalSections": 0,
-        "totalStudents": 0,
-        "totalTeachers": 0
-      },
-      "_id": "697c3bee3d5693280dacabd0",
-      "name": "Grade-8",
-      "code": "08",
-      "institution": "6939586be7f0c105a13a297b",
-      "academicYear": "2026-2027",
-      "group": "69721ebaff085e0d24df0030",
-      "feeType": "693fdad0127b866bb6473787",
-      "capacity": 40,
-      "isActive": true,
-      "createdBy": "692d44aa7efdf8f2264bfccd",
-      "createdAt": "2026-01-30T05:04:46.374Z",
-      "updatedAt": "2026-01-30T05:04:46.375Z",
-      "__v": 0
-    }
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697c3ae33d5693280dacaaa7",
+        "name": "Core Montessori",
+        "code": "02",
+        "institution": "6939586be7f0c105a13a297b",
+        "academicYear": "2026-2027",
+        "group": "69721ebaff085e0d24df0030",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-30T05:00:19.269Z",
+        "updatedAt": "2026-01-30T05:00:19.276Z",
+        "__v": 0
+      }
+    ],
+    "11th": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697082535df2c79b5043ed26",
+        "name": "11th",
+        "code": "11",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2026-2027",
+        "group": "693fb8bb127b866bb6473486",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-21T07:37:55.323Z",
+        "updatedAt": "2026-01-21T07:37:55.324Z",
+        "__v": 0
+      }
+    ],
+    "two": [
+      {
+        "schedule": {
+          "days": []
+        },
+        "stats": {
+          "totalSections": 0,
+          "totalStudents": 0,
+          "totalTeachers": 0
+        },
+        "_id": "697864a5774148aebf6bafbb",
+        "name": "Two",
+        "code": "02",
+        "institution": "692d701e9f96bcdcb121598c",
+        "academicYear": "2026-2027",
+        "group": "693fb684127b866bb6473312",
+        "feeType": "693fdad0127b866bb6473787",
+        "capacity": 40,
+        "isActive": true,
+        "createdBy": "692d44aa7efdf8f2264bfccd",
+        "createdAt": "2026-01-27T07:09:25.685Z",
+        "updatedAt": "2026-01-27T07:09:25.685Z",
+        "__v": 0
+      }
+    ]
   }
 }
