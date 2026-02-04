@@ -2812,7 +2812,15 @@ const FeeManagement = () => {
       }
       
       handleCloseAssignFeeStructureDialog();
-      await fetchStudentsWithoutFeeStructure();
+      
+      // Instead of refreshing the list, mark this student as having an assigned fee structure
+      setStudentsWithoutFeeStructure(prevStudents =>
+        prevStudents.map(student =>
+          student._id === selectedStudentForAssignment._id
+            ? { ...student, hasAssignedFee: true }
+            : student
+        )
+      );
     } catch (err) {
       console.error('Error assigning fee structure:', err);
       notifyError(err.response?.data?.message || 'Failed to assign fee structure');
@@ -3441,14 +3449,23 @@ const FeeManagement = () => {
                         <TableCell>{capitalizeFirstOnly(student.section)}</TableCell>
                         <TableCell>{student.academicYear}</TableCell>
                         <TableCell align="center">
-                          <Button
-                            variant="contained"
-                            size="small"
-                            onClick={() => handleOpenAssignFeeStructureDialog(student)}
-                            sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5568d3' } }}
-                          >
-                            Assign Fee Structure
-                          </Button>
+                          {student.hasAssignedFee ? (
+                            <Chip 
+                              label="Fee Assigned" 
+                              color="success" 
+                              size="small"
+                              sx={{ fontWeight: 'bold' }}
+                            />
+                          ) : (
+                            <Button
+                              variant="contained"
+                              size="small"
+                              onClick={() => handleOpenAssignFeeStructureDialog(student)}
+                              sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5568d3' } }}
+                            >
+                              Assign Fee Structure
+                            </Button>
+                          )}
                         </TableCell>
                       </TableRow>
                     ))}
