@@ -260,6 +260,13 @@ const FeeManagement = () => {
   const [voucherData, setVoucherData] = useState(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
 
+  // Suspense Filters
+  const [suspenseFilters, setSuspenseFilters] = useState({
+    date: '',
+    amount: '',
+    transactionId: ''
+  });
+
   // Assign Fee Structure
   const [studentsWithoutFeeStructure, setStudentsWithoutFeeStructure] = useState([]);
   const [assignFeeStructureLoading, setAssignFeeStructureLoading] = useState(false);
@@ -5105,75 +5112,145 @@ const FeeManagement = () => {
               <Tab label="Reconciled History" />
             </Tabs>
 
-            <TableContainer component={Paper}>
-              <Table>
-                <TableHead sx={{ bgcolor: '#f8f9fa' }}>
-                  <TableRow>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Amount</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Bank/Method</TableCell>
-                    <TableCell sx={{ fontWeight: 'bold' }}>Remarks</TableCell>
-                    {suspenseSubTab === 1 && (
-                      <TableCell sx={{ fontWeight: 'bold' }}>Reconciled To</TableCell>
-                    )}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {suspenseLoading ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center"><CircularProgress /></TableCell>
-                    </TableRow>
-                  ) : suspenseEntries.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={7} align="center">No entries found</TableCell>
-                    </TableRow>
-                  ) : (
-                    getPaginatedData(suspenseEntries, 'suspense').map((entry) => (
-                      <TableRow key={entry._id}>
-                        <TableCell>
-                          {entry.status === 'unidentified' && (
-                            <Button 
-                              size="small" 
-                              variant="outlined" 
-                              onClick={() => {
-                                setSelectedSuspenseEntry(entry);
-                                setReconciliationDialogOpen(true);
-                              }}
-                            >
-                              Reconcile
-                            </Button>
-                          )}
-                        </TableCell>
-                        <TableCell>{new Date(entry.paymentDate).toLocaleDateString()}</TableCell>
-                        <TableCell>Rs. {entry.amount.toLocaleString()}</TableCell>
-                        <TableCell>{entry.transactionId || 'N/A'}</TableCell>
-                        <TableCell>{entry.bankName || entry.paymentMethod}</TableCell>
-                        <TableCell>{entry.remarks}</TableCell>
+            {/* Suspense Filters */}
+            <Grid container spacing={2} sx={{ mb: 3 }}>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Filter by Date"
+                  type="date"
+                  value={suspenseFilters.date}
+                  onChange={(e) => setSuspenseFilters({ ...suspenseFilters, date: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Filter by Amount"
+                  type="number"
+                  value={suspenseFilters.amount}
+                  onChange={(e) => setSuspenseFilters({ ...suspenseFilters, amount: e.target.value })}
+                  placeholder="Enter exact amount"
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Filter by Transaction ID"
+                  value={suspenseFilters.transactionId}
+                  onChange={(e) => setSuspenseFilters({ ...suspenseFilters, transactionId: e.target.value })}
+                  placeholder="Search TID..."
+                />
+              </Grid>
+              <Grid item xs={12} sm={3} sx={{ display: 'flex', alignItems: 'center' }}>
+                <Button 
+                  variant="outlined" 
+                  size="small" 
+                  onClick={() => setSuspenseFilters({ date: '', amount: '', transactionId: '' })}
+                  disabled={!suspenseFilters.date && !suspenseFilters.amount && !suspenseFilters.transactionId}
+                >
+                  Clear Filters
+                </Button>
+              </Grid>
+            </Grid>
+
+            {(() => {
+              const filteredEntries = suspenseEntries.filter(entry => {
+                // Date filter
+                if (suspenseFilters.date) {
+                  const entryDate = new Date(entry.paymentDate).toISOString().split('T')[0];
+                  if (entryDate !== suspenseFilters.date) return false;
+                }
+                
+                // Amount filter (exact match)
+                if (suspenseFilters.amount && entry.amount.toString() !== suspenseFilters.amount) {
+                  return false;
+                }
+                
+                // Transaction ID filter (partial match)
+                if (suspenseFilters.transactionId && !entry.transactionId?.toLowerCase().includes(suspenseFilters.transactionId.toLowerCase())) {
+                  return false;
+                }
+                
+                return true;
+              });
+
+              return (
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead sx={{ bgcolor: '#f8f9fa' }}>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Actions</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Amount</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Transaction ID</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Bank/Method</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Remarks</TableCell>
                         {suspenseSubTab === 1 && (
-                          <TableCell>
-                            {entry.reconciledData?.student?.firstName} {entry.reconciledData?.student?.lastName}
-                            <Typography variant="caption" display="block">
-                              Receipt: {entry.reconciledData?.payment?.receiptNumber}
-                            </Typography>
-                          </TableCell>
+                          <TableCell sx={{ fontWeight: 'bold' }}>Reconciled To</TableCell>
                         )}
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-              <TablePagination
-                component="div"
-                count={suspenseEntries.length}
-                page={pagination.suspense.page}
-                onPageChange={(e, p) => handleChangePage('suspense', e, p)}
-                rowsPerPage={pagination.suspense.rowsPerPage}
-                onRowsPerPageChange={(e) => handleChangeRowsPerPage('suspense', e)}
-                rowsPerPageOptions={[12, 25, 50]}
-              />
-            </TableContainer>
+                    </TableHead>
+                    <TableBody>
+                      {suspenseLoading ? (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center"><CircularProgress /></TableCell>
+                        </TableRow>
+                      ) : filteredEntries.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={7} align="center">No entries found</TableCell>
+                        </TableRow>
+                      ) : (
+                        getPaginatedData(filteredEntries, 'suspense').map((entry) => (
+                          <TableRow key={entry._id}>
+                            <TableCell>
+                              {entry.status === 'unidentified' && (
+                                <Button 
+                                  size="small" 
+                                  variant="outlined" 
+                                  onClick={() => {
+                                    setSelectedSuspenseEntry(entry);
+                                    setReconciliationDialogOpen(true);
+                                  }}
+                                >
+                                  Reconcile
+                                </Button>
+                              )}
+                            </TableCell>
+                            <TableCell>{new Date(entry.paymentDate).toLocaleDateString()}</TableCell>
+                            <TableCell>Rs. {entry.amount.toLocaleString()}</TableCell>
+                            <TableCell>{entry.transactionId || 'N/A'}</TableCell>
+                            <TableCell>{entry.bankName || entry.paymentMethod}</TableCell>
+                            <TableCell>{entry.remarks}</TableCell>
+                            {suspenseSubTab === 1 && (
+                              <TableCell>
+                                {entry.reconciledData?.student?.firstName} {entry.reconciledData?.student?.lastName}
+                                <Typography variant="caption" display="block">
+                                  Receipt: {entry.reconciledData?.payment?.receiptNumber}
+                                </Typography>
+                              </TableCell>
+                            )}
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                  <TablePagination
+                    component="div"
+                    count={filteredEntries.length}
+                    page={pagination.suspense.page}
+                    onPageChange={(e, p) => handleChangePage('suspense', e, p)}
+                    rowsPerPage={pagination.suspense.rowsPerPage}
+                    onRowsPerPageChange={(e) => handleChangeRowsPerPage('suspense', e)}
+                    rowsPerPageOptions={[12, 25, 50]}
+                  />
+                </TableContainer>
+              );
+            })()}
           </Box>
         )}
 
