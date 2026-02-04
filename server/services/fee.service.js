@@ -501,7 +501,8 @@ class FeeService {
     const isChangingClass = anyExistingFees.length > 0 && existingStudentFees.length === 0;
     
     if (isChangingClass) {
-      // Deactivate old fees from the previous class
+      // Deactivate ALL old fees from the previous class
+      // They will still be visible in the UI if they have vouchers because of our query update in getStudentFees
       await StudentFee.updateMany(
         {
           student: studentId,
@@ -556,52 +557,64 @@ class FeeService {
 
       if (existingFee && !isChangingClass) {
         // Update existing record (same class)
-        // CRITICAL: Use $set to ONLY update specific fields, preserving vouchers/payments
-        const paidAmount = existingFee.paidAmount || 0;
-        const newRemainingAmount = Math.max(0, finalAmount - paidAmount);
+        // CRITICAL: ONLY update if it has NO vouchers. If it has vouchers, it's historical data.
+        const hasVouchers = existingFee.vouchers && existingFee.vouchers.length > 0;
 
-        // Log vouchers BEFORE update
-        console.log(`[UPDATE FEE] Student: ${studentId}, FeeHead: ${feeHeadId}`);
-        console.log(`[UPDATE FEE] Vouchers BEFORE update:`, existingFee.vouchers);
-        console.log(`[UPDATE FEE] paidAmount: ${paidAmount}, new remainingAmount: ${newRemainingAmount}`);
+        if (!hasVouchers) {
+          // ... (existing update logic)
+          const paidAmount = existingFee.paidAmount || 0;
+          const newRemainingAmount = Math.max(0, finalAmount - paidAmount);
 
-        // Use findByIdAndUpdate with $set to ONLY touch specific fields
-        const updatedFee = await StudentFee.findByIdAndUpdate(
-          existingFee._id,
-          {
-            $set: {
-              baseAmount: baseAmount,
-              discountAmount: appliedDiscount,
-              discountType: appliedDiscountType,
-              discountReason: appliedDiscountReason,
-              finalAmount: finalAmount,
-              remainingAmount: newRemainingAmount,
-              updatedAt: new Date(),
-              updatedBy: currentUser._id
+          const updatedFee = await StudentFee.findByIdAndUpdate(
+            existingFee._id,
+            {
+              $set: {
+                baseAmount: baseAmount,
+                discountAmount: appliedDiscount,
+                discountType: appliedDiscountType,
+                discountReason: appliedDiscountReason,
+                finalAmount: finalAmount,
+                remainingAmount: newRemainingAmount,
+                updatedAt: new Date(),
+                updatedBy: currentUser._id
+              }
+            },
+            { 
+              new: true,
+              strict: false,
+              overwrite: false
             }
-            // CRITICAL: DO NOT include vouchers, paidAmount, or paymentHistory
-            // These fields are COMPLETELY UNTOUCHED by this update
-          },
-          { 
-            new: true,  // Return the updated document
-            strict: false,  // Don't remove fields not in schema
-            overwrite: false  // Don't replace the entire document
-          }
-        );
+          );
+          updatedFees.push(updatedFee);
+        } else {
+          // Record has vouchers, so it's history. 
+          // 1. Deactivate the old record
+          await StudentFee.findByIdAndUpdate(existingFee._id, {
+            $set: { isActive: false, updatedAt: new Date(), updatedBy: currentUser._id }
+          });
 
-        // Log vouchers AFTER update to verify preservation
-        console.log(`[UPDATE FEE] Vouchers AFTER update:`, updatedFee.vouchers);
-        console.log(`[UPDATE FEE] Vouchers count - Before: ${existingFee.vouchers?.length || 0}, After: ${updatedFee.vouchers?.length || 0}`);
-        
-        // CRITICAL CHECK: Verify vouchers were preserved
-        if (existingFee.vouchers && existingFee.vouchers.length > 0) {
-          if (!updatedFee.vouchers || updatedFee.vouchers.length === 0) {
-            console.error(`[UPDATE FEE ERROR] VOUCHERS WERE LOST! StudentFee ID: ${existingFee._id}`);
-            throw new ApiError(500, 'Critical error: Vouchers were lost during update. Please contact support.');
-          }
+          // 2. Create a NEW record for the same fee head with the new structure
+          const newFee = await StudentFee.create({
+            institution: institutionId,
+            student: studentId,
+            feeStructure: feeStructure._id,
+            class: classId,
+            feeHead: feeHeadId,
+            baseAmount: baseAmount,
+            discountAmount: appliedDiscount,
+            discountType: appliedDiscountType,
+            discountReason: appliedDiscountReason,
+            finalAmount: finalAmount,
+            paidAmount: 0,
+            remainingAmount: finalAmount,
+            status: 'pending',
+            dueDate: new Date(new Date().getFullYear(), new Date().getMonth(), 20),
+            academicYear: student.academicYear || '',
+            isActive: true,
+            createdBy: currentUser._id
+          });
+          updatedFees.push(newFee);
         }
-
-        updatedFees.push(updatedFee);
       } else {
         // Create new StudentFee if:
         // - This fee head didn't exist before, OR
@@ -659,10 +672,13 @@ class FeeService {
       throw new ApiError(400, 'Institution is required');
     }
 
-    // Build query
+    // Build query: Include active records AND records with vouchers (history)
     const query = {
       institution: institutionId,
-      isActive: true
+      $or: [
+        { isActive: true },
+        { vouchers: { $exists: true, $not: { $size: 0 } } }
+      ]
     };
 
     // Optional student filter
@@ -934,6 +950,12 @@ class FeeService {
              let feeToUpdate = latestFee;
              
              if (isUsed) {
+                // Deactivate the old record as it is now history
+                latestFee.isActive = false;
+                latestFee.updatedAt = new Date();
+                latestFee.updatedBy = currentUser._id;
+                await latestFee.save();
+
                 // Use the parsed due date object
                 feeToUpdate = new StudentFee({
                   institution: latestFee.institution,
