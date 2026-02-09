@@ -28,6 +28,7 @@ router.post('/generate-vouchers', isAdmin, feeController.generateVouchers);
 router.post('/record-payment', isAdmin, feeController.recordPayment);
 router.get('/outstanding-balances', feeController.getOutstandingBalances);
 router.get('/payments', feeController.getPayments);
+router.delete('/payments/:paymentId', isAdmin, feeController.reversePayment);
 
 // Voucher routes
 router.delete('/vouchers', isAdmin, feeController.deleteVoucher);

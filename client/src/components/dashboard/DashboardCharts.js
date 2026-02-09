@@ -142,7 +142,8 @@ const DashboardCharts = () => {
     // 2. Monthly Fee Collection
     const monthlyCollection = {};
     payments.forEach(payment => {
-      if (payment.paymentDate) {
+      // Only include completed payments in the collection totals
+      if (payment.paymentDate && payment.status === 'completed') {
         const date = new Date(payment.paymentDate);
         const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
         if (!monthlyCollection[monthKey]) {
@@ -197,7 +198,9 @@ const DashboardCharts = () => {
       .filter(item => item.value > 0);
 
     // 5. Revenue vs Outstanding
-    const totalReceived = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const totalReceived = payments
+      .filter(p => p.status === 'completed')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const totalOutstanding = studentFees.reduce((sum, f) => {
       const remaining = Number(f.remainingAmount || 0);
       return sum + (remaining > 0 ? remaining : 0);

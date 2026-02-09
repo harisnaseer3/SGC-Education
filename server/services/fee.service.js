@@ -1762,6 +1762,85 @@ class FeeService {
       suspenseEntry: reconciledSuspenseEntry
     };
   }
+
+  /**
+   * Reverse a fee payment (refund)
+   * Updates StudentFee paidAmount and status
+   * Marks FeePayment as refunded
+   */
+  async reversePayment(paymentId, currentUser) {
+    if (!paymentId) {
+      throw new ApiError(400, 'Payment ID is required');
+    }
+
+    const FeePayment = require('../models/FeePayment');
+    const payment = await FeePayment.findById(paymentId);
+
+    if (!payment) {
+      throw new ApiError(404, 'Payment not found');
+    }
+
+    if (payment.status === 'refunded') {
+      throw new ApiError(400, 'Payment is already refunded');
+    }
+
+    // Get the StudentFee record
+    const studentFee = await StudentFee.findById(payment.studentFee);
+
+    if (!studentFee) {
+      throw new ApiError(404, 'Associated student fee record not found');
+    }
+
+    // Update StudentFee payment tracking
+    const oldPaidAmount = studentFee.paidAmount || 0;
+    const paymentAmount = payment.amount || 0;
+    const newPaidAmount = Math.max(0, oldPaidAmount - paymentAmount);
+    
+    studentFee.paidAmount = newPaidAmount;
+    studentFee.remainingAmount = Math.max(0, studentFee.finalAmount - newPaidAmount);
+
+    // Update lastPaymentDate to the previous valid payment if any
+    const latestOtherPayment = await FeePayment.findOne({
+      studentFee: studentFee._id,
+      _id: { $ne: paymentId },
+      status: 'completed'
+    }).sort({ paymentDate: -1 });
+
+    studentFee.lastPaymentDate = latestOtherPayment ? latestOtherPayment.paymentDate : null;
+
+    // Update status
+    if (studentFee.remainingAmount <= 0) {
+      studentFee.status = 'paid';
+    } else if (newPaidAmount > 0) {
+      studentFee.status = 'partial';
+      // Check if overdue
+      if (studentFee.dueDate && new Date() > studentFee.dueDate) {
+        studentFee.status = 'overdue';
+      }
+    } else {
+      studentFee.status = 'pending';
+      // Check if overdue
+      if (studentFee.dueDate && new Date() > studentFee.dueDate) {
+        studentFee.status = 'overdue';
+      }
+    }
+
+    await studentFee.save();
+
+    // Update FeePayment record
+    payment.status = 'refunded';
+    payment.refundAmount = paymentAmount;
+    payment.refundDate = new Date();
+    payment.refundReason = 'Manually reversed by user';
+    payment.updatedAt = new Date();
+    
+    await payment.save();
+
+    return {
+      payment,
+      studentFee
+    };
+  }
 }
 
 module.exports = new FeeService();

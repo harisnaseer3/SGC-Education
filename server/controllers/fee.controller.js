@@ -261,6 +261,21 @@ const reconcileSuspenseEntry = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   DELETE /api/v1/fees/payments/:paymentId
+ * @desc    Reverse a fee payment
+ * @access  Private (Admin)
+ */
+const reversePayment = asyncHandler(async (req, res) => {
+  const result = await feeService.reversePayment(req.params.paymentId, req.user);
+
+  res.json({
+    success: true,
+    message: 'Payment reversed successfully',
+    data: result
+  });
+});
+
 module.exports = {
   getFeeStructureMatrix,
   getFeeStructureByClass,
@@ -276,5 +291,6 @@ module.exports = {
   deleteVoucher,
   getSuspenseEntries,
   recordSuspenseEntry,
-  reconcileSuspenseEntry
+  reconcileSuspenseEntry,
+  reversePayment
 };

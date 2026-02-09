@@ -3003,6 +3003,26 @@ const FeeManagement = () => {
     }
   };
 
+  const handleDeleteReceipt = async (receiptId, receiptNumber) => {
+    if (!window.confirm(`Are you sure you want to delete receipt ${receiptNumber}? This will reverse the payment and update the student's balance.`)) {
+      return;
+    }
+
+    try {
+      setReceiptsLoading(true);
+      const response = await axios.delete(`${API_URL}/fees/payments/${receiptId}`, createAxiosConfig());
+
+      notifySuccess(response.data.message || 'Receipt deleted and payment reversed successfully');
+      // Refresh the receipt list
+      await fetchReceipts();
+    } catch (err) {
+      console.error('Error deleting receipt:', err);
+      notifyError(err.response?.data?.message || 'Failed to delete receipt');
+    } finally {
+      setReceiptsLoading(false);
+    }
+  };
+
   // Listen for institution changes (for super admin)
   useEffect(() => {
     const handleInstitutionChange = () => {
@@ -4874,6 +4894,7 @@ const FeeManagement = () => {
                             <TableCell>Transaction ID</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Collected By</TableCell>
+                            <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -5000,6 +5021,26 @@ const FeeManagement = () => {
                                       />
                                     </TableCell>
                                     <TableCell>{firstReceipt.collectedBy?.name || 'N/A'}</TableCell>
+                                    <TableCell>
+                                      {!isGroup && firstReceipt.status !== 'refunded' && (
+                                        <IconButton
+                                          size="small"
+                                          color="error"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteReceipt(firstReceipt._id, firstReceipt.receiptNumber);
+                                          }}
+                                          title="Delete Receipt"
+                                        >
+                                          <Delete fontSize="small" />
+                                        </IconButton>
+                                      )}
+                                      {isGroup && (
+                                        <Typography variant="caption" color="textSecondary">
+                                          Expand to delete
+                                        </Typography>
+                                      )}
+                                    </TableCell>
                                   </TableRow>
 
                                   {/* Expanded Child Rows */}
@@ -5052,6 +5093,21 @@ const FeeManagement = () => {
                                         />
                                       </TableCell>
                                       <TableCell>{receipt.collectedBy?.name || 'N/A'}</TableCell>
+                                      <TableCell>
+                                        {receipt.status !== 'refunded' && (
+                                          <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteReceipt(receipt._id, receipt.receiptNumber);
+                                            }}
+                                            title="Delete Receipt"
+                                          >
+                                            <Delete fontSize="small" />
+                                          </IconButton>
+                                        )}
+                                      </TableCell>
                                     </TableRow>
                                   ))}
                                 </React.Fragment>
