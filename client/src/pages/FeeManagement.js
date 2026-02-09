@@ -4353,9 +4353,6 @@ const FeeManagement = () => {
                   </Grid>
                       <Grid item xs={12}>
                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'center' }}>
-                          <Typography variant="body2" color="textSecondary">
-                            Login as: {user.name || 'User'} ({user.id || 'N/A'})
-                          </Typography>
                           <Button
                             variant="contained"
                             fullWidth
@@ -4844,9 +4841,6 @@ const FeeManagement = () => {
                   </Grid>
                   <Grid item xs={12}>
                     <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'center' }}>
-                      <Typography variant="body2" color="textSecondary">
-                        Login as: {user.name || 'User'} ({user.id || 'N/A'})
-                      </Typography>
                       <Button
                         variant="contained"
                         fullWidth
