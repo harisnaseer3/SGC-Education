@@ -53,6 +53,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 import { notifyError, notifySuccess } from '../utils/notify';
 import {
@@ -2167,6 +2168,73 @@ const FeeManagement = () => {
       setReceipts([]);
     } finally {
       setReceiptsLoading(false);
+    }
+  };
+
+  // Handle Export to Excel for Receipts
+  const handleExportReceipts = () => {
+    try {
+      if (!receipts || receipts.length === 0) {
+        notifyError('No receipts found to export');
+        return;
+      }
+
+      // Filter out refunded receipts to match UI totals
+      const receiptsToExport = receipts.filter(r => r.status !== 'refunded');
+
+      if (receiptsToExport.length === 0) {
+        notifyError('No non-refunded receipts found to export');
+        return;
+      }
+
+      // Transform data for Excel
+      const excelData = receiptsToExport.map(r => ({
+        'Receipt Number': r.receiptNumber || 'N/A',
+        'Voucher Number': r.voucherNumber || 'N/A',
+        'Payment Date': r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-GB') : 'N/A',
+        'Student ID': r.studentId || 'N/A',
+        'Roll #': r.rollNumber || 'N/A',
+        'Student Name': capitalizeFirstOnly(r.studentName || 'N/A'),
+        'Amount': parseFloat(r.amount || 0),
+        'Bank': r.bankName || 'N/A',
+        'Transaction ID': (r.transactionId && !r.transactionId.startsWith('no-tid-')) ? r.transactionId : 'N/A',
+        'Status': (r.status || 'completed').toUpperCase(),
+        'Collected By': r.collectedBy?.name || 'N/A'
+      }));
+
+      // Create worksheet
+      const ws = XLSX.utils.json_to_sheet(excelData);
+      
+      // Auto-size columns for better readability
+      const colWidths = [
+        { wch: 18 }, // Receipt Number
+        { wch: 18 }, // Voucher Number
+        { wch: 12 }, // Payment Date
+        { wch: 12 }, // Student ID
+        { wch: 8 },  // Roll #
+        { wch: 25 }, // Student Name
+        { wch: 12 }, // Amount
+        { wch: 25 }, // Bank
+        { wch: 25 }, // Transaction ID
+        { wch: 12 }, // Status
+        { wch: 20 }, // Collected By
+      ];
+      ws['!cols'] = colWidths;
+
+      // Create workbook and append worksheet
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Receipts');
+
+      // Generate filename with current date
+      const date = new Date().toISOString().split('T')[0];
+      const filename = `Receipts_Export_${date}.xlsx`;
+
+      // Trigger download
+      XLSX.writeFile(wb, filename);
+      notifySuccess('Receipts exported to Excel successfully');
+    } catch (err) {
+      console.error('Error exporting receipts:', err);
+      notifyError('Failed to export receipts to Excel');
     }
   };
 
@@ -5016,6 +5084,19 @@ const FeeManagement = () => {
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
                     Receipt List {receipts.length > 0 && `(${receipts.length} receipt${receipts.length !== 1 ? 's' : ''})`}
                   </Typography>
+                  <Button
+                    variant="outlined"
+                    startIcon={<FileDownload />}
+                    onClick={handleExportReceipts}
+                    disabled={receipts.length === 0}
+                    sx={{ 
+                      borderColor: '#667eea', 
+                      color: '#667eea',
+                      '&:hover': { borderColor: '#5568d3', bgcolor: 'rgba(102, 126, 234, 0.04)' }
+                    }}
+                  >
+                    Export Excel
+                  </Button>
                 </Box>
 
                 {receiptsLoading ? (
@@ -5033,10 +5114,8 @@ const FeeManagement = () => {
                             <TableCell>Student ID</TableCell>
                             <TableCell>Roll #</TableCell>
                             <TableCell>Student Name</TableCell>
-                            <TableCell>Class</TableCell>
-                            <TableCell>Section</TableCell>
                             <TableCell align="right">Amount</TableCell>
-                            <TableCell>Payment Method</TableCell>
+                            <TableCell>Bank</TableCell>
                             <TableCell>Transaction ID</TableCell>
                             <TableCell>Status</TableCell>
                             <TableCell>Collected By</TableCell>
@@ -5072,7 +5151,7 @@ const FeeManagement = () => {
                             if (receipts.length === 0) {
                               return (
                                 <TableRow>
-                                  <TableCell colSpan={13} align="center">
+                                  <TableCell colSpan={12} align="center">
                                     <Typography variant="body2" color="textSecondary">
                                       No receipts found. Please search for receipts.
                                     </Typography>
@@ -5140,17 +5219,11 @@ const FeeManagement = () => {
                                     <TableCell>{firstReceipt.studentId || 'N/A'}</TableCell>
                                     <TableCell>{firstReceipt.rollNumber || 'N/A'}</TableCell>
                                     <TableCell>{capitalizeFirstOnly(firstReceipt.studentName || 'N/A')}</TableCell>
-                                    <TableCell>{capitalizeFirstOnly(firstReceipt.class || 'N/A')}</TableCell>
-                                    <TableCell>{capitalizeFirstOnly(firstReceipt.section || 'N/A')}</TableCell>
                                     <TableCell align="right">
                                       Rs. {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     </TableCell>
                                     <TableCell>
-                                      <Chip
-                                        label={firstReceipt.paymentMethod ? firstReceipt.paymentMethod.replace('_', ' ').toUpperCase() : 'N/A'}
-                                        size="small"
-                                        color="default"
-                                      />
+                                      {firstReceipt.bankName || 'N/A'}
                                     </TableCell>
                                     <TableCell>
                                       {tid.startsWith('no-tid-') ? 'N/A' : tid}
@@ -5210,18 +5283,11 @@ const FeeManagement = () => {
                                       <TableCell>{receipt.studentId || 'N/A'}</TableCell>
                                       <TableCell>{receipt.rollNumber || 'N/A'}</TableCell>
                                       <TableCell>{capitalizeFirstOnly(receipt.studentName || 'N/A')}</TableCell>
-                                      <TableCell>{capitalizeFirstOnly(receipt.class || 'N/A')}</TableCell>
-                                      <TableCell>{capitalizeFirstOnly(receipt.section || 'N/A')}</TableCell>
                                       <TableCell align="right">
                                         Rs. {(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                       </TableCell>
                                       <TableCell>
-                                        <Chip
-                                          label={receipt.paymentMethod ? receipt.paymentMethod.replace('_', ' ').toUpperCase() : 'N/A'}
-                                          size="small"
-                                          color="default"
-                                          sx={{ opacity: 0.8 }}
-                                        />
+                                        {receipt.bankName || 'N/A'}
                                       </TableCell>
                                       <TableCell>
                                         {receipt.transactionId || 'N/A'}
