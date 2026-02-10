@@ -4966,7 +4966,7 @@ const FeeManagement = () => {
             </Card>
  
             {/* Summary Cards */}
-            <Grid container spacing={2} sx={{ my: 2 }}>
+            <Grid container spacing={2} sx={{ my: 2, justifyContent: 'flex-end' }}>
               <Grid item xs={12} sm={6} md={3}>
                 <Card sx={{ 
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
