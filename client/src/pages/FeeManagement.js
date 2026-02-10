@@ -49,6 +49,7 @@ import {
   Close,
   Restore,
   Receipt,
+  AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -259,6 +260,7 @@ const FeeManagement = () => {
   const [selectedVoucherStudent, setSelectedVoucherStudent] = useState(null);
   const [voucherData, setVoucherData] = useState(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
+  const [selectedVoucherIds, setSelectedVoucherIds] = useState([]);
 
   // Suspense Filters
   const [suspenseFilters, setSuspenseFilters] = useState({
@@ -2995,9 +2997,61 @@ const FeeManagement = () => {
       notifySuccess(response.data.message || 'Voucher deleted successfully');
       // Refresh the voucher list
       await fetchPrintVoucherStudents();
+      // Clear selection if it was selected
+      setSelectedVoucherIds(prev => prev.filter(id => id !== studentId));
     } catch (err) {
       console.error('Error deleting voucher:', err);
       notifyError(err.response?.data?.message || 'Failed to delete voucher');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSelectVoucher = (id) => {
+    setSelectedVoucherIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllVouchers = () => {
+    const filteredStudents = getFilteredPrintVoucherStudents();
+    const unpaidVoucherIds = filteredStudents
+      .filter(s => s.voucherStatus === 'Unpaid')
+      .map(s => s._id || s.studentId);
+
+    if (selectedVoucherIds.length === unpaidVoucherIds.length) {
+      setSelectedVoucherIds([]);
+    } else {
+      setSelectedVoucherIds(unpaidVoucherIds);
+    }
+  };
+
+  const handleBulkDeleteVouchers = async () => {
+    if (selectedVoucherIds.length === 0) return;
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedVoucherIds.length} selected vouchers? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const { month, year } = parseMonthYear(printVoucherFilters.monthYear);
+
+      const response = await axios.delete(`${API_URL}/fees/vouchers`, {
+        ...createAxiosConfig(),
+        data: {
+          studentIds: selectedVoucherIds,
+          month,
+          year
+        }
+      });
+
+      notifySuccess(response.data.message || 'Selected vouchers deleted successfully');
+      setSelectedVoucherIds([]);
+      await fetchPrintVoucherStudents();
+    } catch (err) {
+      console.error('Error deleting bulk vouchers:', err);
+      notifyError(err.response?.data?.message || 'Failed to delete selected vouchers');
     } finally {
       setLoading(false);
     }
@@ -3079,8 +3133,10 @@ const FeeManagement = () => {
       setPagination(prev => ({ ...prev, printVoucher: { page: 0, rowsPerPage: prev.printVoucher.rowsPerPage } }));
     }
     if (activeTab === 6) {
-      // Auto-load latest receipts (fetchReceipts handles institution check and retry)
+      // Auto-load latest receipts
       fetchReceipts(true);
+      // Also fetch unidentified suspense entries for total calculation
+      fetchSuspenseEntries();
       setPagination(prev => ({ ...prev, receipt: { page: 0, rowsPerPage: prev.receipt.rowsPerPage } }));
     }
   }, [activeTab, miscFeeSubTab, miscFeeFilters, generateVoucherFilters, printVoucherFilters, feeHeadSearchTerm]);
@@ -4190,6 +4246,20 @@ const FeeManagement = () => {
                       Print Fee Voucher
                     </Button>
                   </Grid>
+                  {selectedVoucherIds.length > 0 && (
+                    <Grid item xs={12} md={4}>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        color="error"
+                        startIcon={<Delete />}
+                        onClick={handleBulkDeleteVouchers}
+                        disabled={loading}
+                      >
+                        Delete Selected ({selectedVoucherIds.length})
+                      </Button>
+                    </Grid>
+                  )}
                 </Grid>
               </CardContent>
             </Card>
@@ -4199,7 +4269,14 @@ const FeeManagement = () => {
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
-                    <TableCell>Action</TableCell>
+                    <TableCell padding="checkbox">
+                      <Checkbox
+                        indeterminate={selectedVoucherIds.length > 0 && selectedVoucherIds.length < getFilteredPrintVoucherStudents().filter(s => s.voucherStatus === 'Unpaid').length}
+                        checked={getFilteredPrintVoucherStudents().filter(s => s.voucherStatus === 'Unpaid').length > 0 && selectedVoucherIds.length === getFilteredPrintVoucherStudents().filter(s => s.voucherStatus === 'Unpaid').length}
+                        onChange={handleSelectAllVouchers}
+                        sx={{ color: 'white !important', '&.Mui-checked': { color: 'white !important' } }}
+                      />
+                    </TableCell>
                     <TableCell>Voucher Status</TableCell>
                     <TableCell>Voucher Number</TableCell>
                     <TableCell align="right">Voucher Amount</TableCell>
@@ -4209,6 +4286,7 @@ const FeeManagement = () => {
                     <TableCell>Name</TableCell>
                     <TableCell>Class</TableCell>
                     <TableCell>Section</TableCell>
+                    <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -4231,26 +4309,13 @@ const FeeManagement = () => {
                   ) : (
                     getPaginatedData(getFilteredPrintVoucherStudents(), 'printVoucher').map((student) => (
                       <TableRow key={student._id}>
-                        <TableCell>
-                          <Box sx={{ display: 'flex', gap: 1 }}>
-                            <IconButton
-                              size="small"
-                              color="primary"
-                              onClick={() => handleViewVoucher(student)}
-                            >
-                              <Visibility />
-                            </IconButton>
-                            {student.voucherStatus === 'Unpaid' && (
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={() => handleDeleteVoucher(student)}
-                                disabled={loading}
-                              >
-                                <Delete />
-                              </IconButton>
-                            )}
-                          </Box>
+                        <TableCell padding="checkbox">
+                          {student.voucherStatus === 'Unpaid' && (
+                            <Checkbox
+                              checked={selectedVoucherIds.includes(student._id || student.studentId)}
+                              onChange={() => handleSelectVoucher(student._id || student.studentId)}
+                            />
+                          )}
                         </TableCell>
                         <TableCell>
                           {student.voucherStatus ? (
@@ -4285,6 +4350,27 @@ const FeeManagement = () => {
                         </TableCell>
                         <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
                         <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
+                        <TableCell>
+                          <Box sx={{ display: 'flex', gap: 1 }}>
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => handleViewVoucher(student)}
+                            >
+                              <Visibility />
+                            </IconButton>
+                            {student.voucherStatus === 'Unpaid' && (
+                              <IconButton
+                                size="small"
+                                color="error"
+                                onClick={() => handleDeleteVoucher(student)}
+                                disabled={loading}
+                              >
+                                <Delete />
+                              </IconButton>
+                            )}
+                          </Box>
+                        </TableCell>
                       </TableRow>
                     ))
                   )}
@@ -4293,7 +4379,7 @@ const FeeManagement = () => {
               {printVoucherStudents.length > 0 && (
                 <TablePagination
                   component="div"
-                  count={printVoucherStudents.length}
+                  count={getFilteredPrintVoucherStudents().length}
                   page={pagination.printVoucher.page}
                   onPageChange={(e, newPage) => handleChangePage('printVoucher', e, newPage)}
                   rowsPerPage={pagination.printVoucher.rowsPerPage}
@@ -4542,13 +4628,19 @@ const FeeManagement = () => {
                             <InputLabel>Select Bank Account *</InputLabel>
                             <Select
                               value={manualDepositForm.bankAccount}
-                              onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankAccount: e.target.value })}
+                              onChange={(e) => {
+                                const account = e.target.value;
+                                let name = manualDepositForm.bankName;
+                                if (account === 'allied') name = 'Allied Bank';
+                                else if (account === 'bankislami') name = 'Bank Islami';
+                                setManualDepositForm({ ...manualDepositForm, bankAccount: account, bankName: name });
+                              }}
                               label="Select Bank Account *"
                               error={!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === ''}
                             >
                               <MenuItem value="">Select Bank Account</MenuItem>
                               <MenuItem value="allied">Allied Bank - 0010000070780246</MenuItem>
-                              <MenuItem value="bankislami">Bank Islami - 0108000000000001</MenuItem>
+                              <MenuItem value="bankislami">Bank Islami - 310000223490001</MenuItem>
                             </Select>
                             {(!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === '') && (
                               <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
@@ -4872,7 +4964,51 @@ const FeeManagement = () => {
                 </Grid>
               </CardContent>
             </Card>
-
+ 
+            {/* Summary Cards */}
+            <Grid container spacing={3} sx={{ my: 3 }}>
+              <Grid item xs={12} sm={6}>
+                <Card sx={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                  color: 'white',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)'
+                }}>
+                  <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ opacity: 0.9, textTransform: 'uppercase', letterSpacing: 1 }}>
+                        Total Receipts
+                      </Typography>
+                      <Typography variant="h4" sx={{ fontWeight: 'bold', mt: 1 }}>
+                        {formatCurrency(receipts.filter(r => r.status !== 'refunded').reduce((sum, r) => sum + parseFloat(r.amount || 0), 0))}
+                      </Typography>
+                    </Box>
+                    <Receipt sx={{ fontSize: 48, opacity: 0.8 }} />
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Card sx={{ 
+                  background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', 
+                  color: 'white',
+                  borderRadius: 2,
+                  boxShadow: '0 4px 20px 0 rgba(0,0,0,0.1)'
+                }}>
+                  <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', p: 3 }}>
+                    <Box>
+                      <Typography variant="subtitle2" sx={{ opacity: 0.9, textTransform: 'uppercase', letterSpacing: 1 }}>
+                        Total Suspense
+                      </Typography>
+                      <Typography variant="h4" sx={{ fontWeight: 'bold', mt: 1 }}>
+                        {formatCurrency(suspenseEntries.filter(e => e.status === 'unidentified').reduce((sum, e) => sum + parseFloat(e.amount || 0), 0))}
+                      </Typography>
+                    </Box>
+                    <AccountBalanceWallet sx={{ fontSize: 48, opacity: 0.8 }} />
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+ 
             {/* Receipts Table */}
             <Card>
               <CardContent>
