@@ -297,7 +297,7 @@ const BankReconciliationReport = ({ onBack }) => {
           <Divider sx={{ borderBottomWidth: 2, borderColor: 'black', mb: 0.5 }} />
           <Box sx={{ px: 1, py: 0.5, borderBottom: '1px solid black', mb: 0.5 }}>
             <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-              Cashier: {user?.firstName} {user?.lastName}, Id:{user?.id || '9'}, Code:{user?.employeeCode || '6120'}
+              Cashier: {user?.firstName} {user?.lastName}
             </Typography>
           </Box>
 

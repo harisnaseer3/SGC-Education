@@ -1456,8 +1456,17 @@ class FeeService {
   async deleteVoucher(voucherData, currentUser) {
     const { studentId, studentIds, month, year } = voucherData;
 
-    // Support both single studentId (for backward compatibility) and multiple studentIds
-    const idsToProcess = studentIds && Array.isArray(studentIds) ? studentIds : (studentId ? [studentId] : []);
+    // Support both single studentId and multiple studentIds (array or comma-separated string)
+    let idsToProcess = [];
+    if (studentIds) {
+      if (Array.isArray(studentIds)) {
+        idsToProcess = studentIds;
+      } else if (typeof studentIds === 'string') {
+        idsToProcess = studentIds.split(',').map(id => id.trim()).filter(id => id);
+      }
+    } else if (studentId) {
+      idsToProcess = [studentId];
+    }
 
     if (idsToProcess.length === 0) {
       throw new ApiError(400, 'Student ID(s) are required');

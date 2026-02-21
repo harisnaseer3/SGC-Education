@@ -264,6 +264,11 @@ const FeeManagement = () => {
   const [voucherData, setVoucherData] = useState(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [selectedVoucherIds, setSelectedVoucherIds] = useState([]);
+  
+  // Bulk Print states
+  const [bulkVoucherDialogOpen, setBulkVoucherDialogOpen] = useState(false);
+  const [bulkVouchersData, setBulkVouchersData] = useState([]);
+  const [bulkVoucherLoading, setBulkVoucherLoading] = useState(false);
 
   // Receipt PDF
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
@@ -1893,49 +1898,52 @@ const FeeManagement = () => {
         return remaining > 0.01 && fee.status !== 'paid';
       });
       
-      // If voucher number is provided, filter to show only fees with that specific voucher
-      if (voucherNumber) {
-        const searchTerm = voucherNumber.toLowerCase().trim();
-        fees = fees.filter(fee => {
-          if (!fee.vouchers || fee.vouchers.length === 0) return false;
-          return fee.vouchers.some(v => 
-            v.voucherNumber && v.voucherNumber.toLowerCase().includes(searchTerm)
-          );
-        });
-      } else {
-        // Sort by latest voucher first (most recent generatedAt date)
-        // Fees without vouchers (arrears) will appear at the end
-        fees = fees.sort((a, b) => {
-          const aLatestVoucher = a.vouchers && a.vouchers.length > 0
-            ? a.vouchers.reduce((latest, v) => {
-                const vDate = new Date(v.generatedAt || 0);
-                const latestDate = new Date(latest.generatedAt || 0);
-                return vDate > latestDate ? v : latest;
-              })
-            : null;
+      // If voucher number is provided, we still fetch ALL and sort matching ones to top,
+      // but we DON'T filter out other outstanding fees (arrears) because the user
+      // needs to be able to pay them.
+      
+      // Sort: 
+      // 1. Matches for current voucherNumber (if provided)
+      // 2. Other fees with vouchers (sorted by date)
+      // 3. Fees without vouchers (arrears)
+      fees = fees.sort((a, b) => {
+        if (voucherNumber) {
+          const searchTerm = voucherNumber.toLowerCase().trim();
+          const aMatch = a.vouchers && a.vouchers.some(v => v.voucherNumber && v.voucherNumber.toLowerCase().includes(searchTerm));
+          const bMatch = b.vouchers && b.vouchers.some(v => v.voucherNumber && v.voucherNumber.toLowerCase().includes(searchTerm));
           
-          const bLatestVoucher = b.vouchers && b.vouchers.length > 0
-            ? b.vouchers.reduce((latest, v) => {
-                const vDate = new Date(v.generatedAt || 0);
-                const latestDate = new Date(latest.generatedAt || 0);
-                return vDate > latestDate ? v : latest;
-              })
-            : null;
-          
-          if (!aLatestVoucher && !bLatestVoucher) {
-            // Both have no vouchers, sort by dueDate or createdAt
-            const aDate = new Date(a.dueDate || a.createdAt || 0);
-            const bDate = new Date(b.dueDate || b.createdAt || 0);
-            return bDate - aDate;
-          }
-          if (!aLatestVoucher) return 1; // Fees without vouchers go to end
-          if (!bLatestVoucher) return -1; // Fees with vouchers come first
-          
-          const aDate = new Date(aLatestVoucher.generatedAt || 0);
-          const bDate = new Date(bLatestVoucher.generatedAt || 0);
-          return bDate - aDate; // Descending order (latest first)
-        });
-      }
+          if (aMatch && !bMatch) return -1;
+          if (!aMatch && bMatch) return 1;
+        }
+
+        const aLatestVoucher = a.vouchers && a.vouchers.length > 0
+          ? a.vouchers.reduce((latest, v) => {
+              const vDate = new Date(v.generatedAt || 0);
+              const latestDate = new Date(latest.generatedAt || 0);
+              return vDate > latestDate ? v : latest;
+            })
+          : null;
+        
+        const bLatestVoucher = b.vouchers && b.vouchers.length > 0
+          ? b.vouchers.reduce((latest, v) => {
+              const vDate = new Date(v.generatedAt || 0);
+              const latestDate = new Date(latest.generatedAt || 0);
+              return vDate > latestDate ? v : latest;
+            })
+          : null;
+        
+        if (!aLatestVoucher && !bLatestVoucher) {
+          const aDate = new Date(a.dueDate || a.createdAt || 0);
+          const bDate = new Date(b.dueDate || b.createdAt || 0);
+          return bDate - aDate;
+        }
+        if (!aLatestVoucher) return 1; 
+        if (!bLatestVoucher) return -1;
+        
+        const aDate = new Date(aLatestVoucher.generatedAt || 0);
+        const bDate = new Date(bLatestVoucher.generatedAt || 0);
+        return bDate - aDate;
+      });
       
       setOutstandingFees(fees);
       
@@ -3140,7 +3148,7 @@ const FeeManagement = () => {
 
       const response = await axios.delete(`${API_URL}/fees/vouchers`, {
         ...createAxiosConfig(),
-        data: {
+        params: {
           studentId,
           month,
           year
@@ -3157,6 +3165,43 @@ const FeeManagement = () => {
       notifyError(err.response?.data?.message || 'Failed to delete voucher');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleBulkPrintVouchers = async () => {
+    if (selectedVoucherIds.length === 0) {
+      notifyError('Please select at least one student');
+      return;
+    }
+
+    try {
+      setBulkVoucherLoading(true);
+      setBulkVoucherDialogOpen(true);
+      
+      const filteredStudents = getFilteredPrintVoucherStudents();
+      const selectedStudents = filteredStudents.filter(s => 
+        selectedVoucherIds.includes(s._id || s.studentId)
+      );
+
+      const voucherPromises = selectedStudents.map(student => 
+        fetchVoucherData(student, printVoucherFilters.monthYear)
+      );
+
+      const results = await Promise.all(voucherPromises);
+      const validVouchers = results.filter(v => v !== null);
+      
+      if (validVouchers.length === 0) {
+        notifyError('No voucher data found for selected students');
+        setBulkVoucherDialogOpen(false);
+      } else {
+        setBulkVouchersData(validVouchers);
+      }
+    } catch (err) {
+      console.error('Error in bulk print:', err);
+      notifyError('Failed to fetch voucher data for some students');
+      setBulkVoucherDialogOpen(false);
+    } finally {
+      setBulkVoucherLoading(false);
     }
   };
 
@@ -3192,8 +3237,8 @@ const FeeManagement = () => {
 
       const response = await axios.delete(`${API_URL}/fees/vouchers`, {
         ...createAxiosConfig(),
-        data: {
-          studentIds: selectedVoucherIds,
+        params: {
+          studentIds: selectedVoucherIds.join(','),
           month,
           year
         }
@@ -4395,9 +4440,10 @@ const FeeManagement = () => {
                       fullWidth
                       startIcon={<Print />}
                       sx={{ bgcolor: '#667eea' }}
-                      disabled={printVoucherStudents.length === 0}
+                      disabled={printVoucherStudents.length === 0 || bulkVoucherLoading}
+                      onClick={handleBulkPrintVouchers}
                     >
-                      Print Fee Voucher
+                      {bulkVoucherLoading ? 'Loading Vouchers...' : 'Print Fee Voucher'}
                     </Button>
                   </Grid>
                   {selectedVoucherIds.length > 0 && (
@@ -4871,9 +4917,24 @@ const FeeManagement = () => {
                                   {getPaginatedData(outstandingFees, 'outstandingFees').map((fee) => {
                                     const remaining = fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0));
                                     const paymentAmount = selectedFeePayments[fee._id] || 0;
+                                    
+                                    // Get voucher info for labeling
+                                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                                    const voucher = fee.vouchers && fee.vouchers.length > 0 ? fee.vouchers[0] : null;
+                                    const periodLabel = voucher ? `${monthNames[voucher.month - 1]} ${voucher.year}` : '';
+                                    
                                     return (
                                       <TableRow key={fee._id}>
-                                        <TableCell>{fee.feeHead?.name || 'N/A'}</TableCell>
+                                        <TableCell>
+                                          <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
+                                            {fee.feeHead?.name || 'N/A'}
+                                          </Typography>
+                                          {periodLabel && (
+                                            <Typography variant="caption" color="textSecondary" sx={{ display: 'block' }}>
+                                              {periodLabel} {voucher.voucherNumber ? `(V#: ${voucher.voucherNumber})` : ''}
+                                            </Typography>
+                                          )}
+                                        </TableCell>
                                         <TableCell align="right">Rs. {(fee.finalAmount || 0).toLocaleString()}</TableCell>
                                         <TableCell align="right">Rs. {(fee.paidAmount || 0).toLocaleString()}</TableCell>
                                         <TableCell align="right" sx={{ fontWeight: 'bold', color: remaining > 0 ? 'error.main' : 'success.main' }}>
@@ -6193,6 +6254,201 @@ const FeeManagement = () => {
           </DialogActions>
         </Dialog>
         
+        {/* Bulk Voucher Print Dialog */}
+        <Dialog 
+          open={bulkVoucherDialogOpen} 
+          onClose={() => {
+            setBulkVoucherDialogOpen(false);
+            setBulkVouchersData([]);
+          }} 
+          maxWidth="lg" 
+          fullWidth
+        >
+          <DialogTitle>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Typography variant="h6" fontWeight="bold">
+                Print Vouchers ({bulkVouchersData.length})
+              </Typography>
+              <Button onClick={() => {
+                setBulkVoucherDialogOpen(false);
+                setBulkVouchersData([]);
+              }}>
+                Close
+              </Button>
+            </Box>
+          </DialogTitle>
+          <DialogContent>
+            {bulkVoucherLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                <CircularProgress />
+              </Box>
+            ) : bulkVouchersData.length > 0 ? (
+              <Box id="bulk-voucher-print-area">
+                <style>
+                  {`
+                    @media print {
+                      body * {
+                        visibility: hidden;
+                      }
+                      #bulk-voucher-print-area, #bulk-voucher-print-area * {
+                        visibility: visible;
+                      }
+                      #bulk-voucher-print-area {
+                        position: absolute;
+                        left: 0;
+                        top: 0;
+                        width: 100%;
+                      }
+                      .voucher-page {
+                        page-break-after: always;
+                        padding: 10px 0;
+                        margin-bottom: 2mm;
+                        border-bottom: 1px dashed #ccc;
+                      }
+                      .voucher-page:last-child {
+                        page-break-after: avoid;
+                        border-bottom: none;
+                      }
+                      @page {
+                        size: landscape;
+                        margin: 10mm;
+                      }
+                    }
+                  `}
+                </style>
+                
+                {bulkVouchersData.map((data, index) => (
+                  <Box key={index} className="voucher-page" sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
+                      {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
+                        <Box 
+                          key={copyIndex}
+                          sx={{ 
+                            flex: 1,
+                            border: '2px solid #000',
+                            p: 1.5,
+                            fontSize: '0.75rem'
+                          }}
+                        >
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #000', pb: 0.5, mb: 1 }}>
+                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Voucher#: {data.voucherNo}</Typography>
+                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>{copyType}</Typography>
+                          </Box>
+                          
+                          <Box sx={{ textAlign: 'center', mb: 1 }}>
+                            <Box
+                              component="img"
+                              src={data.institution?.logo ? (data.institution.logo.startsWith('http') ? data.institution.logo : `${API_URL.replace('/api/v1', '')}${data.institution.logo}`) : process.env.PUBLIC_URL + '/logo.png'}
+                              alt="Logo"
+                              sx={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid #000', mx: 'auto', display: 'block' }}
+                            />
+                            <Typography sx={{ fontWeight: 'bold', fontSize: '0.8rem', mt: 0.5 }}>{data.institution?.name?.toUpperCase() || 'INSTITUTION NAME'}</Typography>
+                            <Typography sx={{ fontSize: '0.7rem' }}>{data.institution?.address?.city || 'City'}</Typography>
+                          </Box>
+                          
+                          <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                            <Box sx={{ border: '1px solid #000', px: 1, fontWeight: 'bold' }}>
+                              Due Date: {data.dueDate ? new Date(data.dueDate).toLocaleDateString('en-GB') : 'N/A'}
+                            </Box>
+                            <Box sx={{ border: '1px solid #000', px: 1, fontWeight: 'bold' }}>
+                              Expiry Date: {data.expiryDate ? new Date(data.expiryDate).toLocaleDateString('en-GB') : 'N/A'}
+                            </Box>
+                          </Box>
+                          
+                          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '0.7rem' }}>
+                            <tbody>
+                              <tr>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', width: '30%' }}>Student Name:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{data.studentName}</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', width: '20%' }}>Roll No:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{data.rollNumber}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Father Name:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{data.fatherName}</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Adm No:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{data.admissionNumber}</td>
+                              </tr>
+                              <tr>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Class:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{data.className}</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Section:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{data.sectionName}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          
+                          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontSize: '0.7rem' }}>
+                            <thead>
+                              <tr style={{ backgroundColor: '#f0f0f0' }}>
+                                <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'left' }}>S#</th>
+                                <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'left' }}>Fee Description</th>
+                                <th style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'right' }}>Amount</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(data.feeHeads || []).map((head, headIndex) => (
+                                <tr key={headIndex}>
+                                  <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{headIndex + 1}</td>
+                                  <td style={{ border: '1px solid #000', padding: '2px 4px' }}>{head.name}</td>
+                                  <td style={{ border: '1px solid #000', padding: '2px 4px', textAlign: 'right' }}>{head.amount.toLocaleString()}</td>
+                                </tr>
+                              ))}
+                              <tr>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Arrears:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>{(data.arrears || 0).toLocaleString()}</td>
+                              </tr>
+                              <tr style={{ backgroundColor: '#f0f0f0' }}>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Total Payable (within due date):</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>{(data.totalPayable || 0).toLocaleString()}</td>
+                              </tr>
+                              <tr>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Late Fee Fine:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>{(data.lateFeeFine || 0).toLocaleString()}</td>
+                              </tr>
+                              <tr>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>Payable after due date:</td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>{(data.payableAfterDueDate || 0).toLocaleString()}</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                          
+                          <Box sx={{ mb: 1, fontSize: '0.55rem', lineHeight: 1.2 }}>
+                            <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', mb: 0.1 }}>Note:</Typography>
+                            <Typography sx={{ fontSize: '0.55rem' }}>A fine of Rs. 200 will be charged if the fee is not paid by the due date. A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.</Typography>
+                          </Box>
+                          <Box sx={{ mb: 1, fontSize: '0.55rem', textAlign: 'center', fontWeight: 'bold' }}>
+                            <Typography sx={{ fontSize: '0.55rem' }}>Fee Payable At Any Branch of Bank Islami Pakistan Limited-310000223490001-The Integrity Global Education System</Typography>
+                          </Box>
+                        </Box>
+                      ))}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            ) : null}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => {
+              setBulkVoucherDialogOpen(false);
+              setBulkVouchersData([]);
+            }}>
+              Close
+            </Button>
+            <Button 
+              variant="contained" 
+              startIcon={<Print />} 
+              sx={{ bgcolor: '#667eea' }}
+              onClick={() => {
+                window.print();
+              }}
+              disabled={bulkVouchersData.length === 0}
+            >
+              Print All
+            </Button>
+          </DialogActions>
+        </Dialog>
+
         {/* Receipt Print Dialog */}
         <Dialog
           open={receiptDialogOpen}

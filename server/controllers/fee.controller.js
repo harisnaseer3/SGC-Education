@@ -202,7 +202,9 @@ const getPayments = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 const deleteVoucher = asyncHandler(async (req, res) => {
-  const result = await feeService.deleteVoucher(req.body, req.user);
+  // Combine body and query to support both methods (some servers strip DELETE body)
+  const voucherData = { ...req.body, ...req.query };
+  const result = await feeService.deleteVoucher(voucherData, req.user);
 
   res.json({
     success: true,
