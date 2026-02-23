@@ -1,4 +1,4 @@
-const FeeStructure = require('../models/FeeStructure');
+﻿const FeeStructure = require('../models/FeeStructure');
 const FeeHead = require('../models/FeeHead');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
@@ -796,17 +796,18 @@ class FeeService {
 
     const actualStudentIds = students.map(s => s._id);
 
-    // Build query for StudentFee records - Fetch ALL active fees AND any records with vouchers or balance
-    // We need the full history to calculate arrears accurately using the ledger method
+    // Build query for StudentFee records
     const studentFeeQuery = {
       student: { $in: actualStudentIds },
-      $or: [
-        { isActive: true },
-        { 'vouchers.0': { $exists: true } },
-        { remainingAmount: { $gt: 0 } }
-      ]
+      isActive: true
     };
 
+    // Filter by fee head IDs if provided
+    if (feeHeadIds && Array.isArray(feeHeadIds) && feeHeadIds.length > 0) {
+      studentFeeQuery.feeHead = { $in: feeHeadIds };
+    }
+
+    // Get StudentFee records for these students (optionally filtered by fee heads)
     const studentFeeRecords = await StudentFee.find(studentFeeQuery)
       .populate('feeHead', 'name priority frequencyType');
 
@@ -898,13 +899,8 @@ class FeeService {
         
         let hasWorkToDo = false;
         
-        // Analyze if we have work - ONLY for selected fee heads
+        // Analyze if we have work
         for (const [headId, fees] of feesByHead.entries()) {
-           // Skip if this head was not selected by the user
-           if (feeHeadIds && feeHeadIds.length > 0 && !feeHeadIds.includes(headId)) {
-             continue;
-           }
-
            const hasVoucher = fees.some(f => f.vouchers && f.vouchers.some(v => v.month === month && v.year === year));
            if (!hasVoucher) {
              hasWorkToDo = true;
@@ -923,10 +919,6 @@ class FeeService {
 
         // Process each Fee Head Group
         for (const [headId, fees] of feesByHead.entries()) {
-          // Skip if this head was not selected by the user
-          if (feeHeadIds && feeHeadIds.length > 0 && !feeHeadIds.includes(headId)) {
-            continue;
-          }
           // Sort fees by date descending (latest first) to use best template
           fees.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           
@@ -935,73 +927,11 @@ class FeeService {
           
           // Check if this head already has voucher
           const existingVoucherFee = fees.find(f => f.vouchers && f.vouchers.some(v => v.month === month && v.year === year));
-
+          
           if (existingVoucherFee) {
             // Already has voucher, do nothing (or we could reprint? but we are generating)
             continue; 
           }
-
-          // Arrears Calculation Logic: Ledger Method
-          // Arrears = (Total Billed Previous Non-Arrears) - (Total Paid Previous All Heads)
-          const isArrearsHead = latestFee.feeHead?.name?.toLowerCase() === 'arrears';
-          if (isArrearsHead) {
-            let totalBilledPrev = 0;
-            let totalPaidPrev = 0;
-            const startDate = new Date(year, month - 1, 1);
-            
-            for (const [otherHeadId, otherFees] of feesByHead.entries()) {
-              const otherHeadName = otherFees[0]?.feeHead?.name?.toLowerCase() || '';
-              const isOtherArrears = otherHeadName === 'arrears';
-
-              for (const otherFee of otherFees) {
-                // Determine if this fee record belongs to a PREVIOUS billing period
-                const hasVouchers = otherFee.vouchers && otherFee.vouchers.length > 0;
-                let isPrevious = false;
-                
-                if (hasVouchers) {
-                  // If it has vouchers, it's previous if ALL its vouchers are before the current month
-                  isPrevious = otherFee.vouchers.every(v => 
-                    (Number(v.year) < Number(year)) || (Number(v.year) === Number(year) && Number(v.month) < Number(month))
-                  );
-                } else {
-                  // No vouchers yet - check dueDate or createdAt
-                  const feeDate = otherFee.dueDate || otherFee.createdAt;
-                  if (feeDate && new Date(feeDate) < startDate) {
-                    isPrevious = true;
-                  }
-                }
-
-                if (isPrevious) {
-                  // Billing: Sum only non-arrears heads to avoid double counting the "Arrears" summary records
-                  if (!isOtherArrears) {
-                    totalBilledPrev += parseFloat(otherFee.finalAmount || 0);
-                  }
-                  // Payments: Sum payments from ALL heads (since a payment to Arrears head reduces the net debt)
-                  totalPaidPrev += parseFloat(otherFee.paidAmount || 0);
-                }
-              }
-            }
-
-            // Arrears is the net outstanding from previous periods
-            let calculatedArrears = Math.max(0, totalBilledPrev - totalPaidPrev);
-            calculatedArrears = Math.round(calculatedArrears * 100) / 100;
-
-            // Update the arrears record with the calculated amount
-            if (latestFee.finalAmount !== calculatedArrears) {
-              latestFee.baseAmount = calculatedArrears;
-              latestFee.finalAmount = calculatedArrears;
-              latestFee.remainingAmount = calculatedArrears;
-              await latestFee.save();
-              console.log(`[generateVouchers] Updated Arrears for student ${studentIdStr}: Billed=${totalBilledPrev}, Paid=${totalPaidPrev}, Result=${calculatedArrears}`);
-            }
-          }
-
-          // Skip zero-amount fee records (unless it's arrears we just calculated to be > 0)
-          if (latestFee.finalAmount <= 0) {
-            console.log(`[generateVouchers] Skipping zero-amount fee record ${latestFee._id} for feeHead ${latestFee.feeHead?.name || latestFee.feeHead}`);
-            continue;
-          }
-
 
           if (isMonthly) {
              // For Monthly, we create ONE new record for the month.
@@ -1084,8 +1014,6 @@ class FeeService {
 
     return {
       totalGenerated: updatedStudentFees.length,
-      totalVouchers: studentVoucherNumbers.size,
-      totalStudents: studentVoucherNumbers.size,
       totalErrors: errors.length,
       errors: errors.length > 0 ? errors : undefined
     };

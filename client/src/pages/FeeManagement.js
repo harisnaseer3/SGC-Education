@@ -874,6 +874,9 @@ const FeeManagement = () => {
         
         // Calculate total amount and determine voucher status from all student fees that have vouchers for this month/year
         const feesWithVoucher = [];
+        const startDate = new Date(year, month - 1, 1);
+        const allFeesForStudent = allFeesByStudent.get(studentIdStr) || [];
+
         studentFees.forEach(sf => {
           // Check if this fee has a voucher for the selected month/year
           if (sf.vouchers && Array.isArray(sf.vouchers)) {
@@ -883,79 +886,49 @@ const FeeManagement = () => {
               Number(v.year) === Number(year)
             );
             if (hasVoucher) {
-              voucherAmount += parseFloat(sf.finalAmount || 0);
               feesWithVoucher.push(sf);
+              // Only add to voucherAmount if NOT the "Arrears" fee head
+              if (sf.feeHead?.name?.toLowerCase() !== 'arrears') {
+                voucherAmount += parseFloat(sf.finalAmount || 0);
+              }
             }
           }
         });
 
         // Calculate Arrears (outstanding from previous months)
-        // Use same logic as voucher popup for consistency
-        const startDate = new Date(year, month - 1, 1);
+        // Use the matching Ledger Method as in backend
+        let totalBilledPrev = 0;
+        let totalPaidPrev = 0;
         
-        // Get ALL fees for this student (not just those with current voucher)
-        const allFeesForStudent = allFeesByStudent.get(studentIdStr) || [];
-        
-        const arrears = allFeesForStudent.reduce((sum, f) => {
-             // Exclude fees that are in the current voucher list
-             const isCurrentVoucher = f.vouchers && f.vouchers.some(v => 
-                v && Number(v.month) === Number(month) && Number(v.year) === Number(year)
-             );
-             
-             if (isCurrentVoucher) return sum;
+        allFeesForStudent.forEach(f => {
+          // Determine if this fee record belongs to a PREVIOUS period relative to this voucher
+          const hasVouchers = f.vouchers && f.vouchers.length > 0;
+          let isPrevious = false;
+          
+          if (hasVouchers) {
+            // It's previous if ALL its vouchers are before the current voucher's month/year
+            isPrevious = f.vouchers.every(v => 
+              (Number(v.year) < Number(year)) || 
+              (Number(v.year) === Number(year) && Number(v.month) < Number(month))
+            );
+          } else {
+            // No vouchers - check dueDate or createdAt
+            const feeDate = f.dueDate || f.createdAt;
+            if (feeDate && new Date(feeDate) < startDate) {
+              isPrevious = true;
+            }
+          }
 
-             // Check if it has remaining amount using dynamic calc
-             const final = parseFloat(f.finalAmount || 0);
-             const paid = parseFloat(f.paidAmount || 0);
-             const calculatedRemaining = final - paid;
-             
-             // Use stored remaining if available, but trust calculated more
-             let remaining = calculatedRemaining;
-             if (f.remainingAmount !== undefined && f.remainingAmount !== null) {
-                const storedRemaining = parseFloat(f.remainingAmount);
-                if (paid > 0) {
-                   remaining = calculatedRemaining;
-                } else {
-                   remaining = Math.min(storedRemaining, final);
-                }
-             }
+          if (isPrevious) {
+            const isArrearsHead = f.feeHead?.name?.toLowerCase() === 'arrears';
+            if (!isArrearsHead) {
+              totalBilledPrev += parseFloat(f.finalAmount || 0);
+            }
+            totalPaidPrev += parseFloat(f.paidAmount || 0);
+          }
+        });
 
-             if (remaining <= 0.01 || (f.status && f.status.toLowerCase() === 'paid')) return sum;
-             
-             // Check if fee is from a previous month (critical for arrears)
-             // A fee is an arrear if it belongs to a voucher from a previous month/year
-             // OR if it has NO voucher but the due date/createdAt is before the current month
-             const belongsToPreviousMonth = f.vouchers && f.vouchers.some(v => 
-                (Number(v.year) < Number(year)) || (Number(v.year) === Number(year) && Number(v.month) < Number(month))
-             );
-    
-             const isCurrentlyVouchered = f.vouchers && f.vouchers.some(v => 
-                Number(v.year) === Number(year) && Number(v.month) === Number(month)
-             );
-    
-             let isPrevious = belongsToPreviousMonth;
-             
-             if (!isPrevious && !isCurrentlyVouchered) {
-                if (f.dueDate) {
-                   const feeDate = new Date(f.dueDate);
-                   if (!isNaN(feeDate.getTime())) {
-                      isPrevious = feeDate < startDate;
-                   }
-                }
-                
-                // If still not determined, check createdAt
-                if (!isPrevious && f.createdAt) {
-                   const createdDate = new Date(f.createdAt);
-                   if (!isNaN(createdDate.getTime())) {
-                      isPrevious = createdDate < startDate;
-                   }
-                }
-             }
-
-             if (!isPrevious) return sum;
-             
-             return sum + Math.max(0, remaining);
-        }, 0);
+        const calculatedArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
         // Determine voucher status based on payments for this specific voucher
         // A voucher is "Paid" only if payments were made AFTER the voucher was generated
@@ -1009,6 +982,18 @@ const FeeManagement = () => {
           voucherStatus = 'Generated';
         }
 
+        // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
+        const arrearsPaymentsOnVoucher = feesWithVoucher.reduce((sum, f) => {
+          if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
+          return sum + parseFloat(f.paidAmount || 0);
+        }, 0);
+
+        // Sum remaining amounts for current non-arrears items
+        const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
+          if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
+          return sum + parseFloat(f.remainingAmount || 0);
+        }, 0);
+
         uniqueStudentsMap.set(studentIdStr, {
           _id: admission?._id || studentIdStr,
           studentId: studentIdStr,
@@ -1021,7 +1006,8 @@ const FeeManagement = () => {
           voucherStatus: voucherStatus,
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount,
-          arrears: arrears
+          arrears: calculatedArrears,
+          remainingAmount: totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher
         });
       });
 
@@ -1178,12 +1164,8 @@ const FeeManagement = () => {
           // Compare admission date with cutoff date
           const shouldInclude = studentAdmissionDate <= cutoffDate;
           
-          // Debug log for date comparison
-          if (console && console.log) {
-            console.log(`Student ${student.name}: admission=${studentAdmissionDate.toLocaleDateString()}, cutoff=${cutoffDate.toLocaleDateString()}, included=${shouldInclude}`);
-          }
-          
           return shouldInclude;
+
         });
       }
       
@@ -1389,7 +1371,7 @@ const FeeManagement = () => {
       );
 
       if (response.data.success) {
-        notifySuccess(`Successfully generated vouchers for ${selectedGenerateVoucherStudents.length} student(s)`);
+        notifySuccess(`Successfully generated vouchers for ${response.data.data.totalStudents} student(s)`);
         // Update voucher status for selected students
         setGenerateVoucherStudents(prevStudents =>
           prevStudents.map(student =>
@@ -1689,8 +1671,11 @@ const FeeManagement = () => {
                       v.year === voucherInfo.year
                     );
                     if (hasThisVoucher) {
-                      voucherAmount += parseFloat(studentFee.finalAmount || 0);
                       feesWithVoucher.push(studentFee);
+                      // Only add to voucherAmount if NOT the "Arrears" fee head
+                      if (studentFee.feeHead?.name?.toLowerCase() !== 'arrears') {
+                        voucherAmount += parseFloat(studentFee.finalAmount || 0);
+                      }
                     }
                   }
                 });
@@ -1750,68 +1735,53 @@ const FeeManagement = () => {
                 const monthName = monthNames[voucherInfo.month - 1] || voucherInfo.month;
                 const voucherMonth = `${monthName} ${voucherInfo.year}`;
                 
-                // Calculate Arrears (outstanding from previous months)
+                // Calculate Arrears (outstanding from previous periods)
+                // Use the matching Ledger Method as in backend
                 const startDate = new Date(voucherInfo.year, voucherInfo.month - 1, 1);
-                const arrears = fees.reduce((sum, f) => {
-                  // Exclude fees that are in the current voucher list
-                  const isCurrentVoucher = f.vouchers && f.vouchers.some(v => 
-                    v && v.voucherNumber === voucherInfo.voucherNumber &&
-                    v.month === voucherInfo.month && v.year === voucherInfo.year
-                  );
+                let totalBilledPrev = 0;
+                let totalPaidPrev = 0;
+                
+                fees.forEach(f => {
+                  // Determine if this fee record belongs to a PREVIOUS period relative to this voucher
+                  const hasVouchers = f.vouchers && f.vouchers.length > 0;
+                  let isPrevious = false;
                   
-                  if (isCurrentVoucher) return sum;
-
-                  // Check if it has remaining amount using dynamic calc
-                  const final = parseFloat(f.finalAmount || 0);
-                  const paid = parseFloat(f.paidAmount || 0);
-                  const calculatedRemaining = final - paid;
-                  
-                  // Use stored remaining if available, but trust calculated more
-                  let remaining = calculatedRemaining;
-                  if (f.remainingAmount !== undefined && f.remainingAmount !== null) {
-                    const storedRemaining = parseFloat(f.remainingAmount);
-                    if (paid > 0) {
-                      remaining = calculatedRemaining;
-                    } else {
-                      remaining = Math.min(storedRemaining, final);
+                  if (hasVouchers) {
+                    // It's previous if ALL its vouchers are before the current voucher's month/year
+                    isPrevious = f.vouchers.every(v => 
+                      (Number(v.year) < Number(voucherInfo.year)) || 
+                      (Number(v.year) === Number(voucherInfo.year) && Number(v.month) < Number(voucherInfo.month))
+                    );
+                  } else {
+                    // No vouchers - check dueDate or createdAt
+                    const feeDate = f.dueDate || f.createdAt;
+                    if (feeDate && new Date(feeDate) < startDate) {
+                      isPrevious = true;
                     }
                   }
 
-                  if (remaining <= 0.01 || (f.status && f.status.toLowerCase() === 'paid')) return sum;
-                  
-                  // Check if fee is from a previous month (critical for arrears)
-                  // A fee is an arrear if it has a voucher from a previous month/year
-                  // OR if it has NO voucher but the due date/createdAt is before the current month
-                  const belongsToPreviousMonth = f.vouchers && f.vouchers.some(v => 
-                    (Number(v.year) < Number(voucherInfo.year)) || (Number(v.year) === Number(voucherInfo.year) && Number(v.month) < Number(voucherInfo.month))
-                  );
-
-                  const isCurrentlyVouchered = f.vouchers && f.vouchers.some(v => 
-                    Number(v.year) === Number(voucherInfo.year) && Number(v.month) === Number(voucherInfo.month)
-                  );
-
-                  let isPrevious = belongsToPreviousMonth;
-                  
-                  if (!isPrevious && !isCurrentlyVouchered) {
-                    if (f.dueDate) {
-                      const feeDate = new Date(f.dueDate);
-                      if (!isNaN(feeDate.getTime())) {
-                        isPrevious = feeDate < startDate;
-                      }
+                  if (isPrevious) {
+                    const isArrearsHead = f.feeHead?.name?.toLowerCase() === 'arrears';
+                    if (!isArrearsHead) {
+                      totalBilledPrev += parseFloat(f.finalAmount || 0);
                     }
-                    
-                    // If still not determined, check createdAt
-                    if (!isPrevious && f.createdAt) {
-                      const createdDate = new Date(f.createdAt);
-                      if (!isNaN(createdDate.getTime())) {
-                        isPrevious = createdDate < startDate;
-                      }
-                    }
+                    totalPaidPrev += parseFloat(f.paidAmount || 0);
                   }
+                });
 
-                  if (!isPrevious) return sum;
-                  
-                  return sum + Math.max(0, remaining);
+                const calculatedArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+
+                // For the "Remaining Amount" of the VOUCHER specifically, we sum its constituent fees
+                // But we exclude the Arrears head from totalRemainingForVoucher if we are adding calculatedArrears separately
+                const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
+                  if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
+                  return sum + parseFloat(f.remainingAmount || 0);
+                }, 0);
+
+                // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
+                const arrearsPaymentsOnVoucher = feesWithVoucher.reduce((sum, f) => {
+                  if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
+                  return sum + parseFloat(f.paidAmount || 0);
                 }, 0);
                 
                 studentsWithVouchers.push({
@@ -1821,8 +1791,8 @@ const FeeManagement = () => {
                   voucherMonth: voucherMonth,
                   voucherStatus: voucherStatus,
                   paidAmount: totalPaidForVoucher,
-                  remainingAmount: totalRemainingForVoucher + arrears, // Include arrears in total remaining
-                  arrears: arrears,
+                  remainingAmount: totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher,
+                  arrears: calculatedArrears,
                   originalAdmissionId: student._id, // Store original admission ID
                   _id: `${student._id}-${voucherInfo.voucherNumber}-${voucherInfo.month}-${voucherInfo.year}` // Unique key for each voucher row
                 });
@@ -1928,14 +1898,16 @@ const FeeManagement = () => {
       }
 
       // Filter: Only include fees that belong to the selected month OR earlier months (arrears).
-      // Exclude fees that belong EXCLUSIVELY to future months.
+      // Also, EXCLUDE the "Arrears" summary head from the payment list to avoid double counting,
+      // as we expect the user to pay the actual component dues.
       fees = fees.filter(fee => {
+        // Exclude Arrears head explicitly in the Fee Deposit / Receipt flow
+        if (fee.feeHead?.name?.toLowerCase() === 'arrears') return false;
+
         // If the fee has no vouchers, it's an arrear – always include
         if (!fee.vouchers || fee.vouchers.length === 0) return true;
 
-        // A fee may appear in multiple months' vouchers. 
-        // We include it if ANY of its vouchers is on or before the reference month/year.
-        // We exclude it only if ALL of its vouchers are strictly in the future.
+        // Otherwise check if any of its vouchers is on or before the reference month/year.
         const hasCurrentOrPastVoucher = fee.vouchers.some(v => {
           const vYear = Number(v.year);
           const vMonth = Number(v.month);
@@ -2570,8 +2542,10 @@ const FeeManagement = () => {
           const feeHeadMap = {};
           feesWithVouchers.forEach(fee => {
             const feeHeadName = fee.feeHead?.name || 'Fee';
+            // EXCLUDE the Arrears head from the component grouping to avoid double counting
+            if (feeHeadName.toLowerCase() === 'arrears') return;
+            
             // Use finalAmount (after discount) if available, otherwise baseAmount
-            // Use nullish coalescing to ensure 0 is treated as a valid value
             const amount = (fee.finalAmount !== undefined && fee.finalAmount !== null) ? fee.finalAmount : (fee.baseAmount || 0);
             feeHeadMap[feeHeadName] = (feeHeadMap[feeHeadName] || 0) + amount;
           });
@@ -2599,67 +2573,41 @@ const FeeManagement = () => {
             }
           }
 
-          // Only calculate arrears if not passed from student object or if 0 (to re-verify)
-          if (arrears === 0) {
-            // Calculate arrears (unpaid/partial payments from previous months)
-            const previousMonthFees = studentFees.filter(f => {
-              const hasCurrentVoucher = f.vouchers && f.vouchers.some(v => {
+          // Calculate Arrears (outstanding from previous periods)
+          // Use the matching Ledger Method as in backend
+          let totalBilledPrev = 0;
+          let totalPaidPrev = 0;
+          
+          studentFees.forEach(f => {
+            // Determine if this fee record belongs to a PREVIOUS period relative to this voucher
+            const hasVouchers = f.vouchers && f.vouchers.length > 0;
+            let isPrevious = false;
+            
+            if (hasVouchers) {
+              // It's previous if ALL its vouchers are before the current voucher's month/year
+              isPrevious = f.vouchers.every(v => {
                 const vMonth = typeof v.month === 'string' ? parseInt(v.month, 10) : Number(v.month);
                 const vYear = typeof v.year === 'string' ? parseInt(v.year, 10) : Number(v.year);
-                return vMonth === month && vYear === year;
+                return (vYear < Number(year)) || (vYear === Number(year) && vMonth < Number(month));
               });
-              
-              if (hasCurrentVoucher) return false;
-              
-              const remainingAmount = f.remainingAmount || (parseFloat(f.finalAmount || 0) - (parseFloat(f.paidAmount || 0)));
-              if (remainingAmount <= 0 || (f.status && f.status.toLowerCase() === 'paid')) return false;
-              
-              // Check if fee is from a previous month (critical for arrears)
-              // A fee is an arrear if it has a voucher from a previous month/year
-              // OR if it has NO voucher but the due date/createdAt is before the current month
-              const belongsToPreviousMonth = f.vouchers && f.vouchers.some(v => 
-                (Number(v.year) < Number(year)) || (Number(v.year) === Number(year) && Number(v.month) < Number(month))
-              );
-
-              const isCurrentlyVouchered = f.vouchers && f.vouchers.some(v => 
-                Number(v.year) === Number(year) && Number(v.month) === Number(month)
-              );
-
-              let isPrevious = belongsToPreviousMonth;
-              
-              if (!isPrevious && !isCurrentlyVouchered) {
-                if (f.dueDate) {
-                   const feeDate = new Date(f.dueDate);
-                   if (!isNaN(feeDate.getTime())) isPrevious = feeDate < startDate;
-                }
-                if (!isPrevious && f.createdAt) {
-                  const createdDate = new Date(f.createdAt);
-                  if (!isNaN(createdDate.getTime())) isPrevious = createdDate < startDate;
-                }
+            } else {
+              // No vouchers - check dueDate or createdAt
+              const feeDate = f.dueDate || f.createdAt;
+              if (feeDate && new Date(feeDate) < startDate) {
+                isPrevious = true;
               }
-              
-              return isPrevious;
-            });
+            }
 
-            // Calculate total arrears from previous months
-            arrears = previousMonthFees.reduce((sum, f) => {
-              const final = parseFloat(f.finalAmount || 0);
-              const paid = parseFloat(f.paidAmount || 0);
-              const calculatedRemaining = final - paid;
-              
-              let remaining = calculatedRemaining;
-              if (f.remainingAmount !== undefined && f.remainingAmount !== null) {
-                const storedRemaining = parseFloat(f.remainingAmount);
-                if (paid > 0) {
-                  remaining = calculatedRemaining;
-                } else {
-                  remaining = Math.min(storedRemaining, final);
-                }
+            if (isPrevious) {
+              const isArrearsHead = f.feeHead?.name?.toLowerCase() === 'arrears';
+              if (!isArrearsHead) {
+                totalBilledPrev += parseFloat(f.finalAmount || 0);
               }
-              
-              return sum + Math.max(0, remaining);
-            }, 0);
-          }
+              totalPaidPrev += parseFloat(f.paidAmount || 0);
+            }
+          });
+
+          arrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
           
           // Add arrears to feeHeads list for display in the voucher table if > 0
           if (arrears > 0) {
