@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const FeeStructure = require('../models/FeeStructure');
 const FeeHead = require('../models/FeeHead');
 const Class = require('../models/Class');
@@ -824,32 +825,42 @@ class FeeService {
       throw new ApiError(400, 'Institution ID not found');
     }
 
-    // Count existing vouchers for this institution, month, and year to generate unique sequential number
-    const existingVouchersCount = await StudentFee.aggregate([
+    // Find the highest existing voucher sequence number across ALL records in this institution.
+    // Voucher numbers follow the format "17340-XXXXX" where XXXXX is a zero-padded sequence.
+    // Since they are zero-padded, string $max gives the correct highest number.
+    const instObjId = new mongoose.Types.ObjectId(institutionId.toString());
+    const maxVoucherResult = await StudentFee.aggregate([
       {
         $match: {
-          institution: institutionId,
-          isActive: true
+          institution: instObjId
         }
       },
       {
-        $unwind: {
-          path: '$vouchers',
-          preserveNullAndEmptyArrays: false
-        }
+        $unwind: '$vouchers'
       },
       {
         $match: {
-          'vouchers.month': month,
-          'vouchers.year': year
+          'vouchers.voucherNumber': { $exists: true, $ne: null }
         }
       },
       {
-        $count: 'total'
+        $group: {
+          _id: null,
+          maxVoucherNumber: { $max: '$vouchers.voucherNumber' }
+        }
       }
     ]);
 
-    let voucherCounter = existingVouchersCount.length > 0 ? existingVouchersCount[0].total : 0;
+    let voucherCounter = 0;
+    if (maxVoucherResult.length > 0 && maxVoucherResult[0].maxVoucherNumber) {
+      const maxVN = maxVoucherResult[0].maxVoucherNumber;
+      const parts = maxVN.split('-');
+      const seqNum = parseInt(parts[parts.length - 1], 10);
+      if (!isNaN(seqNum)) {
+        voucherCounter = seqNum;
+      }
+    }
+    console.log(`[generateVouchers] Max existing voucher seq = ${voucherCounter}, next will be ${voucherCounter + 1}`);
 
     // Group StudentFee records by student to ensure same voucher number for all fee heads
     const studentFeesByStudent = new Map();
