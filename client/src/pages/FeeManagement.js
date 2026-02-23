@@ -1236,16 +1236,59 @@ const FeeManagement = () => {
 
       // Calculate amounts per fee head
       // If multiple students have the same fee head, we'll use the first one's amount
-      // (or we could average them, but for now using first is simpler)
       const amountsMap = {};
+      const { month: targetMonth, year: targetYear } = parseMonthYear(generateVoucherFilters.monthYear);
+      const startDate = new Date(targetYear, targetMonth - 1, 1);
+
+      // Group fees by student to help calculate arrears if we encounter an Arrears head
+      const feesByStudent = {};
+      selectedStudentFees.forEach(sf => {
+        const sid = (sf.student?._id || sf.student).toString();
+        if (!feesByStudent[sid]) feesByStudent[sid] = [];
+        feesByStudent[sid].push(sf);
+      });
+
       selectedStudentFees.forEach(sf => {
         const feeHeadId = (sf.feeHead?._id || sf.feeHead)?.toString();
-        if (feeHeadId) {
-          // Use finalAmount (after discount) if available, otherwise baseAmount
-          const amount = sf.finalAmount || sf.baseAmount || 0;
-          // Only set if not already set (to use first occurrence)
-          if (!amountsMap[feeHeadId]) {
-            amountsMap[feeHeadId] = amount;
+        if (feeHeadId && !amountsMap[feeHeadId]) {
+          const feeHeadName = sf.feeHead?.name || '';
+          
+          if (feeHeadName.toLowerCase() === 'arrears') {
+            // Calculate dynamic arrears for this student using Ledger Method
+            const sid = (sf.student?._id || sf.student).toString();
+            const studentAllFees = feesByStudent[sid] || [];
+            
+            let totalBilledPrev = 0;
+            let totalPaidPrev = 0;
+            
+            studentAllFees.forEach(f => {
+              const hasVouchers = f.vouchers && f.vouchers.length > 0;
+              let isPrevious = false;
+              
+              if (hasVouchers) {
+                isPrevious = f.vouchers.every(v => 
+                  (Number(v.year) < Number(targetYear)) || 
+                  (Number(v.year) === Number(targetYear) && Number(v.month) < Number(targetMonth))
+                );
+              } else {
+                const feeDate = f.dueDate || f.createdAt;
+                if (feeDate && new Date(feeDate) < startDate) {
+                  isPrevious = true;
+                }
+              }
+
+              if (isPrevious) {
+                if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
+                  totalBilledPrev += parseFloat(f.finalAmount || 0);
+                }
+                totalPaidPrev += parseFloat(f.paidAmount || 0);
+              }
+            });
+            
+            amountsMap[feeHeadId] = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+          } else {
+            // Normal fee head calculation
+            amountsMap[feeHeadId] = sf.finalAmount || sf.baseAmount || 0;
           }
         }
       });
