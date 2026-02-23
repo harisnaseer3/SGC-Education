@@ -1898,53 +1898,84 @@ const FeeManagement = () => {
         return remaining > 0.01 && fee.status !== 'paid';
       });
       
-      // If voucher number is provided, we still fetch ALL and sort matching ones to top,
-      // but we DON'T filter out other outstanding fees (arrears) because the user
-      // needs to be able to pay them.
-      
-      // Sort: 
-      // 1. Matches for current voucherNumber (if provided)
-      // 2. Other fees with vouchers (sorted by date)
-      // 3. Fees without vouchers (arrears)
+      // Determine the reference month/year from the selected voucher.
+      // We'll find the voucher entry in fees that matches the voucherNumber,
+      // extract its month/year, and use that as a cutoff (include = same or earlier).
+      let refMonth = null;
+      let refYear = null;
+
+      if (voucherNumber) {
+        const searchTerm = voucherNumber.toLowerCase().trim();
+        // Find the voucher entry that matches
+        for (const fee of fees) {
+          if (!fee.vouchers) continue;
+          const matchingVoucher = fee.vouchers.find(v =>
+            v.voucherNumber && v.voucherNumber.toLowerCase().includes(searchTerm)
+          );
+          if (matchingVoucher) {
+            refMonth = Number(matchingVoucher.month);
+            refYear = Number(matchingVoucher.year);
+            break;
+          }
+        }
+      }
+
+      // If no voucher provided (or not found), fall back to current month as cutoff
+      if (!refMonth || !refYear) {
+        const now = new Date();
+        refMonth = now.getMonth() + 1;
+        refYear = now.getFullYear();
+      }
+
+      // Filter: Only include fees that belong to the selected month OR earlier months (arrears).
+      // Exclude fees that belong EXCLUSIVELY to future months.
+      fees = fees.filter(fee => {
+        // If the fee has no vouchers, it's an arrear – always include
+        if (!fee.vouchers || fee.vouchers.length === 0) return true;
+
+        // A fee may appear in multiple months' vouchers. 
+        // We include it if ANY of its vouchers is on or before the reference month/year.
+        // We exclude it only if ALL of its vouchers are strictly in the future.
+        const hasCurrentOrPastVoucher = fee.vouchers.some(v => {
+          const vYear = Number(v.year);
+          const vMonth = Number(v.month);
+          if (vYear < refYear) return true;
+          if (vYear === refYear && vMonth <= refMonth) return true;
+          return false;
+        });
+
+        return hasCurrentOrPastVoucher;
+      });
+
+      // Sort:
+      // 1. Fees from the selected voucher (if voucherNumber provided) come first
+      // 2. Then remaining fees by most recent voucher date, with no-voucher fees last
       fees = fees.sort((a, b) => {
         if (voucherNumber) {
           const searchTerm = voucherNumber.toLowerCase().trim();
           const aMatch = a.vouchers && a.vouchers.some(v => v.voucherNumber && v.voucherNumber.toLowerCase().includes(searchTerm));
           const bMatch = b.vouchers && b.vouchers.some(v => v.voucherNumber && v.voucherNumber.toLowerCase().includes(searchTerm));
-          
           if (aMatch && !bMatch) return -1;
           if (!aMatch && bMatch) return 1;
         }
 
         const aLatestVoucher = a.vouchers && a.vouchers.length > 0
-          ? a.vouchers.reduce((latest, v) => {
-              const vDate = new Date(v.generatedAt || 0);
-              const latestDate = new Date(latest.generatedAt || 0);
-              return vDate > latestDate ? v : latest;
-            })
+          ? a.vouchers.reduce((latest, v) => new Date(v.generatedAt || 0) > new Date(latest.generatedAt || 0) ? v : latest)
           : null;
-        
+
         const bLatestVoucher = b.vouchers && b.vouchers.length > 0
-          ? b.vouchers.reduce((latest, v) => {
-              const vDate = new Date(v.generatedAt || 0);
-              const latestDate = new Date(latest.generatedAt || 0);
-              return vDate > latestDate ? v : latest;
-            })
+          ? b.vouchers.reduce((latest, v) => new Date(v.generatedAt || 0) > new Date(latest.generatedAt || 0) ? v : latest)
           : null;
-        
+
         if (!aLatestVoucher && !bLatestVoucher) {
-          const aDate = new Date(a.dueDate || a.createdAt || 0);
-          const bDate = new Date(b.dueDate || b.createdAt || 0);
-          return bDate - aDate;
+          return new Date(b.dueDate || b.createdAt || 0) - new Date(a.dueDate || a.createdAt || 0);
         }
-        if (!aLatestVoucher) return 1; 
+        if (!aLatestVoucher) return 1;   // no-voucher (arrears) go to end
         if (!bLatestVoucher) return -1;
-        
-        const aDate = new Date(aLatestVoucher.generatedAt || 0);
-        const bDate = new Date(bLatestVoucher.generatedAt || 0);
-        return bDate - aDate;
+
+        return new Date(bLatestVoucher.generatedAt || 0) - new Date(aLatestVoucher.generatedAt || 0);
       });
-      
+
       setOutstandingFees(fees);
       
       // Initialize selected payments with remaining amounts
@@ -5014,19 +5045,7 @@ const FeeManagement = () => {
                           </Box>
                         </Grid>
 
-                        {/* Remarks */}
-                        <Grid item xs={12}>
-                          <Divider sx={{ my: 2 }} />
-                          <TextField
-                            fullWidth
-                            label="Remarks"
-                            multiline
-                            rows={3}
-                            value={manualDepositForm.remarks}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, remarks: e.target.value })}
-                            placeholder="Enter any remarks or notes about this payment"
-                          />
-                        </Grid>
+
 
                         {/* Action Buttons */}
                         <Grid item xs={12}>
