@@ -3301,6 +3301,49 @@ const FeeManagement = () => {
     }
   };
 
+  // Delete all receipts in a transaction group
+  const handleDeleteGroupReceipts = async (group, transactionId) => {
+    const deletableReceipts = group.filter(r => r.status !== 'refunded');
+    if (deletableReceipts.length === 0) {
+      notifyError('All receipts in this group are already refunded');
+      return;
+    }
+
+    const displayTid = transactionId.startsWith('no-tid-') ? 'this group' : transactionId;
+    if (!window.confirm(`Are you sure you want to delete all ${deletableReceipts.length} receipt(s) in transaction ${displayTid}? This will reverse all payments and update the student's balance.`)) {
+      return;
+    }
+
+    try {
+      setReceiptsLoading(true);
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const receipt of deletableReceipts) {
+        try {
+          await axios.delete(`${API_URL}/fees/payments/${receipt._id}`, createAxiosConfig());
+          successCount++;
+        } catch (err) {
+          console.error(`Error deleting receipt ${receipt.receiptNumber}:`, err);
+          errorCount++;
+        }
+      }
+
+      if (errorCount === 0) {
+        notifySuccess(`Successfully deleted ${successCount} receipt(s) and reversed payments`);
+      } else {
+        notifyError(`Deleted ${successCount} receipt(s) but ${errorCount} failed. Please refresh and retry.`);
+      }
+
+      await fetchReceipts();
+    } catch (err) {
+      console.error('Error deleting group receipts:', err);
+      notifyError(err.response?.data?.message || 'Failed to delete receipts');
+    } finally {
+      setReceiptsLoading(false);
+    }
+  };
+
   // Listen for institution changes (for super admin)
   useEffect(() => {
     const handleInstitutionChange = () => {
@@ -5435,19 +5478,27 @@ const FeeManagement = () => {
                                         >
                                           <Print fontSize="small" />
                                         </IconButton>
-                                        {!isGroup && firstReceipt.status !== 'refunded' && (
-                                          <IconButton
-                                            size="small"
-                                            color="error"
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              handleDeleteReceipt(firstReceipt._id, firstReceipt.receiptNumber);
-                                            }}
-                                            title="Delete Receipt"
-                                          >
-                                            <Delete fontSize="small" />
-                                          </IconButton>
-                                        )}
+                                        {(() => {
+                                          const allRefunded = group.every(r => r.status === 'refunded');
+                                          if (allRefunded) return null;
+                                          return (
+                                            <IconButton
+                                              size="small"
+                                              color="error"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isGroup) {
+                                                  handleDeleteGroupReceipts(group, tid);
+                                                } else {
+                                                  handleDeleteReceipt(firstReceipt._id, firstReceipt.receiptNumber);
+                                                }
+                                              }}
+                                              title={isGroup ? `Delete All ${group.length} Receipts` : 'Delete Receipt'}
+                                            >
+                                              <Delete fontSize="small" />
+                                            </IconButton>
+                                          );
+                                        })()}
                                       </Box>
                                     </TableCell>
                                   </TableRow>
