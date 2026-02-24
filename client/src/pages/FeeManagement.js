@@ -416,7 +416,8 @@ const FeeManagement = () => {
     feeHeadSelection: { page: 0, rowsPerPage: 12 },
     assignFeeStructureDialog: { page: 0, rowsPerPage: 12 },
     suspense: { page: 0, rowsPerPage: 12 },
-    reconciliationStudents: { page: 0, rowsPerPage: 12 }
+    reconciliationStudents: { page: 0, rowsPerPage: 12 },
+    refundedReceipt: { page: 0, rowsPerPage: 12 }
   });
 
   // Helper function to handle pagination change
@@ -5673,6 +5674,8 @@ const FeeManagement = () => {
                                 }
                               });
 
+                              const paginatedRefundedGroupIds = getPaginatedData(refundedGroupIds, 'refundedReceipt');
+
                               if (refundedReceipts.length === 0) {
                                 return (
                                   <TableRow>
@@ -5685,7 +5688,7 @@ const FeeManagement = () => {
                                 );
                               }
 
-                              return refundedGroupIds.map((tid) => {
+                              return paginatedRefundedGroupIds.map((tid) => {
                                 const group = refundedGroupsMap[tid];
                                 const isGroup = group.length > 1;
                                 const isExpanded = expandedRefundedTransactions.has(tid);
@@ -5796,6 +5799,25 @@ const FeeManagement = () => {
                             })()}
                           </TableBody>
                         </Table>
+                        {receipts.filter(r => r.status === 'refunded').length > 0 && (
+                          <TablePagination
+                            component="div"
+                            count={(() => {
+                              const seenTids = new Set();
+                              receipts.filter(r => r.status === 'refunded').forEach(r => {
+                                const tid = r.transactionId || `no-tid-${r._id}`;
+                                seenTids.add(tid);
+                              });
+                              return seenTids.size;
+                            })()}
+                            page={pagination.refundedReceipt.page}
+                            onPageChange={(e, newPage) => handleChangePage('refundedReceipt', e, newPage)}
+                            rowsPerPage={pagination.refundedReceipt.rowsPerPage}
+                            onRowsPerPageChange={(e) => handleChangeRowsPerPage('refundedReceipt', e)}
+                            rowsPerPageOptions={[12, 25, 50, 100]}
+                            labelRowsPerPage="Rows per page:"
+                          />
+                        )}
                       </TableContainer>
                     )}
                   </CardContent>
