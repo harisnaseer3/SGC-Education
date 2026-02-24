@@ -959,24 +959,6 @@ const FeeManagement = () => {
           
           // Calculate total remaining for fees with this voucher
           const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
-
-
-
-          // Determine voucher status based on paid and remaining amounts
-          // For monthly fees, each month gets its own StudentFee record,
-          // so paidAmount already reflects payments for this specific voucher
-          if (totalRemainingForVoucher <= 0.01) {
-            // Fully paid - remaining amount is 0
-            voucherStatus = 'Paid';
-          } else {
-            if (totalPaidForVoucher > 0) {
-              // Partially paid - some payment made but still has remaining
-              voucherStatus = 'Partial';
-            } else {
-              // No payment made for this voucher
-              voucherStatus = 'Unpaid';
-            }
-          }
         } else {
           // If no fees found, default to 'Generated' (voucher exists but no fee data)
           voucherStatus = 'Generated';
@@ -993,6 +975,19 @@ const FeeManagement = () => {
           if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
           return sum + parseFloat(f.remainingAmount || 0);
         }, 0);
+
+        // Determine voucher status using the SAME remaining amount shown to the user
+        // This uses the displayed remaining (excl arrears head + calculated arrears - arrears payments)
+        if (voucherStatus !== 'Generated') {
+          const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher;
+          if (displayedRemaining <= 0.01) {
+            voucherStatus = 'Paid';
+          } else if (feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0) > 0) {
+            voucherStatus = 'Partial';
+          } else {
+            voucherStatus = 'Unpaid';
+          }
+        }
 
         uniqueStudentsMap.set(studentIdStr, {
           _id: admission?._id || studentIdStr,
@@ -1686,7 +1681,7 @@ const FeeManagement = () => {
             if (voucherMap.size === 0) {
               // Calculate total paid and remaining for all fees (if no vouchers)
               const totalPaid = fees.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
-              const totalRemaining = fees.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
+              const totalRemaining = fees.reduce((sum, f) => sum + Math.max(0, parseFloat(f.finalAmount || 0) - parseFloat(f.paidAmount || 0)), 0);
               
               studentsWithVouchers.push({
                 ...student,
@@ -1754,23 +1749,13 @@ const FeeManagement = () => {
                   totalPaidForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
                   
                   // Calculate total remaining for fees with this voucher
-                  totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
+                  // Always use finalAmount - paidAmount to avoid stale remainingAmount field
+                  totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + Math.max(0, parseFloat(f.finalAmount || 0) - parseFloat(f.paidAmount || 0)), 0);
 
-                  // Determine voucher status based on paid and remaining amounts
-                  // For monthly fees, each month gets its own StudentFee record,
-                  // so paidAmount already reflects payments for this specific voucher
-                  if (totalRemainingForVoucher <= 0.01) {
-                    // Fully paid - remaining amount is 0
-                    voucherStatus = 'Paid';
-                  } else {
-                    if (totalPaidForVoucher > 0) {
-                      // Partially paid - some payment made but still has remaining
-                      voucherStatus = 'Partial';
-                    } else {
-                      // No payment made for this voucher
-                      voucherStatus = 'Unpaid';
-                    }
-                  }
+                  // NOTE: Voucher status must be determined using the SAME remaining amount
+                  // logic as the displayed "Remaining Amount" column. That column excludes
+                  // the Arrears fee head and instead uses dynamically calculated arrears.
+                  // We defer status determination until after arrears are calculated below.
                 }
                 
                 // Format month name
@@ -1818,7 +1803,7 @@ const FeeManagement = () => {
                 // But we exclude the Arrears head from totalRemainingForVoucher if we are adding calculatedArrears separately
                 const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
                   if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
-                  return sum + parseFloat(f.remainingAmount || 0);
+                  return sum + Math.max(0, parseFloat(f.finalAmount || 0) - parseFloat(f.paidAmount || 0));
                 }, 0);
 
                 // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
@@ -1826,6 +1811,19 @@ const FeeManagement = () => {
                   if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
                   return sum + parseFloat(f.paidAmount || 0);
                 }, 0);
+
+                // Determine voucher status using the SAME remaining amount shown to the user
+                // This uses the displayed remaining (excl arrears head + calculated arrears - arrears payments)
+                const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher;
+                if (feesWithVoucher.length > 0) {
+                  if (displayedRemaining <= 0.01) {
+                    voucherStatus = 'Paid';
+                  } else if (totalPaidForVoucher > 0) {
+                    voucherStatus = 'Partial';
+                  } else {
+                    voucherStatus = 'Unpaid';
+                  }
+                }
                 
                 studentsWithVouchers.push({
                   ...student,
@@ -1906,8 +1904,10 @@ const FeeManagement = () => {
       let fees = response.data.data || [];
       
       // Filter to only include fees with remaining balance
+      // Always calculate remaining from finalAmount - paidAmount to avoid stale remainingAmount field
       fees = fees.filter(fee => {
-        const remaining = fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0));
+        const calculated = (fee.finalAmount || 0) - (fee.paidAmount || 0);
+        const remaining = calculated > 0 ? calculated : 0;
         return remaining > 0.01 && fee.status !== 'paid';
       });
       
@@ -1996,7 +1996,8 @@ const FeeManagement = () => {
       // Initialize selected payments with remaining amounts
       const initialPayments = {};
       fees.forEach(fee => {
-        const remaining = fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0));
+        const calculated = (fee.finalAmount || 0) - (fee.paidAmount || 0);
+        const remaining = Math.max(0, calculated);
         initialPayments[fee._id] = remaining;
       });
       setSelectedFeePayments(initialPayments);
@@ -2106,7 +2107,8 @@ const FeeManagement = () => {
       Object.entries(selectedFeePayments).forEach(([studentFeeId, amount]) => {
         if (amount > 0) {
           const fee = outstandingFees.find(f => f._id === studentFeeId);
-          if (fee && amount <= (fee.remainingAmount || fee.finalAmount)) {
+          const feeRemaining = fee ? Math.max(0, (fee.finalAmount || 0) - (fee.paidAmount || 0)) : 0;
+          if (fee && amount <= feeRemaining + 0.01) {
             paymentPromises.push(
               axios.post(
                 `${API_URL}/fees/record-payment`,
@@ -4937,7 +4939,7 @@ const FeeManagement = () => {
                                 </TableHead>
                                 <TableBody>
                                   {getPaginatedData(outstandingFees, 'outstandingFees').map((fee) => {
-                                    const remaining = fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0));
+                                    const remaining = Math.max(0, (fee.finalAmount || 0) - (fee.paidAmount || 0));
                                     const paymentAmount = selectedFeePayments[fee._id] || 0;
                                     
                                     // Get voucher info for labeling

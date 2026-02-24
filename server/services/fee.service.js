@@ -1121,117 +1121,38 @@ class FeeService {
     if (!studentFee) {
       throw new ApiError(404, 'Student fee not found');
     }
+    // Log the record we found for debugging payment routing issues
+    console.log(`[recordPayment] Found StudentFee:`, {
+      _id: studentFee._id.toString(),
+      feeHead: studentFee.feeHead?.toString() || 'N/A',
+      isActive: studentFee.isActive,
+      finalAmount: studentFee.finalAmount,
+      paidAmount: studentFee.paidAmount,
+      remainingAmount: studentFee.remainingAmount,
+      status: studentFee.status,
+      vouchers: studentFee.vouchers?.map(v => `${v.voucherNumber} (${v.month}/${v.year})`) || [],
+      requestedAmount: amount
+    });
 
-    // If the fee record is not active, try to find the active replacement for the same
-    // feeHead + student. This happens when generateVouchers deactivates the old monthly
-    // StudentFee and creates a new active one for the next month.
-    if (!studentFee.isActive) {
-      const activeFee = await StudentFee.findOne({
-        student: studentFee.student,
-        institution: studentFee.institution,
-        feeHead: studentFee.feeHead,
-        isActive: true
-      });
+    // Allow payments against inactive records — monthly voucher generation deactivates
+    // old StudentFee records when creating new ones for the next month, but users still
+    // need to pay outstanding balances on those older records.
+    // Use the stored remainingAmount if it's available and consistent, otherwise calculate.
+    const calculatedRemaining = studentFee.finalAmount - (studentFee.paidAmount || 0);
+    const remainingAmount = Math.max(0, calculatedRemaining);
+    
+    if (remainingAmount <= 0.01) {
+      throw new ApiError(400, `This fee is already fully paid (final=${studentFee.finalAmount}, paid=${studentFee.paidAmount}, remaining=${remainingAmount})`);
+    }
 
-      if (!activeFee) {
-        throw new ApiError(400, 'Student fee is not active and no replacement record found');
-      }
-
-      // Redirect: use the active replacement record for the rest of this payment
-      const remainingOnActive = activeFee.finalAmount - (activeFee.paidAmount || 0);
-      if (remainingOnActive <= 0.01) {
-        throw new ApiError(400, 'This fee is already fully paid');
-      }
-
-      // Swap the studentFee reference to the active record
-      // (re-assign so the rest of the function operates on the correct record)
-      Object.assign(studentFee, activeFee.toObject());
-      studentFee._id = activeFee._id;
-      studentFee.isNew = false;
-      // Use the active record directly from here on
-      const activeStudentFeeId = activeFee._id.toString();
-
-      // Validate payment amount against the active record
-      if (amount > remainingOnActive) {
-        throw new ApiError(400, `Payment amount (${amount}) exceeds remaining amount (${remainingOnActive})`);
-      }
-
-      // Determine voucher number
-      let finalVoucherNumber = voucherNumber || null;
-      if (!finalVoucherNumber && paymentDate) {
-        const paymentDateObj = new Date(paymentDate);
-        const paymentMonth = paymentDateObj.getMonth() + 1;
-        const paymentYear = paymentDateObj.getFullYear();
-        if (activeFee.vouchers && Array.isArray(activeFee.vouchers)) {
-          const matchingVoucher = activeFee.vouchers.find(
-            v => v && v.month === paymentMonth && v.year === paymentYear && v.voucherNumber
-          );
-          if (matchingVoucher) finalVoucherNumber = matchingVoucher.voucherNumber;
-        }
-      }
-
-      // Create payment record
-      const FeePayment = require('../models/FeePayment');
-      let feePayment;
-      let retries = 0;
-      const maxRetries = 5;
-      while (retries < maxRetries) {
-        try {
-          const receiptNumber = await generateReceiptNumber({
-            institution: activeFee.institution,
-            year: new Date().getFullYear(),
-            type: 'RCP'
-          });
-          feePayment = await FeePayment.create({
-            institution: activeFee.institution,
-            student: activeFee.student,
-            studentFee: activeFee._id,
-            receiptNumber,
-            voucherNumber: finalVoucherNumber,
-            amount,
-            paymentDate: paymentDate || new Date(),
-            paymentMethod,
-            chequeNumber,
-            bankName,
-            transactionId,
-            remarks,
-            status: 'completed',
-            collectedBy: currentUser._id
-          });
-          break;
-        } catch (error) {
-          if (error.code === 11000 && error.keyPattern && error.keyPattern.receiptNumber) {
-            retries++;
-            if (retries >= maxRetries) throw new ApiError(500, 'Failed to generate unique receipt number after multiple attempts. Please try again.');
-            await new Promise(resolve => setTimeout(resolve, 50 * retries));
-            continue;
-          }
-          throw error;
-        }
-      }
-
-      // Update the active StudentFee record
-      const newPaidAmount = (activeFee.paidAmount || 0) + amount;
-      activeFee.paidAmount = newPaidAmount;
-      activeFee.remainingAmount = Math.max(0, activeFee.finalAmount - newPaidAmount);
-      activeFee.lastPaymentDate = paymentDate ? new Date(paymentDate) : new Date();
-      if (activeFee.remainingAmount <= 0) {
-        activeFee.status = 'paid';
-      } else {
-        activeFee.status = activeFee.dueDate && new Date() > activeFee.dueDate ? 'overdue' : 'partial';
-      }
-      await activeFee.save();
-
-      return {
-        payment: feePayment,
-        studentFee: activeFee,
-        remainingAmount: activeFee.remainingAmount
-      };
+    // Also sync the stored remainingAmount if it's out of date
+    if (Math.abs((studentFee.remainingAmount || 0) - remainingAmount) > 0.01) {
+      console.log(`[recordPayment] Fixing stale remainingAmount: stored=${studentFee.remainingAmount}, calculated=${remainingAmount}`);
+      studentFee.remainingAmount = remainingAmount;
     }
 
     // Check if payment exceeds remaining amount
-    const remainingAmount = studentFee.finalAmount - (studentFee.paidAmount || 0);
-    if (amount > remainingAmount) {
+    if (amount > remainingAmount + 0.01) {
       throw new ApiError(400, `Payment amount (${amount}) exceeds remaining amount (${remainingAmount})`);
     }
 
@@ -1340,6 +1261,7 @@ class FeeService {
     }
 
     await studentFee.save();
+    console.log(`[recordPayment] ✅ Payment applied to StudentFee ${studentFee._id}: paid=${studentFee.paidAmount}, remaining=${studentFee.remainingAmount}, status=${studentFee.status}`);
 
     return {
       payment: feePayment,
