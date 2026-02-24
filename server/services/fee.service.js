@@ -738,7 +738,12 @@ class FeeService {
    * feeHeadIds (optional): Array of fee head IDs to filter by. If provided, only vouchers for these fee heads will be generated.
    */
   async generateVouchers(voucherData, currentUser) {
-    const { studentIds, month, year, feeHeadIds, dueDay = 20, dueDate } = voucherData;
+    const { studentIds, month, year, feeHeadIds: rawFeeHeadIds, dueDay = 20, dueDate } = voucherData;
+    // Normalize feeHeadIds to strings to ensure consistent comparison with ObjectId.toString()
+    const feeHeadIds = rawFeeHeadIds && Array.isArray(rawFeeHeadIds) && rawFeeHeadIds.length > 0
+      ? rawFeeHeadIds.map(id => id.toString())
+      : null;
+    console.log(`[generateVouchers] feeHeadIds filter:`, feeHeadIds ? feeHeadIds : 'NONE (all heads)');
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       throw new ApiError(400, 'Student IDs are required');
@@ -912,7 +917,7 @@ class FeeService {
         // Analyze if we have work - ONLY for selected fee heads
         for (const [headId, fees] of feesByHead.entries()) {
            // Skip if this head was not selected by the user
-           if (feeHeadIds && feeHeadIds.length > 0 && !feeHeadIds.includes(headId)) {
+           if (feeHeadIds && !feeHeadIds.some(id => id === headId)) {
              continue;
            }
 
@@ -935,9 +940,11 @@ class FeeService {
         // Process each Fee Head Group
         for (const [headId, fees] of feesByHead.entries()) {
           // Skip if this head was not selected by the user
-          if (feeHeadIds && feeHeadIds.length > 0 && !feeHeadIds.includes(headId)) {
+          if (feeHeadIds && !feeHeadIds.some(id => id === headId)) {
+            console.log(`[generateVouchers] Skipping fee head ${fees[0]?.feeHead?.name || headId} - not in selected list`);
             continue;
           }
+          console.log(`[generateVouchers] Processing fee head ${fees[0]?.feeHead?.name || headId} for student ${studentIdStr}`);
           // Sort fees by date descending (latest first) to use best template
           fees.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
           

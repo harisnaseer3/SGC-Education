@@ -1947,8 +1947,10 @@ const FeeManagement = () => {
         // Exclude Arrears head explicitly in the Fee Deposit / Receipt flow
         if (fee.feeHead?.name?.toLowerCase() === 'arrears') return false;
 
-        // If the fee has no vouchers, it's an arrear – always include
-        if (!fee.vouchers || fee.vouchers.length === 0) return true;
+        // Only show fees that have at least one voucher generated.
+        // Fees without vouchers are just fee structure assignments (templates)
+        // and should NOT appear as outstanding until a voucher is generated for them.
+        if (!fee.vouchers || fee.vouchers.length === 0) return false;
 
         // Otherwise check if any of its vouchers is on or before the reference month/year.
         const hasCurrentOrPastVoucher = fee.vouchers.some(v => {
