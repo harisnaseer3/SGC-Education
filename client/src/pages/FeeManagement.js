@@ -360,6 +360,8 @@ const FeeManagement = () => {
   const [receiptsLoading, setReceiptsLoading] = useState(false);
   const [hasSearchedReceipts, setHasSearchedReceipts] = useState(false);
   const [expandedTransactions, setExpandedTransactions] = useState(new Set());
+  const [showRefundedReceipts, setShowRefundedReceipts] = useState(false);
+  const [expandedRefundedTransactions, setExpandedRefundedTransactions] = useState(new Set());
 
   const toggleTransactionExpansion = (transactionId) => {
     const newExpanded = new Set(expandedTransactions);
@@ -5286,7 +5288,7 @@ const FeeManagement = () => {
               <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
-                    Receipt List {receipts.length > 0 && `(${receipts.length} receipt${receipts.length !== 1 ? 's' : ''})`}
+                    Receipt List {receipts.filter(r => r.status !== 'refunded').length > 0 && `(${receipts.filter(r => r.status !== 'refunded').length} receipt${receipts.filter(r => r.status !== 'refunded').length !== 1 ? 's' : ''})`}
                   </Typography>
                   <Button
                     variant="outlined"
@@ -5328,8 +5330,11 @@ const FeeManagement = () => {
                         </TableHead>
                         <TableBody>
                           {(() => {
-                            // Step 1: Group ALL receipts by transaction ID before pagination
-                            const allGroupedReceiptsMap = receipts.reduce((acc, receipt) => {
+                            // Filter out fully-refunded receipts from the main table
+                            const activeReceipts = receipts.filter(r => r.status !== 'refunded');
+
+                            // Step 1: Group active receipts by transaction ID before pagination
+                            const allGroupedReceiptsMap = activeReceipts.reduce((acc, receipt) => {
                               const tid = receipt.transactionId || `no-tid-${receipt._id}`;
                               if (!acc[tid]) {
                                 acc[tid] = [];
@@ -5338,10 +5343,10 @@ const FeeManagement = () => {
                               return acc;
                             }, {});
 
-                            // Step 2: Create a list of group IDs in order of their first appearance in receipts
+                            // Step 2: Create a list of group IDs in order of their first appearance
                             const transactionGroupIds = [];
                             const seenTids = new Set();
-                            receipts.forEach(r => {
+                            activeReceipts.forEach(r => {
                               const tid = r.transactionId || `no-tid-${r._id}`;
                               if (!seenTids.has(tid)) {
                                 transactionGroupIds.push(tid);
@@ -5352,7 +5357,7 @@ const FeeManagement = () => {
                             // Step 3: Paginate the groups
                             const paginatedGroupIds = getPaginatedData(transactionGroupIds, 'receipt');
 
-                            if (receipts.length === 0) {
+                            if (activeReceipts.length === 0) {
                               return (
                                 <TableRow>
                                   <TableCell colSpan={12} align="center">
@@ -5582,12 +5587,12 @@ const FeeManagement = () => {
                           })()}
                         </TableBody>
                       </Table>
-                      {receipts.length > 0 && (
+                      {receipts.filter(r => r.status !== 'refunded').length > 0 && (
                         <TablePagination
                           component="div"
                           count={(() => {
                             const seenTids = new Set();
-                            receipts.forEach(r => {
+                            receipts.filter(r => r.status !== 'refunded').forEach(r => {
                               const tid = r.transactionId || `no-tid-${r._id}`;
                               seenTids.add(tid);
                             });
@@ -5605,6 +5610,197 @@ const FeeManagement = () => {
                   )}
                 </CardContent>
               </Card>
+
+              {/* Refunded Receipts Section */}
+              {receipts.filter(r => r.status === 'refunded').length > 0 && (
+                <Card sx={{ mt: 2 }}>
+                  <CardContent>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: showRefundedReceipts ? 2 : 0 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#f5576c' }}>
+                        Refunded Receipts ({receipts.filter(r => r.status === 'refunded').length})
+                      </Typography>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => setShowRefundedReceipts(!showRefundedReceipts)}
+                        sx={{ 
+                          borderColor: '#f5576c', 
+                          color: '#f5576c',
+                          '&:hover': { borderColor: '#e0435a', bgcolor: 'rgba(245, 87, 108, 0.04)' }
+                        }}
+                      >
+                        {showRefundedReceipts ? 'Hide' : 'View'} Refunded Receipts
+                      </Button>
+                    </Box>
+
+                    {showRefundedReceipts && (
+                      <TableContainer component={Paper} sx={{ overflowX: 'auto', width: '100%' }}>
+                        <Table sx={{ minWidth: 650 }}>
+                          <TableHead>
+                            <TableRow sx={{ bgcolor: '#f5576c', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                              <TableCell>Receipt Number</TableCell>
+                              <TableCell>Voucher Number</TableCell>
+                              <TableCell>Payment Date</TableCell>
+                              <TableCell>Student ID</TableCell>
+                              <TableCell>Roll #</TableCell>
+                              <TableCell>Student Name</TableCell>
+                              <TableCell align="right">Amount</TableCell>
+                              <TableCell>Bank</TableCell>
+                              <TableCell>Transaction ID</TableCell>
+                              <TableCell>Status</TableCell>
+                              <TableCell>Collected By</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {(() => {
+                              const refundedReceipts = receipts.filter(r => r.status === 'refunded');
+
+                              // Group refunded receipts by transaction ID
+                              const refundedGroupsMap = refundedReceipts.reduce((acc, receipt) => {
+                                const tid = receipt.transactionId || `no-tid-${receipt._id}`;
+                                if (!acc[tid]) acc[tid] = [];
+                                acc[tid].push(receipt);
+                                return acc;
+                              }, {});
+
+                              const refundedGroupIds = [];
+                              const seenTids = new Set();
+                              refundedReceipts.forEach(r => {
+                                const tid = r.transactionId || `no-tid-${r._id}`;
+                                if (!seenTids.has(tid)) {
+                                  refundedGroupIds.push(tid);
+                                  seenTids.add(tid);
+                                }
+                              });
+
+                              if (refundedReceipts.length === 0) {
+                                return (
+                                  <TableRow>
+                                    <TableCell colSpan={11} align="center">
+                                      <Typography variant="body2" color="textSecondary">
+                                        No refunded receipts.
+                                      </Typography>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              }
+
+                              return refundedGroupIds.map((tid) => {
+                                const group = refundedGroupsMap[tid];
+                                const isGroup = group.length > 1;
+                                const isExpanded = expandedRefundedTransactions.has(tid);
+                                const firstReceipt = group[0];
+                                const totalAmount = group.reduce((sum, r) => sum + (r.amount || 0), 0);
+                                const allSameVoucher = group.every(r => r.voucherNumber === firstReceipt.voucherNumber);
+                                const displayVoucher = allSameVoucher ? firstReceipt.voucherNumber : 'Multiple';
+
+                                return (
+                                  <React.Fragment key={tid}>
+                                    <TableRow 
+                                      hover 
+                                      onClick={() => {
+                                        if (isGroup) {
+                                          const newSet = new Set(expandedRefundedTransactions);
+                                          if (newSet.has(tid)) newSet.delete(tid);
+                                          else newSet.add(tid);
+                                          setExpandedRefundedTransactions(newSet);
+                                        }
+                                      }}
+                                      sx={{ 
+                                        cursor: isGroup ? 'pointer' : 'default',
+                                        bgcolor: '#fff5f5',
+                                        '&:hover': { bgcolor: '#ffecec !important' }
+                                      }}
+                                    >
+                                      <TableCell>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                          {isGroup && (
+                                            <IconButton size="small" onClick={(e) => {
+                                              e.stopPropagation();
+                                              const newSet = new Set(expandedRefundedTransactions);
+                                              if (newSet.has(tid)) newSet.delete(tid);
+                                              else newSet.add(tid);
+                                              setExpandedRefundedTransactions(newSet);
+                                            }}>
+                                              {isExpanded ? <Close sx={{ fontSize: 16 }} /> : <Add sx={{ fontSize: 16 }} />}
+                                            </IconButton>
+                                          )}
+                                          <Chip 
+                                            label={isGroup ? `TRANS-${tid}` : (firstReceipt.receiptNumber || 'N/A')} 
+                                            size="small" 
+                                            color="error" 
+                                            variant="outlined" 
+                                          />
+                                          {isGroup && (
+                                            <Chip label={`${group.length} Receipts`} size="small" sx={{ height: 20, fontSize: '0.7rem' }} />
+                                          )}
+                                        </Box>
+                                      </TableCell>
+                                      <TableCell>
+                                        {displayVoucher && displayVoucher !== 'N/A' ? (
+                                          <Chip label={displayVoucher} size="small" color="secondary" variant="outlined" />
+                                        ) : 'N/A'}
+                                      </TableCell>
+                                      <TableCell>
+                                        {firstReceipt.paymentDate 
+                                          ? new Date(firstReceipt.paymentDate).toLocaleDateString('en-GB')
+                                          : 'N/A'}
+                                      </TableCell>
+                                      <TableCell>{firstReceipt.studentId || 'N/A'}</TableCell>
+                                      <TableCell>{firstReceipt.rollNumber || 'N/A'}</TableCell>
+                                      <TableCell>{capitalizeFirstOnly(firstReceipt.studentName || 'N/A')}</TableCell>
+                                      <TableCell align="right">
+                                        Rs. {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                      </TableCell>
+                                      <TableCell>{firstReceipt.bankName || 'N/A'}</TableCell>
+                                      <TableCell>{tid.startsWith('no-tid-') ? 'N/A' : tid}</TableCell>
+                                      <TableCell>
+                                        <Chip label="refunded" size="small" color="error" />
+                                      </TableCell>
+                                      <TableCell>{firstReceipt.collectedBy?.name || 'N/A'}</TableCell>
+                                    </TableRow>
+
+                                    {/* Expanded child rows */}
+                                    {isGroup && isExpanded && group.map((receipt) => (
+                                      <TableRow key={receipt._id} sx={{ bgcolor: '#fff' }}>
+                                        <TableCell sx={{ pl: 6 }}>
+                                          <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="error" variant="outlined" sx={{ opacity: 0.8 }} />
+                                        </TableCell>
+                                        <TableCell>
+                                          {receipt.voucherNumber && receipt.voucherNumber !== 'N/A' ? (
+                                            <Chip label={receipt.voucherNumber} size="small" color="secondary" variant="outlined" sx={{ opacity: 0.8 }} />
+                                          ) : 'N/A'}
+                                        </TableCell>
+                                        <TableCell>
+                                          {receipt.paymentDate 
+                                            ? new Date(receipt.paymentDate).toLocaleDateString('en-GB')
+                                            : 'N/A'}
+                                        </TableCell>
+                                        <TableCell>{receipt.studentId || 'N/A'}</TableCell>
+                                        <TableCell>{receipt.rollNumber || 'N/A'}</TableCell>
+                                        <TableCell>{capitalizeFirstOnly(receipt.studentName || 'N/A')}</TableCell>
+                                        <TableCell align="right">
+                                          Rs. {(receipt.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </TableCell>
+                                        <TableCell>{receipt.bankName || 'N/A'}</TableCell>
+                                        <TableCell>{receipt.transactionId || 'N/A'}</TableCell>
+                                        <TableCell>
+                                          <Chip label="refunded" size="small" color="error" sx={{ opacity: 0.8 }} />
+                                        </TableCell>
+                                        <TableCell>{receipt.collectedBy?.name || 'N/A'}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </React.Fragment>
+                                );
+                              });
+                            })()}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
           </Box>
         )}
 
