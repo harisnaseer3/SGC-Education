@@ -99,12 +99,12 @@ const BackupManagement = () => {
       const link = document.createElement('a');
       link.href = url;
 
-      // Extract filename from Content-Disposition header or use default
       const disposition = response.headers['content-disposition'];
       let filename = `sgceducation_backup_${type}_${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
       if (disposition) {
-        const match = disposition.match(/filename="?(.+)"?/);
-        if (match) filename = match[1];
+        // Robust regex to extract filename, handling quoted and unquoted names
+        const match = disposition.match(/filename="?([^"]+)"?/) || disposition.match(/filename=([^;]+)/);
+        if (match) filename = match[1].trim();
       }
 
       link.setAttribute('download', filename);
@@ -116,7 +116,23 @@ const BackupManagement = () => {
       setSuccess(`${type === 'full' ? 'Full' : 'Incremental'} backup downloaded successfully!`);
       fetchHistory();
     } catch (err) {
-      setError(err.response?.data?.message || `Failed to download ${type} backup`);
+      let errorMessage = `Failed to download ${type} backup`;
+      
+      // If the response is a blob (which it is for this request), 
+      // we need to read it as text to get the actual JSON error message
+      if (err.response?.data instanceof Blob) {
+        try {
+          const text = await err.response.data.text();
+          const json = JSON.parse(text);
+          errorMessage = json.message || errorMessage;
+        } catch (e) {
+          console.error('Error parsing error blob:', e);
+        }
+      } else {
+        errorMessage = err.response?.data?.message || errorMessage;
+      }
+      
+      setError(errorMessage);
     } finally {
       setDownloading(null);
     }
