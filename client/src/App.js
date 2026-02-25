@@ -31,6 +31,7 @@ import Performance from './pages/Performance';
 import StudentPromotion from './pages/StudentPromotion';
 import Results from './pages/Results';
 import ResultForm from './pages/ResultForm';
+import BackupManagement from './pages/BackupManagement';
 
 const theme = createTheme({
   palette: {
@@ -84,6 +85,7 @@ const ProtectedRoute = ({ children, title }) => {
       '/performance': 'Performance',
       '/student-promotion': 'Student Promotion',
       '/results': 'Results',
+      '/backup-management': 'Backup Management',
     };
     
     // Check for edit routes
@@ -472,6 +474,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ResultForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/backup-management"
+            element={
+              <ProtectedRoute>
+                <BackupManagement />
               </ProtectedRoute>
             }
           />

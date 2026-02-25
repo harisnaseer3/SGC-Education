@@ -21,6 +21,7 @@ import {
   Business,
   Hotel,
   Description,
+  CloudDownload,
 } from '@mui/icons-material';
 
 /**
@@ -89,13 +90,19 @@ export const modules = [
   { name: 'Franchise Management', icon: Business, color: '#4facfe', route: null },
   { name: 'Hostel Management', icon: Hotel, color: '#43e97b', route: null },
   { name: 'Electronic Paper Generation', icon: Description, color: '#feca57', route: '/reports' },
+  { name: 'Backup', icon: CloudDownload, color: '#667eea', route: '/backup-management', superAdminOnly: true },
 ];
 
 /**
  * Get modules with routes (available modules)
  */
 export const getAvailableModules = () => {
-  return modules.filter(module => module.route !== null);
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  return modules.filter(module => {
+    if (module.route === null) return false;
+    if (module.superAdminOnly && user.role !== 'super_admin') return false;
+    return true;
+  });
 };
 
 /**

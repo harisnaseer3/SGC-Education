@@ -24,6 +24,7 @@ const performanceRoutes = require('./performance.routes');
 const studentPromotionRoutes = require('./studentPromotion.routes');
 const organizationRoutes = require('./organization.routes');
 const resultRoutes = require('./result.routes');
+const backupRoutes = require('./backup.routes');
 
 /**
  * API v1 Routes
@@ -52,6 +53,7 @@ router.use('/performance', performanceRoutes);
 router.use('/student-promotions', studentPromotionRoutes);
 router.use('/organizations', organizationRoutes);
 router.use('/results', resultRoutes);
+router.use('/backups', backupRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
