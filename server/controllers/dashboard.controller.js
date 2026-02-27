@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Institution = require('../models/Institution');
 const User = require('../models/User');
 const ActivityLog = require('../models/ActivityLog');
@@ -29,7 +30,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   if (req.user.role === 'super_admin' && req.query.institution) {
     const institutionId = extractInstitutionId(req.query.institution);
     institutionQuery = { _id: institutionId };
-    referenceQuery = { institution: institutionId };
+    const objectId = new mongoose.Types.ObjectId(institutionId);
+    referenceQuery = { institution: objectId };
     userQuery = { institution: institutionId };
   }
   // For regular admin (scoped to their institution)
@@ -39,7 +41,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Access denied. Your account is not associated with any institution.');
     }
     institutionQuery = { _id: institutionId };
-    referenceQuery = { institution: institutionId };
+    const objectId = new mongoose.Types.ObjectId(institutionId);
+    referenceQuery = { institution: objectId };
     userQuery = { institution: institutionId };
   }
   // For super admin viewing all (global view)
@@ -219,8 +222,9 @@ const getAnalytics = asyncHandler(async (req, res) => {
   // For super admin viewing specific institution
   if (req.user.role === 'super_admin' && req.query.institution) {
     const institutionId = extractInstitutionId(req.query.institution);
-    institutionMatch._id = institutionId;
-    userMatch.institution = institutionId;
+    const objectId = new mongoose.Types.ObjectId(institutionId);
+    institutionMatch._id = objectId;
+    userMatch.institution = objectId;
   }
   // For regular admin (scoped to their institution)
   else if (req.user.role === 'admin') {
@@ -228,8 +232,9 @@ const getAnalytics = asyncHandler(async (req, res) => {
     if (!institutionId) {
       throw new ApiError(403, 'Access denied. Your account is not associated with any institution.');
     }
-    institutionMatch._id = institutionId;
-    userMatch.institution = institutionId;
+    const objectId = new mongoose.Types.ObjectId(institutionId);
+    institutionMatch._id = objectId;
+    userMatch.institution = objectId;
   }
   // For super admin viewing all (global view)
   else if (req.user.role === 'super_admin') {
