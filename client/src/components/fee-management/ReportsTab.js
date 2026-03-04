@@ -24,27 +24,37 @@ import RemainingBalanceReport from './reports/RemainingBalanceReport';
 const ReportsTab = () => {
   const [selectedReport, setSelectedReport] = useState(null);
 
+  const renderReport = () => {
+    switch (selectedReport) {
+      case 'bank-reconciliation':
+        return <BankReconciliationReport onBack={() => setSelectedReport(null)} />;
+      case 'fee-list':
+        return <FeeListReport onBack={() => setSelectedReport(null)} />;
+      case 'remaining-balance':
+        return <RemainingBalanceReport onBack={() => setSelectedReport(null)} />;
+      default:
+        return null;
+    }
+  };
+
   const reports = [
     {
       id: 'bank-reconciliation',
       title: 'Bank Reconciliation',
       description: 'Fee Collected in Bank for Reconciliation. Detailed report of all bank-channeled payments.',
-      icon: <AccountBalanceWallet sx={{ fontSize: 40, color: '#667eea' }} />,
-      component: <BankReconciliationReport onBack={() => setSelectedReport(null)} />
+      icon: <AccountBalanceWallet sx={{ fontSize: 40, color: '#667eea' }} />
     },
     {
       id: 'fee-list',
       title: 'Fee List',
       description: 'Comprehensive list of all fees Generated vs Collected for a specific period.',
-      icon: <Receipt sx={{ fontSize: 40, color: '#6c757d' }} />,
-      component: <FeeListReport onBack={() => setSelectedReport(null)} />
+      icon: <Receipt sx={{ fontSize: 40, color: '#6c757d' }} />
     },
     {
       id: 'remaining-balance',
       title: 'Remaining Balance',
       description: 'Student List with Remaining Balance. Track outstanding dues for all students.',
-      icon: <Search sx={{ fontSize: 40, color: '#f89d13' }} />,
-      component: <RemainingBalanceReport onBack={() => setSelectedReport(null)} />
+      icon: <Search sx={{ fontSize: 40, color: '#f89d13' }} />
     }
   ];
 
@@ -57,10 +67,10 @@ const ReportsTab = () => {
             <ArrowBack />
           </IconButton>
           <Typography variant="h5" fontWeight="bold" color="#667eea">
-            {report.title}
+            {report?.title}
           </Typography>
         </Box>
-        {report.component}
+        {renderReport()}
       </Box>
     );
   }
