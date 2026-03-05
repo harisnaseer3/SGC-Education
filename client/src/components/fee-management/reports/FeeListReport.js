@@ -178,19 +178,26 @@ const FeeListReport = ({ onBack }) => {
         return true;
       });
 
-      // 3. Time Filter Logic
-      // If includePreviousBalance is FALSE: Only include records that have a voucher for CURRENT month/year
-      // If includePreviousBalance is TRUE: Include records that have vouchers UP TO current month/year
-      
       const targetMonth = Number(month);
       const targetYear = Number(year);
 
-      const reportRecords = [];
+      // 3. Step 1: Identify students who have a fee in the target month
+      const targetStudentIds = new Set();
+      filteredFees.forEach(sf => {
+        const hasCurrentMonthVoucher = (sf.vouchers || []).some(v => 
+          Number(v.month) === targetMonth && Number(v.year) === targetYear
+        );
+        if (hasCurrentMonthVoucher && sf.student?._id) {
+          targetStudentIds.add(sf.student._id.toString());
+        }
+      });
+
+      // 4. Step 2: Process records only for these students
       const studentsGroup = new Map();
 
       filteredFees.forEach(sf => {
         const studentId = sf.student?._id?.toString();
-        if (!studentId) return;
+        if (!studentId || !targetStudentIds.has(studentId)) return;
 
         // Find vouchers in this StudentFee record that match our time criteria
         const relevantVouchers = (sf.vouchers || []).filter(v => {
@@ -222,30 +229,27 @@ const FeeListReport = ({ onBack }) => {
           const group = studentsGroup.get(studentId);
           group.fees.push(sf);
 
-          // Headwise calculation: 
-          // If Monthly, finalAmount is just for this head.
-          // If Cumulative, we need to be careful. In this system, one StudentFee usually represents
-          // one head for one period (generated month).
-          // Wait, let's re-verify StudentFee structure. 
-          // If generated monthly, a new StudentFee is created each month? 
-          // OR the same StudentFee gets new voucher entries? 
-          // Based on updateFeeStructure logic, it creates NEW records if vouchers exist.
-          // So one StudentFee record = one head for one period.
-          
           const isCurrentMonth = (sf.vouchers || []).some(v => 
             Number(v.month) === targetMonth && Number(v.year) === targetYear
           );
 
           if (isCurrentMonth) {
             group.monthlyFees += (sf.finalAmount || 0);
+            const headName = sf.feeHead?.name || 'Other';
+            group.headwise[headName] = (group.headwise[headName] || 0) + (sf.finalAmount || 0);
+            
+            group.totalDue += (sf.finalAmount || 0);
+            group.totalReceived += (sf.paidAmount || 0);
+            group.totalRemaining += (sf.remainingAmount || 0);
+          } else if (filters.includePreviousBalance) {
+            // For previous months, only count the REMAINING balance as Arrears
+            const unpaidPrev = sf.remainingAmount || 0;
+            if (unpaidPrev > 0) {
+              group.headwise['Arrears'] = (group.headwise['Arrears'] || 0) + unpaidPrev;
+              group.totalDue += unpaidPrev;
+              group.totalRemaining += unpaidPrev;
+            }
           }
-
-          group.totalDue += (sf.finalAmount || 0);
-          group.totalReceived += (sf.paidAmount || 0);
-          group.totalRemaining += (sf.remainingAmount || 0);
-
-          const headName = sf.feeHead?.name || 'Other';
-          group.headwise[headName] = (group.headwise[headName] || 0) + (sf.finalAmount || 0);
         }
       });
 
@@ -274,7 +278,11 @@ const FeeListReport = ({ onBack }) => {
       finalData.forEach(item => {
         Object.keys(item.headwise).forEach(h => headsSet.add(h));
       });
-      const sortedHeads = Array.from(headsSet).sort();
+      const sortedHeads = Array.from(headsSet).sort((a, b) => {
+        if (a === 'Arrears') return -1;
+        if (b === 'Arrears') return 1;
+        return a.localeCompare(b);
+      });
 
       setReportData(finalData);
       setFeeHeads(sortedHeads);
