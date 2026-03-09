@@ -161,22 +161,30 @@ const DashboardCharts = () => {
         amount: Math.round(monthlyCollection[key])
       }));
 
-    // 3. Payment Status Distribution
-    const statusCounts = {
-      paid: 0,
-      partial: 0,
-      unpaid: 0,
-      overdue: 0
-    };
-
+    // 3. Payment Status Distribution (grouped per student, not per fee-head record)
+    const studentTotals = {};
     studentFees.forEach(fee => {
-      const remaining = Number(fee.remainingAmount || 0);
-      const total = Number(fee.totalAmount || fee.billedAmount || 0);
-      if (remaining === 0 && total > 0) {
+      const studentId = fee.student?._id || fee.student;
+      if (!studentId) return;
+      const key = studentId.toString();
+      if (!studentTotals[key]) {
+        studentTotals[key] = { total: 0, paid: 0 };
+      }
+      const feeTotal = Number(fee.finalAmount || fee.billedAmount || fee.totalAmount || 0);
+      const feePaid = Number(fee.paidAmount || 0);
+      studentTotals[key].total += feeTotal;
+      studentTotals[key].paid += feePaid;
+    });
+
+    const statusCounts = { paid: 0, partial: 0, unpaid: 0 };
+    Object.values(studentTotals).forEach(({ total, paid }) => {
+      if (total <= 0) return; // skip students with no billed amount
+      const remaining = total - paid;
+      if (remaining <= 0) {
         statusCounts.paid++;
-      } else if (remaining > 0 && remaining < total) {
+      } else if (paid > 0) {
         statusCounts.partial++;
-      } else if (remaining === total) {
+      } else {
         statusCounts.unpaid++;
       }
     });
