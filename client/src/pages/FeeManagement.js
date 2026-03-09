@@ -386,6 +386,8 @@ const FeeManagement = () => {
     remarks: ''
   });
   const [savingSuspense, setSavingSuspense] = useState(false);
+  const [deletingSuspenseEntry, setDeletingSuspenseEntry] = useState(null);
+  const [suspenseDeleteConfirmOpen, setSuspenseDeleteConfirmOpen] = useState(false);
   
   // Reconciliation
   const [reconciliationDialogOpen, setReconciliationDialogOpen] = useState(false);
@@ -2418,6 +2420,20 @@ const FeeManagement = () => {
       notifyError(err.response?.data?.message || 'Failed to record suspense entry');
     } finally {
       setSavingSuspense(false);
+    }
+  };
+
+  // Handle suspense delete
+  const handleDeleteSuspense = async () => {
+    if (!deletingSuspenseEntry) return;
+    try {
+      await axios.delete(`${API_URL}/fees/suspense/${deletingSuspenseEntry._id}`, createAxiosConfig());
+      notifySuccess('Suspense entry deleted successfully');
+      setSuspenseDeleteConfirmOpen(false);
+      setDeletingSuspenseEntry(null);
+      fetchSuspenseEntries();
+    } catch (err) {
+      notifyError(err.response?.data?.message || 'Failed to delete suspense entry');
     }
   };
 
@@ -5952,16 +5968,29 @@ const FeeManagement = () => {
                           <TableRow key={entry._id}>
                             <TableCell>
                               {entry.status === 'unidentified' && (
-                                <Button 
-                                  size="small" 
-                                  variant="outlined" 
-                                  onClick={() => {
-                                    setSelectedSuspenseEntry(entry);
-                                    setReconciliationDialogOpen(true);
-                                  }}
-                                >
-                                  Reconcile
-                                </Button>
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    onClick={() => {
+                                      setSelectedSuspenseEntry(entry);
+                                      setReconciliationDialogOpen(true);
+                                    }}
+                                  >
+                                    Reconcile
+                                  </Button>
+                                  <Button
+                                    size="small"
+                                    variant="outlined"
+                                    color="error"
+                                    onClick={() => {
+                                      setDeletingSuspenseEntry(entry);
+                                      setSuspenseDeleteConfirmOpen(true);
+                                    }}
+                                  >
+                                    Delete
+                                  </Button>
+                                </Box>
                               )}
                             </TableCell>
                             <TableCell>{new Date(entry.paymentDate).toLocaleDateString()}</TableCell>
@@ -6000,6 +6029,25 @@ const FeeManagement = () => {
         {activeTab === 8 && (
           <ReportsTab />
         )}
+
+        {/* Suspense Delete Confirm Dialog */}
+        <Dialog open={suspenseDeleteConfirmOpen} onClose={() => { setSuspenseDeleteConfirmOpen(false); setDeletingSuspenseEntry(null); }} maxWidth="xs" fullWidth>
+          <DialogTitle>Delete Suspense Entry</DialogTitle>
+          <DialogContent>
+            <Typography>Are you sure you want to delete this unidentified payment entry?</Typography>
+            {deletingSuspenseEntry && (
+              <Box sx={{ mt: 2, p: 2, bgcolor: '#fff3f3', borderRadius: 1 }}>
+                <Typography variant="body2"><b>Amount:</b> Rs. {deletingSuspenseEntry.amount?.toLocaleString()}</Typography>
+                <Typography variant="body2"><b>Date:</b> {new Date(deletingSuspenseEntry.paymentDate).toLocaleDateString()}</Typography>
+                {deletingSuspenseEntry.transactionId && <Typography variant="body2"><b>Transaction ID:</b> {deletingSuspenseEntry.transactionId}</Typography>}
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => { setSuspenseDeleteConfirmOpen(false); setDeletingSuspenseEntry(null); }}>Cancel</Button>
+            <Button variant="contained" color="error" onClick={handleDeleteSuspense}>Delete</Button>
+          </DialogActions>
+        </Dialog>
 
         {/* Change Status Dialog */}
         <Dialog open={changeStatusDialog} onClose={() => setChangeStatusDialog(false)} maxWidth="sm" fullWidth>

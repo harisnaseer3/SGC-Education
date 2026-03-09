@@ -213,6 +213,15 @@ const deleteVoucher = asyncHandler(async (req, res) => {
   });
 });
 
+const deleteSuspenseEntry = asyncHandler(async (req, res) => {
+  const result = await feeService.deleteSuspenseEntry(req.params.id, req.user);
+
+  res.json({
+    success: true,
+    message: result.message
+  });
+});
+
 /**
  * @route   GET /api/v1/fees/suspense
  * @desc    Get unidentified payments
@@ -294,5 +303,6 @@ module.exports = {
   getSuspenseEntries,
   recordSuspenseEntry,
   reconcileSuspenseEntry,
+  deleteSuspenseEntry,
   reversePayment
 };

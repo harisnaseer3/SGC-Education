@@ -1933,6 +1933,31 @@ class FeeService {
   }
 
   /**
+   * Delete a suspense entry (only unidentified ones can be deleted)
+   */
+  async deleteSuspenseEntry(suspenseEntryId, currentUser) {
+    if (!suspenseEntryId) {
+      throw new ApiError(400, 'Suspense entry ID is required');
+    }
+
+    const institutionId = getInstitutionId(currentUser);
+    const query = { _id: suspenseEntryId };
+    if (institutionId) query.institution = institutionId;
+
+    const suspenseEntry = await SuspenseEntry.findOne(query);
+    if (!suspenseEntry) {
+      throw new ApiError(404, 'Suspense entry not found');
+    }
+
+    if (suspenseEntry.status === 'reconciled') {
+      throw new ApiError(400, 'Cannot delete a reconciled suspense entry');
+    }
+
+    await SuspenseEntry.findByIdAndDelete(suspenseEntryId);
+    return { message: 'Suspense entry deleted successfully' };
+  }
+
+  /**
    * Reverse a fee payment (refund)
    * Updates StudentFee paidAmount and status
    * Marks FeePayment as refunded

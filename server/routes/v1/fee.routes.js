@@ -37,5 +37,6 @@ router.delete('/vouchers', isAdmin, feeController.deleteVoucher);
 router.get('/suspense', feeController.getSuspenseEntries);
 router.post('/suspense', isAdmin, feeController.recordSuspenseEntry);
 router.post('/suspense/reconcile', isAdmin, feeController.reconcileSuspenseEntry);
+router.delete('/suspense/:id', isAdmin, feeController.deleteSuspenseEntry);
 
 module.exports = router;
