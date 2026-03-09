@@ -143,7 +143,6 @@ const RemainingBalanceReport = ({ onBack }) => {
         'Roll #': row.rollNumber,
         'Std Name': row.studentName,
         'Father Name': row.fatherName,
-        'Mobile Number': row.mobileNumber,
         'Class': row.class,
         'Section': row.section
       };
@@ -242,7 +241,6 @@ const RemainingBalanceReport = ({ onBack }) => {
                 <TableCell sx={{ fontWeight: 'bold' }}>Roll #</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Std Name</TableCell>
                 <TableCell sx={{ fontWeight: 'bold' }}>Father Name</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Mobile</TableCell>
                 {viewType === 'head-wise' ? (
                   feeHeads.map(head => (
                     <TableCell key={head._id} sx={{ fontWeight: 'bold' }}>{head.name}</TableCell>
@@ -271,7 +269,7 @@ const RemainingBalanceReport = ({ onBack }) => {
                 return (
                   <React.Fragment key={groupKey}>
                     <TableRow sx={{ bgcolor: 'grey.100' }}>
-                      <TableCell colSpan={7 + (viewType === 'head-wise' ? feeHeads.length : 5)} sx={{ fontWeight: 'bold', textAlign: 'center' }}>
+                      <TableCell colSpan={6 + (viewType === 'head-wise' ? feeHeads.length : 5)} sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                         {groupKey}
                       </TableCell>
                     </TableRow>
@@ -283,7 +281,6 @@ const RemainingBalanceReport = ({ onBack }) => {
                         <TableCell>{row.rollNumber}</TableCell>
                         <TableCell>{row.studentName}</TableCell>
                         <TableCell>{row.fatherName}</TableCell>
-                        <TableCell>{row.mobileNumber}</TableCell>
                         {viewType === 'head-wise' ? (
                           feeHeads.map(head => (
                             <TableCell key={head._id}>{(row.heads && row.heads[head._id])?.toLocaleString() || 0}</TableCell>
@@ -301,7 +298,7 @@ const RemainingBalanceReport = ({ onBack }) => {
                     ))}
                     {viewType !== 'head-wise' && (
                       <TableRow sx={{ bgcolor: 'grey.50' }}>
-                        <TableCell colSpan={7} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Total</TableCell>
+                        <TableCell colSpan={6} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Total</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>{groupSubtotal.p.toLocaleString()}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>{groupSubtotal.c.toLocaleString()}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>{groupSubtotal.rec.toLocaleString()}</TableCell>
@@ -314,7 +311,7 @@ const RemainingBalanceReport = ({ onBack }) => {
               })}
               {viewType !== 'head-wise' && (
                 <TableRow sx={{ bgcolor: '#eee' }}>
-                  <TableCell colSpan={7} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Grand Total</TableCell>
+                  <TableCell colSpan={6} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Grand Total</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{summary.totalPBal.toLocaleString()}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{summary.totalCBal.toLocaleString()}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{summary.totalReceivable.toLocaleString()}</TableCell>

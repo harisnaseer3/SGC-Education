@@ -213,10 +213,11 @@ class AdmissionService {
         delete updateData.rollNumber;
       }
 
-      // Sync with Student record
+        // Sync with Student record
       const student = await Student.findOne({ admission: admissionId });
       if (student) {
         // Map updates to student fields
+        if (updateData.admissionDate) student.admissionDate = updateData.admissionDate;
         if (updateData.personalInfo) {
           student.personalDetails = {
             ...student.personalDetails,
@@ -364,7 +365,7 @@ class AdmissionService {
       user: user._id,
       institution: admission.institution._id || admission.institution,
       admission: admission._id,
-      admissionDate: Date.now(),
+      admissionDate: admission.admissionDate || Date.now(),
       academicYear: admission.academicYear,
       program: admission.program,
       rollNumber: admission.rollNumber,

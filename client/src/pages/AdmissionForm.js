@@ -410,7 +410,7 @@ const AdmissionForm = () => {
         rollNumber: student?.rollNumber || admission.rollNumber || prev.rollNumber || '',
         religion: admission.personalInfo?.religion || 'Islam',
         gender: admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'Male',
-        admEffectNo: admission.admissionDate ? new Date(admission.admissionDate).toISOString().split('T')[0] : prev.admEffectNo,
+        admEffectNo: admission.admissionEffectiveDate ? new Date(admission.admissionEffectiveDate).toISOString().split('T')[0] : (admission.admissionDate ? new Date(admission.admissionDate).toISOString().split('T')[0] : prev.admEffectNo),
         institution: admission.institution?._id || admission.institution || prev.institution,
         academicYear: admission.academicYear || student?.academicYear || prev.academicYear,
         program: admission.program || student?.program || prev.program,
@@ -642,6 +642,8 @@ const AdmissionForm = () => {
         class: formData.class || undefined,
         section: formData.section || undefined,
         rollNumber: formData.rollNumber || undefined,
+        admissionDate: formData.admissionDate,
+        admissionEffectiveDate: formData.admEffectNo || formData.admissionDate,
         status: isEditMode ? formData.status : undefined, // Include status only in edit mode
         personalInfo: {
           name,
