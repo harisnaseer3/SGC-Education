@@ -231,7 +231,9 @@ const getSuspenseEntries = asyncHandler(async (req, res) => {
   const filters = {
     institution: req.query.institution,
     status: req.query.status,
-    transactionId: req.query.transactionId
+    transactionId: req.query.transactionId,
+    startDate: req.query.startDate,
+    endDate: req.query.endDate
   };
 
   const entries = await feeService.getSuspenseEntries(filters, req.user);

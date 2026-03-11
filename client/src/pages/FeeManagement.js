@@ -2181,6 +2181,13 @@ const FeeManagement = () => {
 
   // Fetch receipts with search filters
   const fetchReceipts = async (autoLoad = false) => {
+    // If not auto-load, also fetch suspense entries with current date filters
+    if (!autoLoad && activeTab === 6) {
+      fetchSuspenseEntries({ 
+        startDate: receiptSearch.startDate, 
+        endDate: receiptSearch.endDate 
+      });
+    }
     try {
       setReceiptsLoading(true);
       setHasSearchedReceipts(true);
@@ -2373,15 +2380,25 @@ const FeeManagement = () => {
   };
 
   // Fetch suspense entries
-  const fetchSuspenseEntries = async () => {
+  const fetchSuspenseEntries = async (dateFilters = null) => {
     try {
       setSuspenseLoading(true);
       const institutionId = getInstitutionId();
       if (!institutionId) return;
 
       const status = suspenseSubTab === 0 ? 'unidentified' : 'reconciled';
+      
+      // Build params
+      const params = { institution: institutionId, status };
+      
+      // Add date filters if provided (primarily for Receipt tab)
+      if (dateFilters) {
+        if (dateFilters.startDate) params.startDate = dateFilters.startDate;
+        if (dateFilters.endDate) params.endDate = dateFilters.endDate;
+      }
+
       const response = await axios.get(`${API_URL}/fees/suspense`, createAxiosConfig({
-        params: { institution: institutionId, status }
+        params
       }));
 
       setSuspenseEntries(response.data.data || []);
@@ -3421,8 +3438,11 @@ const FeeManagement = () => {
     if (activeTab === 6) {
       // Auto-load latest receipts
       fetchReceipts(true);
-      // Also fetch unidentified suspense entries for total calculation
-      fetchSuspenseEntries();
+      // Also fetch unidentified suspense entries for total calculation with initial date filters
+      fetchSuspenseEntries({ 
+        startDate: receiptSearch.startDate, 
+        endDate: receiptSearch.endDate 
+      });
       setPagination(prev => ({ ...prev, receipt: { page: 0, rowsPerPage: prev.receipt.rowsPerPage } }));
     }
   }, [activeTab, miscFeeSubTab, miscFeeFilters, generateVoucherFilters, printVoucherFilters, feeHeadSearchTerm]);

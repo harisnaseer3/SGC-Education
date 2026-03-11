@@ -1819,19 +1819,29 @@ class FeeService {
   async getSuspenseEntries(filters = {}, currentUser) {
     const institutionId = filters.institution || getInstitutionId(currentUser);
     
-    // Create query object and remove undefined/null values
-    const query = { ...filters };
-    Object.keys(query).forEach(key => {
-      if (query[key] === undefined || query[key] === null || query[key] === '') {
-        delete query[key];
-      }
-    });
-
+    // Create query object
+    const query = {};
     if (institutionId) query.institution = institutionId;
+    
+    // Status filter (default to unidentified)
+    query.status = filters.status || 'unidentified';
 
-    // Default to unidentified if no status provided
-    if (!query.status) {
-      query.status = 'unidentified';
+    // Transaction ID filter
+    if (filters.transactionId) {
+      query.transactionId = { $regex: filters.transactionId, $options: 'i' };
+    }
+
+    // Add date range filtering
+    if (filters.startDate || filters.endDate) {
+      query.paymentDate = {};
+      if (filters.startDate) {
+        query.paymentDate.$gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59, 999);
+        query.paymentDate.$lte = endDate;
+      }
     }
 
     const entries = await SuspenseEntry.find(query)
@@ -1858,7 +1868,9 @@ class FeeService {
       throw new ApiError(404, 'Unidentified payment entry not found or already reconciled');
     }
 
-    const student = await Student.findOne({ _id: studentId, institution: institutionId });
+    const student = await Student.findOne({ _id: studentId, institution: institutionId })
+      .populate('user', 'name')
+      .populate('admission', 'personalInfo');
     if (!student) {
       throw new ApiError(404, 'Student not found');
     }
@@ -1881,7 +1893,8 @@ class FeeService {
 
         // 1. Update the original entry to have the balance amount (it stays Unidentified)
         originalSuspenseEntry.amount = balanceAmount;
-        originalSuspenseEntry.remarks = `Balance after reconciling ${paymentAmount} to ${studentId}`;
+        const studentName = student?.admission?.personalInfo?.name || student?.user?.name || studentId;
+        originalSuspenseEntry.remarks = `Balance after reconciling ${paymentAmount} to ${studentName}`;
         await originalSuspenseEntry.save();
 
         // 2. Create a NEW entry for the reconciled portion
