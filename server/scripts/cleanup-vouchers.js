@@ -6,8 +6,8 @@
  * 2. Run: node scripts/cleanup-vouchers.js
  */
 const mongoose = require('mongoose');
-require('dotenv').config();
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Models
 const Admission = require('../models/Admission');
@@ -17,7 +17,7 @@ const StudentFee = require('../models/StudentFee');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    const conn = await mongoose.connect(process.env.MONGODB_URI);
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`Error: ${error.message}`);
