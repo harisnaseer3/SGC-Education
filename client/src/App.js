@@ -32,6 +32,9 @@ import StudentPromotion from './pages/StudentPromotion';
 import Results from './pages/Results';
 import ResultForm from './pages/ResultForm';
 import BackupManagement from './pages/BackupManagement';
+import RoleManagement from './pages/RoleManagement';
+import usePermissions from './hooks/usePermissions';
+import { PERMISSIONS } from './utils/constants';
 
 const theme = createTheme({
   palette: {
@@ -47,10 +50,13 @@ const theme = createTheme({
   },
 });
 
+
+
 // Protected Route Component with automatic TopBar and Sidebar
-const ProtectedRoute = ({ children, title }) => {
+const ProtectedRoute = ({ children, title, permission }) => {
   const token = localStorage.getItem('token');
   const location = useLocation();
+  const { hasPermission } = usePermissions();
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(
     localStorage.getItem('sidebarCollapsed') === 'true'
   );
@@ -117,6 +123,11 @@ const ProtectedRoute = ({ children, title }) => {
     return <Navigate to="/login" />;
   }
 
+  // Check for granular permission
+  if (permission && !hasPermission(permission)) {
+    return <Navigate to="/dashboard" />; // Redirect to dashboard if unauthorized
+  }
+
   const sidebarWidth = sidebarCollapsed ? 80 : 280;
   
   return (
@@ -167,7 +178,7 @@ function App() {
           <Route
             path="/institutions"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.INSTITUTIONS.VIEW}>
                 <Institutions />
               </ProtectedRoute>
             }
@@ -191,7 +202,7 @@ function App() {
           <Route
             path="/classes"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.ACADEMIC.MANAGE}>
                 <Classes />
               </ProtectedRoute>
             }
@@ -264,7 +275,7 @@ function App() {
           <Route
             path="/admissions"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.ADMISSIONS.VIEW}>
                 <Admissions />
               </ProtectedRoute>
             }
@@ -368,7 +379,7 @@ function App() {
           <Route
             path="/users"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.USERS.VIEW}>
                 <Users />
               </ProtectedRoute>
             }
@@ -400,7 +411,7 @@ function App() {
           <Route
             path="/fee-management"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.FEES.VIEW}>
                 <FeeManagement />
               </ProtectedRoute>
             }
@@ -408,7 +419,7 @@ function App() {
           <Route
             path="/reports"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.REPORTS.VIEW}>
                 <Reports />
               </ProtectedRoute>
             }
@@ -416,7 +427,7 @@ function App() {
           <Route
             path="/settings"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
                 <Settings />
               </ProtectedRoute>
             }
@@ -480,8 +491,16 @@ function App() {
           <Route
             path="/backup-management"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
                 <BackupManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/roles"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
+                <RoleManagement />
               </ProtectedRoute>
             }
           />

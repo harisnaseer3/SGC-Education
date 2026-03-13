@@ -1,6 +1,8 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const Role = require('../models/Role');
 const { ApiError } = require('../middleware/error.middleware');
+const { ROLE_PERMISSIONS } = require('../utils/constants');
 
 /**
  * Auth Service - Handles authentication business logic
@@ -39,13 +41,18 @@ class AuthService {
     // Generate token
     const token = this.generateToken(user._id);
 
+    // Fetch permissions for the role
+    const roleDoc = await Role.findOne({ name: role || 'student', isActive: true });
+    const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[role || 'student'] || []);
+
     return {
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        institution: user.institution
+        institution: user.institution,
+        permissions
       },
       token
     };
@@ -77,13 +84,18 @@ class AuthService {
     // Generate token
     const token = this.generateToken(user._id);
 
+    // Fetch permissions for the role
+    const roleDoc = await Role.findOne({ name: user.role, isActive: true });
+    const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[user.role] || []);
+
     return {
       user: {
         id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
-        institution: user.institution
+        institution: user.institution,
+        permissions
       },
       token
     };
@@ -101,7 +113,14 @@ class AuthService {
       throw new ApiError(404, 'User not found');
     }
 
-    return user;
+    // Fetch permissions
+    const roleDoc = await Role.findOne({ name: user.role, isActive: true });
+    const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[user.role] || []);
+
+    const userObj = user.toObject();
+    userObj.permissions = permissions;
+
+    return userObj;
   }
 }
 

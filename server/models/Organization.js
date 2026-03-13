@@ -48,9 +48,7 @@ organizationSchema.pre('save', function() {
 });
 
 // Indexes for better query performance
-organizationSchema.index({ code: 1 });
 organizationSchema.index({ type: 1 });
 organizationSchema.index({ isActive: 1 });
-organizationSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('Organization', organizationSchema);

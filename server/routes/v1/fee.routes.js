@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const feeController = require('../../controllers/fee.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
-const { isAdmin } = require('../../middleware/rbac.middleware');
+const { isAdmin, hasPermission } = require('../../middleware/rbac.middleware');
+const { PERMISSIONS } = require('../../utils/constants');
 
 /**
  * Fee Routes - API v1
@@ -13,30 +14,30 @@ const { isAdmin } = require('../../middleware/rbac.middleware');
 router.use(authenticate);
 
 // Fee structure routes
-router.get('/structures/matrix', feeController.getFeeStructureMatrix);
-router.get('/structures/class/:classId', feeController.getFeeStructureByClass);
-router.post('/structures/bulk-save', isAdmin, feeController.bulkSaveFeeStructure);
+router.get('/structures/matrix', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getFeeStructureMatrix);
+router.get('/structures/class/:classId', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getFeeStructureByClass);
+router.post('/structures/bulk-save', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.bulkSaveFeeStructure);
 
 // Student fee assignment routes
-router.get('/students/without-fee-structure', feeController.getStudentsWithoutFeeStructure);
-router.post('/assign-structure', isAdmin, feeController.assignFeeStructure);
-router.put('/update-structure', isAdmin, feeController.updateFeeStructure);
-router.get('/student-fees', feeController.getStudentFees);
-router.post('/generate-vouchers', isAdmin, feeController.generateVouchers);
+router.get('/students/without-fee-structure', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getStudentsWithoutFeeStructure);
+router.post('/assign-structure', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.assignFeeStructure);
+router.put('/update-structure', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.updateFeeStructure);
+router.get('/student-fees', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getStudentFees);
+router.post('/generate-vouchers', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.generateVouchers);
 
 // Payment routes
-router.post('/record-payment', isAdmin, feeController.recordPayment);
-router.get('/outstanding-balances', feeController.getOutstandingBalances);
-router.get('/payments', feeController.getPayments);
-router.delete('/payments/:paymentId', isAdmin, feeController.reversePayment);
+router.post('/record-payment', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.recordPayment);
+router.get('/outstanding-balances', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getOutstandingBalances);
+router.get('/payments', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getPayments);
+router.delete('/payments/:paymentId', hasPermission(PERMISSIONS.FEES.DELETE), feeController.reversePayment);
 
 // Voucher routes
-router.delete('/vouchers', isAdmin, feeController.deleteVoucher);
+router.delete('/vouchers', hasPermission(PERMISSIONS.FEES.DELETE), feeController.deleteVoucher);
 
 // Suspense management routes
-router.get('/suspense', feeController.getSuspenseEntries);
-router.post('/suspense', isAdmin, feeController.recordSuspenseEntry);
-router.post('/suspense/reconcile', isAdmin, feeController.reconcileSuspenseEntry);
-router.delete('/suspense/:id', isAdmin, feeController.deleteSuspenseEntry);
+router.get('/suspense', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getSuspenseEntries);
+router.post('/suspense', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.recordSuspenseEntry);
+router.post('/suspense/reconcile', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.reconcileSuspenseEntry);
+router.delete('/suspense/:id', hasPermission(PERMISSIONS.FEES.DELETE), feeController.deleteSuspenseEntry);
 
 module.exports = router;

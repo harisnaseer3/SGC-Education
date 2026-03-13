@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/database');
 const createSuperAdmin = require('./utils/createSuperAdmin');
+const seedRoles = require('./utils/seedRoles');
 const { errorHandler, notFound } = require('./middleware/error.middleware');
 
 const app = express();
@@ -12,6 +13,8 @@ const mongoose = require('mongoose'); // Ensure mongoose is imported
 
 // Connect to MongoDB
 connectDB().then(async () => {
+  // Create default roles if don't exist
+  await seedRoles();
   // Create super admin if doesn't exist
   await createSuperAdmin();
 

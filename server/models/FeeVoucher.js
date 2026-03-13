@@ -73,7 +73,6 @@ const feeVoucherSchema = new mongoose.Schema(
       required: true,
       trim: true,
       unique: true,
-      index: true,
     },
     generatedAt: {
       type: Date,

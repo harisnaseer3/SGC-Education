@@ -109,11 +109,14 @@ import AdmissionByDateReport from '../components/reports/AdmissionByDateReport';
 import AdmissionByMonthReport from '../components/reports/AdmissionByMonthReport';
 import { useTablePagination } from '../hooks/useTablePagination';
 import { notifyError, notifySuccess, notifyInfo } from '../utils/notify';
+import usePermissions from '../hooks/usePermissions';
+import { PERMISSIONS } from '../utils/constants';
 
 
 const Admissions = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { hasPermission } = usePermissions();
   const availableModules = getAvailableModules();
   
   // Get section from URL path
@@ -1266,7 +1269,7 @@ const Admissions = () => {
                       >
                         <Visibility fontSize="small" />
                       </IconButton>
-                      {isAdmin && admission.status === 'pending' && (
+                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && admission.status === 'pending' && (
                         <IconButton
                           size="small"
                           color="info"
@@ -1276,7 +1279,7 @@ const Admissions = () => {
                           <Cancel fontSize="small" />
                         </IconButton>
                       )}
-                      {isAdmin && (admission.status === 'pending' || admission.status === 'struck_off') && (
+                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && (admission.status === 'pending' || admission.status === 'struck_off') && (
                         <>
                           <IconButton
                             size="small"
@@ -1296,7 +1299,7 @@ const Admissions = () => {
                           </IconButton>
                         </>
                       )}
-                      {isAdmin && admission.status === 'approved' && (
+                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && admission.status === 'approved' && (
                         <IconButton
                           size="small"
                           color="primary"

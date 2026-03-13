@@ -30,9 +30,12 @@ import { getApiUrl } from '../config/api';
 import PageHeader from '../components/layout/PageHeader';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 import { useTablePagination } from '../hooks/useTablePagination';
+import usePermissions from '../hooks/usePermissions';
+import { PERMISSIONS } from '../utils/constants';
 
 const Users = () => {
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [users, setUsers] = useState([]);
   const [institutions, setInstitutions] = useState([]);
@@ -49,6 +52,7 @@ const Users = () => {
   const [institutionFilter, setInstitutionFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [roles, setRoles] = useState([]); // Dynamic roles state
 
   useEffect(() => {
     // Auto-set institution filter from selected institution (but not when filtering by super_admin)
@@ -63,6 +67,7 @@ const Users = () => {
     }
 
     fetchUsers();
+    fetchRoles(); // Fetch roles for filter
     if (currentUser.role === 'super_admin') {
       fetchInstitutions();
     }
@@ -106,6 +111,18 @@ const Users = () => {
       setInstitutions(response.data.data);
     } catch (err) {
       console.error('Failed to fetch institutions:', err);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(getApiUrl('roles'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRoles(response.data.data);
+    } catch (err) {
+      console.error('Failed to fetch roles:', err);
     }
   };
 
@@ -183,16 +200,18 @@ const Users = () => {
             { label: 'Users', path: '/users' }
           ]}
           actions={
-            <Button
-              variant="contained"
-              startIcon={<PersonAdd />}
-              onClick={() => navigate('/users/new')}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              }}
-            >
-              Add User
-            </Button>
+            hasPermission(PERMISSIONS.USERS.CREATE) && (
+              <Button
+                variant="contained"
+                startIcon={<PersonAdd />}
+                onClick={() => navigate('/users/new')}
+                sx={{
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                }}
+              >
+                Add User
+              </Button>
+            )
           }
         />
 
@@ -234,10 +253,16 @@ const Users = () => {
                 size="small"
               >
                 <MenuItem value="">All Roles</MenuItem>
-                <MenuItem value="super_admin">Super Admin</MenuItem>
-                <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="teacher">Teacher</MenuItem>
-                <MenuItem value="student">Student</MenuItem>
+                {roles.map((role) => {
+                  const isSuperAdminRole = role.name === 'super_admin';
+                  if (isSuperAdminRole && currentUser.role !== 'super_admin') return null;
+                  
+                  return (
+                    <MenuItem key={role._id} value={role.name}>
+                      {getRoleLabel(role.name)}
+                    </MenuItem>
+                  );
+                })}
               </TextField>
             </Grid>
             {currentUser.role === 'super_admin' && (
@@ -347,22 +372,26 @@ const Users = () => {
                         />
                       </TableCell>
                       <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handleEdit(user._id)}
-                          title="Edit User"
-                        >
-                          <Edit />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color={user.isActive ? 'error' : 'success'}
-                          onClick={() => handleToggleStatus(user._id)}
-                          title={user.isActive ? 'Deactivate' : 'Activate'}
-                        >
-                          <PowerSettingsNew />
-                        </IconButton>
+                        {hasPermission(PERMISSIONS.USERS.EDIT) && (
+                          <IconButton
+                            size="small"
+                            color="primary"
+                            onClick={() => handleEdit(user._id)}
+                            title="Edit User"
+                          >
+                            <Edit />
+                          </IconButton>
+                        )}
+                        {hasPermission(PERMISSIONS.USERS.EDIT) && (
+                          <IconButton
+                            size="small"
+                            color={user.isActive ? 'error' : 'success'}
+                            onClick={() => handleToggleStatus(user._id)}
+                            title={user.isActive ? 'Deactivate' : 'Activate'}
+                          >
+                            <PowerSettingsNew />
+                          </IconButton>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

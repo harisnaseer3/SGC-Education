@@ -120,7 +120,6 @@ feePaymentSchema.pre('save', async function() {
 // Indexes for better query performance
 feePaymentSchema.index({ institution: 1, student: 1, paymentDate: -1 });
 feePaymentSchema.index({ institution: 1, paymentDate: -1 });
-feePaymentSchema.index({ receiptNumber: 1 });
 feePaymentSchema.index({ studentFee: 1 });
 feePaymentSchema.index({ status: 1 });
 

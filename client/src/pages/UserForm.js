@@ -59,6 +59,7 @@ const UserForm = () => {
   const [institutions, setInstitutions] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [allDepartments, setAllDepartments] = useState([]);
+  const [roles, setRoles] = useState([]); // Dynamic roles state
 
   const [formData, setFormData] = useState({
     name: '',
@@ -82,6 +83,7 @@ const UserForm = () => {
 
     fetchInstitutions();
     fetchDepartments();
+    fetchRoles();
 
     if (isEditMode) {
       fetchUser();
@@ -121,6 +123,18 @@ const UserForm = () => {
       setAllDepartments(response.data.data);
     } catch (err) {
       console.error('Failed to fetch departments:', err);
+    }
+  };
+
+  const fetchRoles = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(getApiUrl('roles'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setRoles(response.data.data);
+    } catch (err) {
+      console.error('Failed to fetch roles:', err);
     }
   };
 
@@ -487,28 +501,23 @@ const UserForm = () => {
                           </InputAdornment>
                         }
                       >
-                        {isSuperAdmin && (
-                          <MenuItem value="super_admin">
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                              <Chip label="Super Admin" color="error" size="small" />
-                            </Box>
-                          </MenuItem>
-                        )}
-                        <MenuItem value="admin">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip label="Admin" color="primary" size="small" />
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="teacher">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip label="Teacher" color="info" size="small" />
-                          </Box>
-                        </MenuItem>
-                        <MenuItem value="student">
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip label="Student" color="success" size="small" />
-                          </Box>
-                        </MenuItem>
+                        {roles.map((role) => {
+                          const isSuperAdminRole = role.name === 'super_admin';
+                          if (isSuperAdminRole && !isSuperAdmin) return null;
+                          
+                          return (
+                            <MenuItem key={role._id} value={role.name}>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Chip 
+                                  label={getRoleLabel(role.name)} 
+                                  color={getRoleColor(role.name)} 
+                                  size="small" 
+                                  variant={role.isSystemRole ? 'filled' : 'outlined'}
+                                />
+                              </Box>
+                            </MenuItem>
+                          );
+                        })}
                       </Select>
                     </FormControl>
                     {formData.role && (

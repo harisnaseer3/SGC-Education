@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import usePermissions from '../hooks/usePermissions';
+import { PERMISSIONS } from '../utils/constants';
 import {
   Container,
   Typography,
@@ -79,6 +81,7 @@ const API_URL = getApiBaseUrl();
 const FeeManagement = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
+  const { hasPermission } = usePermissions();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
@@ -3535,15 +3538,15 @@ const FeeManagement = () => {
               scrollButtons="auto"
               allowScrollButtonsMobile
             >
-              <Tab label="Fee Heads" />
-              <Tab label="Fee Structure" />
-              <Tab label="Assign Fee Structure" />
-              <Tab label="Voucher Generation" />
-              <Tab label="Print Voucher" />
-              <Tab label="Fee Deposit" />
-              <Tab label="Receipt" />
-              <Tab label="Suspense" />
-              <Tab label="Reports" />
+              <Tab label="Fee Heads" sx={{ display: hasPermission(PERMISSIONS.FEES.MANAGE) ? 'flex' : 'none' }} />
+              <Tab label="Fee Structure" sx={{ display: hasPermission(PERMISSIONS.FEES.MANAGE) ? 'flex' : 'none' }} />
+              <Tab label="Assign Fee Structure" sx={{ display: hasPermission(PERMISSIONS.FEES.MANAGE) ? 'flex' : 'none' }} />
+              <Tab label="Voucher Generation" sx={{ display: hasPermission(PERMISSIONS.FEES.MANAGE) ? 'flex' : 'none' }} />
+              <Tab label="Print Voucher" sx={{ display: hasPermission(PERMISSIONS.FEES.VIEW) ? 'flex' : 'none' }} />
+              <Tab label="Fee Deposit" sx={{ display: hasPermission(PERMISSIONS.FEES.MANAGE) ? 'flex' : 'none' }} />
+              <Tab label="Receipt" sx={{ display: hasPermission(PERMISSIONS.FEES.VIEW) ? 'flex' : 'none' }} />
+              <Tab label="Suspense" sx={{ display: hasPermission(PERMISSIONS.FEES.VIEW) ? 'flex' : 'none' }} />
+              <Tab label="Reports" sx={{ display: hasPermission(PERMISSIONS.FEES.REPORT) ? 'flex' : 'none' }} />
             </Tabs>
           </Box>
 
@@ -3554,7 +3557,7 @@ const FeeManagement = () => {
               <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
                 FEE HEADS
               </Typography>
-              {(user.role === 'super_admin' || user.role === 'admin') && (
+              {hasPermission(PERMISSIONS.FEES.MANAGE) && (
                 <Button
                   variant="contained"
                   startIcon={<Add />}
@@ -3651,7 +3654,7 @@ const FeeManagement = () => {
                             />
                           </TableCell>
                           <TableCell>{capitalizeFirstOnly(feeHead.createdBy?.name || 'N/A')}</TableCell>
-                          {(user.role === 'super_admin' || user.role === 'admin') && (
+                          {hasPermission(PERMISSIONS.FEES.EDIT) && (
                             <TableCell>
                               {feeHead.isActive ? (
                                 <>
@@ -3664,14 +3667,16 @@ const FeeManagement = () => {
                                   >
                                     <Edit />
                                   </IconButton>
-                                  <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={() => handleFeeHeadDelete(feeHead._id)}
-                                    title="Delete"
-                                  >
-                                    <Delete />
-                                  </IconButton>
+                                  {hasPermission(PERMISSIONS.FEES.DELETE) && (
+                                    <IconButton
+                                      size="small"
+                                      color="error"
+                                      onClick={() => handleFeeHeadDelete(feeHead._id)}
+                                      title="Delete"
+                                    >
+                                      <Delete />
+                                    </IconButton>
+                                  )}
                                 </>
                               ) : (
                                 <>
@@ -3830,14 +3835,16 @@ const FeeManagement = () => {
                 </TableContainer>
 
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-                  <Button
-                    variant="contained"
-                    sx={{ bgcolor: '#667eea', minWidth: 120 }}
-                    onClick={handleFeeStructureSave}
-                    disabled={feeStructureSaving}
-                  >
-                    {feeStructureSaving ? <CircularProgress size={24} /> : 'Save'}
-                  </Button>
+                  {hasPermission(PERMISSIONS.FEES.MANAGE) && (
+                    <Button
+                      variant="contained"
+                      sx={{ bgcolor: '#667eea', minWidth: 120 }}
+                      onClick={handleFeeStructureSave}
+                      disabled={feeStructureSaving}
+                    >
+                      {feeStructureSaving ? <CircularProgress size={24} /> : 'Save'}
+                    </Button>
+                  )}
                 </Box>
               </Box>
             ) : feeStructureMatrix && feeStructureMatrix.feeHeads && feeStructureMatrix.feeHeads.length === 0 ? (
@@ -3980,18 +3987,20 @@ const FeeManagement = () => {
                                 size="small"
                                 sx={{ fontWeight: 'bold' }}
                               />
-                              <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={() => handleOpenUpdateFeeStructureDialog(student)}
-                                sx={{ 
-                                  borderColor: '#667eea', 
-                                  color: '#667eea',
-                                  '&:hover': { borderColor: '#5568d3', bgcolor: 'rgba(102, 126, 234, 0.04)' }
-                                }}
-                              >
-                                Update
-                              </Button>
+                              {hasPermission(PERMISSIONS.FEES.MANAGE) && (
+                                <Button
+                                  variant="outlined"
+                                  size="small"
+                                  onClick={() => handleOpenUpdateFeeStructureDialog(student)}
+                                  sx={{ 
+                                    borderColor: '#667eea', 
+                                    color: '#667eea',
+                                    '&:hover': { borderColor: '#5568d3', bgcolor: 'rgba(102, 126, 234, 0.04)' }
+                                  }}
+                                >
+                                  Update
+                                </Button>
+                              )}
                             </Box>
                           ) : (
                             <Button
@@ -4123,15 +4132,17 @@ const FeeManagement = () => {
                       {/* Action Buttons */}
                       <Grid item xs={12}>
                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                          <Button
-                            variant="contained"
-                            startIcon={<Receipt />}
-                            sx={{ bgcolor: '#667eea' }}
-                            disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
-                            onClick={handleGenerateVouchers}
-                          >
-                            {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
-                          </Button>
+                          {hasPermission(PERMISSIONS.FEES.MANAGE) && (
+                            <Button
+                              variant="contained"
+                              startIcon={<Receipt />}
+                              sx={{ bgcolor: '#667eea' }}
+                              disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
+                              onClick={handleGenerateVouchers}
+                            >
+                              {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
+                            </Button>
+                          )}
                         </Box>
                       </Grid>
                     </Grid>
@@ -5869,14 +5880,16 @@ const FeeManagement = () => {
               <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
                 SUSPENSE MANAGEMENT
               </Typography>
-              <Button
-                variant="contained"
-                startIcon={<Add />}
-                onClick={() => setSuspenseDialogOpen(true)}
-                sx={{ bgcolor: '#667eea' }}
-              >
-                Add Suspense Entry
-              </Button>
+              {hasPermission(PERMISSIONS.FEES.MANAGE) && (
+                <Button
+                  variant="contained"
+                  startIcon={<Add />}
+                  onClick={() => setSuspenseDialogOpen(true)}
+                  sx={{ bgcolor: '#667eea' }}
+                >
+                  Add Suspense Entry
+                </Button>
+              )}
             </Box>
 
             <Tabs 
@@ -5989,27 +6002,31 @@ const FeeManagement = () => {
                             <TableCell>
                               {entry.status === 'unidentified' && (
                                 <Box sx={{ display: 'flex', gap: 1 }}>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={() => {
-                                      setSelectedSuspenseEntry(entry);
-                                      setReconciliationDialogOpen(true);
-                                    }}
-                                  >
-                                    Reconcile
-                                  </Button>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    color="error"
-                                    onClick={() => {
-                                      setDeletingSuspenseEntry(entry);
-                                      setSuspenseDeleteConfirmOpen(true);
-                                    }}
-                                  >
-                                    Delete
-                                  </Button>
+                                  {hasPermission(PERMISSIONS.FEES.MANAGE) && (
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      onClick={() => {
+                                        setSelectedSuspenseEntry(entry);
+                                        setReconciliationDialogOpen(true);
+                                      }}
+                                    >
+                                      Reconcile
+                                    </Button>
+                                  )}
+                                  {hasPermission(PERMISSIONS.FEES.DELETE) && (
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      color="error"
+                                      onClick={() => {
+                                        setDeletingSuspenseEntry(entry);
+                                        setSuspenseDeleteConfirmOpen(true);
+                                      }}
+                                    >
+                                      Delete
+                                    </Button>
+                                  )}
                                 </Box>
                               )}
                             </TableCell>

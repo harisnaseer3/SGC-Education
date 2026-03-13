@@ -112,7 +112,6 @@ institutionSchema.pre('save', function() {
 });
 
 // Indexes for better query performance
-institutionSchema.index({ code: 1 });
 institutionSchema.index({ type: 1 });
 institutionSchema.index({ isActive: 1 });
 institutionSchema.index({ createdAt: -1 });
