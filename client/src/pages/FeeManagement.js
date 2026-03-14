@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import usePermissions from '../hooks/usePermissions';
+import useDebounce from '../hooks/useDebounce';
 import { PERMISSIONS } from '../utils/constants';
 import {
   Container,
@@ -365,6 +366,24 @@ const FeeManagement = () => {
   const [expandedTransactions, setExpandedTransactions] = useState(new Set());
   const [showRefundedReceipts, setShowRefundedReceipts] = useState(false);
   const [expandedRefundedTransactions, setExpandedRefundedTransactions] = useState(new Set());
+
+  // Live search for receipts
+  const debouncedReceiptSearch = useDebounce(receiptSearch, 500);
+
+  // Trigger receipt search when debounced values change and we're on the Receipt tab
+  useEffect(() => {
+    if (activeTab === 6 && hasSearchedReceipts) {
+      if (!receiptsLoading) {
+        // Use an IIFE or separate async call to avoid unhandled promises in useEffect
+        const performSearch = async () => {
+          try {
+            await fetchReceipts(false);
+          } catch(e) { /* ignore */ }
+        };
+        performSearch();
+      }
+    }
+  }, [debouncedReceiptSearch, activeTab]);
 
   const toggleTransactionExpansion = (transactionId) => {
     const newExpanded = new Set(expandedTransactions);
