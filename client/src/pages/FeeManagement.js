@@ -5276,7 +5276,7 @@ const FeeManagement = () => {
                         fullWidth
                         startIcon={<Search />}
                         sx={{ bgcolor: '#667eea' }}
-                        onClick={fetchReceipts}
+                        onClick={() => fetchReceipts(false)}
                         disabled={receiptsLoading}
                       >
                         {receiptsLoading ? 'Searching...' : 'Search'}

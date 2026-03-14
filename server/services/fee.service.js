@@ -1420,10 +1420,13 @@ class FeeService {
         studentIds.push(...studentsByName.map(s => s._id));
       }
 
-      // Search in Admission collection (for student name and roll number)
-      if (filters.studentName || filters.rollNumber) {
+      // Search in Admission collection (for student ID, name, and roll number)
+      if (filters.studentId || filters.studentName || filters.rollNumber) {
         const admissionQuery = { institution: institutionId };
         
+        if (filters.studentId) {
+          admissionQuery.applicationNumber = { $regex: filters.studentId, $options: 'i' };
+        }
         if (filters.studentName) {
           admissionQuery['personalInfo.name'] = { $regex: filters.studentName, $options: 'i' };
         }
@@ -1436,7 +1439,7 @@ class FeeService {
           .map(a => {
             // Handle both populated and unpopulated studentId
             if (a.studentId) {
-              return typeof a.studentId === 'object' ? a.studentId._id : a.studentId;
+              return typeof a.studentId === 'object' ? (a.studentId._id || a.studentId) : a.studentId;
             }
             return null;
           })
