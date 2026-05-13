@@ -738,7 +738,7 @@ class FeeService {
       })
       .populate({
         path: 'feeHead',
-        select: 'name priority'
+        select: 'name priority frequencyType'
       })
       .sort({ createdAt: -1 });
 
@@ -1040,9 +1040,13 @@ class FeeService {
                   );
                 } else {
                   // No vouchers yet - check dueDate or createdAt
-                  const feeDate = otherFee.dueDate || otherFee.createdAt;
-                  if (feeDate && new Date(feeDate) < startDate) {
-                    isPrevious = true;
+                  // Monthly fees without vouchers are templates, not past debts
+                  const isMonthly = otherFee.feeHead?.frequencyType === 'Monthly Fee/Annual Fee';
+                  if (!isMonthly) {
+                    const feeDate = otherFee.dueDate || otherFee.createdAt;
+                    if (feeDate && new Date(feeDate) < startDate) {
+                      isPrevious = true;
+                    }
                   }
                 }
 
