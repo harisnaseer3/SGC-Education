@@ -1038,17 +1038,9 @@ class FeeService {
                   isPrevious = otherFee.vouchers.every(v => 
                     (Number(v.year) < Number(year)) || (Number(v.year) === Number(year) && Number(v.month) < Number(month))
                   );
-                } else {
-                  // No vouchers yet - check dueDate or createdAt
-                  // Monthly fees without vouchers are templates, not past debts
-                  const isMonthly = otherFee.feeHead?.frequencyType === 'Monthly Fee/Annual Fee';
-                  if (!isMonthly) {
-                    const feeDate = otherFee.dueDate || otherFee.createdAt;
-                    if (feeDate && new Date(feeDate) < startDate) {
-                      isPrevious = true;
-                    }
-                  }
                 }
+                // If no vouchers yet, it hasn't been billed, so it's not "Arrears" yet.
+                // It should be billed as its own line item in a voucher first.
 
                 if (isPrevious) {
                   // Billing: Sum only non-arrears heads to avoid double counting the "Arrears" summary records

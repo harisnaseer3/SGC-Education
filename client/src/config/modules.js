@@ -89,7 +89,6 @@ export const modules = [
       { name: 'Role Management', route: '/roles', icon: Security, permission: PERMISSIONS.SYSTEM.MANAGE },
     ]
   },
-  { name: 'Configuration', icon: Settings, color: '#fa709a', route: '/settings', permission: PERMISSIONS.SYSTEM.MANAGE },
   { name: 'Transport', icon: DirectionsBus, color: '#ee5a6f', route: null },
   { name: 'Event', icon: Event, color: '#764ba2', route: '/calendar', permission: PERMISSIONS.ACADEMIC.VIEW },
   { name: 'Institute Branding', icon: Brush, color: '#667eea', route: null },
