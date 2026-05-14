@@ -305,6 +305,17 @@ const reversePayment = asyncHandler(async (req, res) => {
   });
 });
 
+const bulkReversePayments = asyncHandler(async (req, res) => {
+  const { paymentIds } = req.body;
+  const result = await feeService.bulkReversePayments(paymentIds, req.user);
+
+  res.json({
+    success: true,
+    message: `Processed ${result.total} receipts: ${result.refunded} refunded, ${result.deleted} deleted.`,
+    data: result
+  });
+});
+
 module.exports = {
   getFeeStructureMatrix,
   getFeeStructureByClass,
@@ -323,5 +334,6 @@ module.exports = {
   reconcileSuspenseEntry,
   deleteSuspenseEntry,
   reversePayment,
+  bulkReversePayments,
   bulkUpdateStudentFees
 };

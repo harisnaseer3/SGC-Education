@@ -2109,6 +2109,39 @@ class FeeService {
   }
 
   /**
+   * Bulk reverse or delete fee payments
+   * @param {Array} paymentIds - Array of payment IDs to process
+   * @param {Object} currentUser - Current user object
+   */
+  async bulkReversePayments(paymentIds, currentUser) {
+    if (!paymentIds || !Array.isArray(paymentIds) || paymentIds.length === 0) {
+      throw new ApiError(400, 'Payment IDs are required');
+    }
+
+    const results = {
+      total: paymentIds.length,
+      refunded: 0,
+      deleted: 0,
+      errors: []
+    };
+
+    for (const paymentId of paymentIds) {
+      try {
+        const result = await this.reversePayment(paymentId, currentUser);
+        if (result.deleted) {
+          results.deleted++;
+        } else {
+          results.refunded++;
+        }
+      } catch (error) {
+        results.errors.push({ id: paymentId, error: error.message });
+      }
+    }
+
+    return results;
+  }
+
+  /**
    * Bulk update student fees by amount or percentage
    * @param {Object} data - Update parameters
    * @param {Object} currentUser - Current user object

@@ -269,6 +269,7 @@ const FeeManagement = () => {
   const [voucherData, setVoucherData] = useState(null);
   const [voucherLoading, setVoucherLoading] = useState(false);
   const [selectedVoucherIds, setSelectedVoucherIds] = useState([]);
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState([]);
   
   // Bulk Print states
   const [bulkVoucherDialogOpen, setBulkVoucherDialogOpen] = useState(false);
@@ -3482,6 +3483,67 @@ const FeeManagement = () => {
     }
   };
 
+  const handleSelectReceipt = (id) => {
+    setSelectedReceiptIds(prev => 
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllReceipts = (type = 'active') => {
+    let receiptsToSelect = [];
+    if (type === 'active') {
+      receiptsToSelect = receipts.filter(r => r.status !== 'refunded');
+    } else {
+      receiptsToSelect = receipts.filter(r => r.status === 'refunded');
+    }
+    
+    const ids = receiptsToSelect.map(r => r._id);
+    const allSelected = ids.every(id => selectedReceiptIds.includes(id));
+
+    if (allSelected) {
+      setSelectedReceiptIds(prev => prev.filter(id => !ids.includes(id)));
+    } else {
+      setSelectedReceiptIds(prev => [...new Set([...prev, ...ids])]);
+    }
+  };
+
+  const handleBulkDeleteReceipts = async () => {
+    if (selectedReceiptIds.length === 0) return;
+
+    const refundedCount = receipts.filter(r => selectedReceiptIds.includes(r._id) && r.status === 'refunded').length;
+    const activeCount = selectedReceiptIds.length - refundedCount;
+
+    let confirmMsg = `Are you sure you want to process ${selectedReceiptIds.length} receipts?`;
+    if (activeCount > 0 && refundedCount > 0) {
+      confirmMsg += `\n- ${activeCount} active receipts will be marked as Refunded.\n- ${refundedCount} refunded receipts will be Permanently Deleted.`;
+    } else if (refundedCount > 0) {
+      confirmMsg = `Are you sure you want to permanently delete ${refundedCount} refunded receipts? This action cannot be undone.`;
+    } else {
+      confirmMsg = `Are you sure you want to mark ${activeCount} receipts as Refunded?`;
+    }
+
+    if (!window.confirm(confirmMsg)) {
+      return;
+    }
+
+    try {
+      setReceiptsLoading(true);
+      const response = await axios.delete(`${API_URL}/fees/payments/bulk`, {
+        ...createAxiosConfig(),
+        data: { paymentIds: selectedReceiptIds }
+      });
+
+      notifySuccess(response.data.message || 'Selected receipts processed successfully');
+      setSelectedReceiptIds([]);
+      await fetchReceipts();
+    } catch (err) {
+      console.error('Error bulk deleting receipts:', err);
+      notifyError(err.response?.data?.message || 'Failed to process selected receipts');
+    } finally {
+      setReceiptsLoading(false);
+    }
+  };
+
   // Delete all receipts in a transaction group
   const handleDeleteGroupReceipts = async (group, transactionId) => {
     const deletableReceipts = group.filter(r => r.status !== 'refunded');
@@ -5520,19 +5582,32 @@ const FeeManagement = () => {
                   <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
                     Receipt List {receipts.filter(r => r.status !== 'refunded').length > 0 && `(${receipts.filter(r => r.status !== 'refunded').length} receipt${receipts.filter(r => r.status !== 'refunded').length !== 1 ? 's' : ''})`}
                   </Typography>
-                  <Button
-                    variant="outlined"
-                    startIcon={<FileDownload />}
-                    onClick={handleExportReceipts}
-                    disabled={receipts.length === 0}
-                    sx={{ 
-                      borderColor: '#667eea', 
-                      color: '#667eea',
-                      '&:hover': { borderColor: '#5568d3', bgcolor: 'rgba(102, 126, 234, 0.04)' }
-                    }}
-                  >
-                    Export Excel
-                  </Button>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {selectedReceiptIds.length > 0 && (
+                      <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<Delete />}
+                        onClick={handleBulkDeleteReceipts}
+                        sx={{ borderRadius: 1 }}
+                      >
+                        Delete Selected ({selectedReceiptIds.length})
+                      </Button>
+                    )}
+                    <Button
+                      variant="outlined"
+                      startIcon={<FileDownload />}
+                      onClick={handleExportReceipts}
+                      disabled={receipts.length === 0}
+                      sx={{ 
+                        borderColor: '#667eea', 
+                        color: '#667eea',
+                        '&:hover': { borderColor: '#5568d3', bgcolor: 'rgba(102, 126, 234, 0.04)' }
+                      }}
+                    >
+                      Export Excel
+                    </Button>
+                  </Box>
                 </Box>
 
                 {receiptsLoading ? (
@@ -5544,6 +5619,21 @@ const FeeManagement = () => {
                       <Table sx={{ minWidth: 650 }}>
                         <TableHead>
                           <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                            <TableCell padding="checkbox">
+                              <Checkbox
+                                color="secondary"
+                                indeterminate={
+                                  selectedReceiptIds.length > 0 && 
+                                  selectedReceiptIds.length < receipts.filter(r => r.status !== 'refunded').length
+                                }
+                                checked={
+                                  receipts.filter(r => r.status !== 'refunded').length > 0 && 
+                                  receipts.filter(r => r.status !== 'refunded').every(r => selectedReceiptIds.includes(r._id))
+                                }
+                                onChange={() => handleSelectAllReceipts('active')}
+                                sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' } }}
+                              />
+                            </TableCell>
                             <TableCell>Receipt Number</TableCell>
                             <TableCell>Voucher Number</TableCell>
                             <TableCell>Payment Date</TableCell>
@@ -5622,6 +5712,25 @@ const FeeManagement = () => {
                                       '&:hover': { bgcolor: isGroup ? '#f0f4ff !important' : 'inherit' }
                                     }}
                                   >
+                                    <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                                      <Checkbox
+                                        size="small"
+                                        checked={group.every(r => selectedReceiptIds.includes(r._id))}
+                                        indeterminate={
+                                          group.some(r => selectedReceiptIds.includes(r._id)) &&
+                                          !group.every(r => selectedReceiptIds.includes(r._id))
+                                        }
+                                        onChange={() => {
+                                          const ids = group.map(r => r._id);
+                                          const allSelected = ids.every(id => selectedReceiptIds.includes(id));
+                                          if (allSelected) {
+                                            setSelectedReceiptIds(prev => prev.filter(id => !ids.includes(id)));
+                                          } else {
+                                            setSelectedReceiptIds(prev => [...new Set([...prev, ...ids])]);
+                                          }
+                                        }}
+                                      />
+                                    </TableCell>
                                     <TableCell>
                                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                         {isGroup && (
@@ -5741,6 +5850,13 @@ const FeeManagement = () => {
                                   {/* Expanded Child Rows */}
                                   {isGroup && isExpanded && group.map((receipt) => (
                                     <TableRow key={receipt._id} sx={{ bgcolor: '#fff' }}>
+                                      <TableCell padding="checkbox">
+                                        <Checkbox
+                                          size="small"
+                                          checked={selectedReceiptIds.includes(receipt._id)}
+                                          onChange={() => handleSelectReceipt(receipt._id)}
+                                        />
+                                      </TableCell>
                                       <TableCell sx={{ pl: 6 }}>
                                         <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="primary" variant="outlined" sx={{ opacity: 0.8 }} />
                                       </TableCell>
@@ -5846,9 +5962,23 @@ const FeeManagement = () => {
                 <Card sx={{ mt: 2 }}>
                   <CardContent>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: showRefundedReceipts ? 2 : 0 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#f5576c' }}>
-                        Refunded Receipts ({receipts.filter(r => r.status === 'refunded').length})
-                      </Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#f5576c' }}>
+                          Refunded Receipts ({receipts.filter(r => r.status === 'refunded').length})
+                        </Typography>
+                        {selectedReceiptIds.some(id => receipts.find(r => r._id === id && r.status === 'refunded')) && (
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            startIcon={<Delete />}
+                            onClick={handleBulkDeleteReceipts}
+                            sx={{ borderRadius: 1 }}
+                          >
+                            Permanently Delete Selected ({selectedReceiptIds.filter(id => receipts.find(r => r._id === id && r.status === 'refunded')).length})
+                          </Button>
+                        )}
+                      </Box>
                       <Button
                         variant="outlined"
                         size="small"
@@ -5868,6 +5998,21 @@ const FeeManagement = () => {
                         <Table sx={{ minWidth: 650 }}>
                           <TableHead>
                             <TableRow sx={{ bgcolor: '#f5576c', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  color="secondary"
+                                  indeterminate={
+                                    selectedReceiptIds.some(id => receipts.find(r => r._id === id && r.status === 'refunded')) && 
+                                    selectedReceiptIds.filter(id => receipts.find(r => r._id === id && r.status === 'refunded')).length < receipts.filter(r => r.status === 'refunded').length
+                                  }
+                                  checked={
+                                    receipts.filter(r => r.status === 'refunded').length > 0 && 
+                                    receipts.filter(r => r.status === 'refunded').every(r => selectedReceiptIds.includes(r._id))
+                                  }
+                                  onChange={() => handleSelectAllReceipts('refunded')}
+                                  sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' } }}
+                                />
+                              </TableCell>
                               <TableCell>Receipt Number</TableCell>
                               <TableCell>Voucher Number</TableCell>
                               <TableCell>Payment Date</TableCell>
@@ -5879,6 +6024,7 @@ const FeeManagement = () => {
                               <TableCell>Transaction ID</TableCell>
                               <TableCell>Status</TableCell>
                               <TableCell>Collected By</TableCell>
+                              <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Actions</TableCell>
                             </TableRow>
                           </TableHead>
                           <TableBody>
@@ -5944,6 +6090,25 @@ const FeeManagement = () => {
                                         '&:hover': { bgcolor: '#ffecec !important' }
                                       }}
                                     >
+                                      <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                                        <Checkbox
+                                          size="small"
+                                          checked={group.every(r => selectedReceiptIds.includes(r._id))}
+                                          indeterminate={
+                                            group.some(r => selectedReceiptIds.includes(r._id)) &&
+                                            !group.every(r => selectedReceiptIds.includes(r._id))
+                                          }
+                                          onChange={() => {
+                                            const ids = group.map(r => r._id);
+                                            const allSelected = ids.every(id => selectedReceiptIds.includes(id));
+                                            if (allSelected) {
+                                              setSelectedReceiptIds(prev => prev.filter(id => !ids.includes(id)));
+                                            } else {
+                                              setSelectedReceiptIds(prev => [...new Set([...prev, ...ids])]);
+                                            }
+                                          }}
+                                        />
+                                      </TableCell>
                                       <TableCell>
                                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                                           {isGroup && (
@@ -5990,11 +6155,44 @@ const FeeManagement = () => {
                                         <Chip label="refunded" size="small" color="error" />
                                       </TableCell>
                                       <TableCell>{firstReceipt.collectedBy?.name || 'N/A'}</TableCell>
+                                      <TableCell>
+                                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                          <IconButton
+                                            size="small"
+                                            color="primary"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handlePrintReceipt(group);
+                                            }}
+                                            title="Download Receipt"
+                                          >
+                                            <Print fontSize="small" />
+                                          </IconButton>
+                                          <IconButton
+                                            size="small"
+                                            color="error"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              handleDeleteReceipt(firstReceipt._id, firstReceipt.receiptNumber);
+                                            }}
+                                            title="Permanently Delete Receipt"
+                                          >
+                                            <Delete fontSize="small" />
+                                          </IconButton>
+                                        </Box>
+                                      </TableCell>
                                     </TableRow>
 
                                     {/* Expanded child rows */}
                                     {isGroup && isExpanded && group.map((receipt) => (
                                       <TableRow key={receipt._id} sx={{ bgcolor: '#fff' }}>
+                                        <TableCell padding="checkbox">
+                                          <Checkbox
+                                            size="small"
+                                            checked={selectedReceiptIds.includes(receipt._id)}
+                                            onChange={() => handleSelectReceipt(receipt._id)}
+                                          />
+                                        </TableCell>
                                         <TableCell sx={{ pl: 6 }}>
                                           <Chip label={receipt.receiptNumber || 'N/A'} size="small" color="error" variant="outlined" sx={{ opacity: 0.8 }} />
                                         </TableCell>
@@ -6020,6 +6218,32 @@ const FeeManagement = () => {
                                           <Chip label="refunded" size="small" color="error" sx={{ opacity: 0.8 }} />
                                         </TableCell>
                                         <TableCell>{receipt.collectedBy?.name || 'N/A'}</TableCell>
+                                        <TableCell>
+                                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                            <IconButton
+                                              size="small"
+                                              color="primary"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handlePrintReceipt(receipt);
+                                              }}
+                                              title="Download Receipt"
+                                            >
+                                              <Print fontSize="small" />
+                                            </IconButton>
+                                            <IconButton
+                                              size="small"
+                                              color="error"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleDeleteReceipt(receipt._id, receipt.receiptNumber);
+                                              }}
+                                              title="Permanently Delete Receipt"
+                                            >
+                                              <Delete fontSize="small" />
+                                            </IconButton>
+                                          </Box>
+                                        </TableCell>
                                       </TableRow>
                                     ))}
                                   </React.Fragment>

@@ -30,6 +30,7 @@ router.post('/generate-vouchers', hasPermission(PERMISSIONS.FEES.MANAGE), feeCon
 router.post('/record-payment', hasPermission(PERMISSIONS.FEES.MANAGE), feeController.recordPayment);
 router.get('/outstanding-balances', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getOutstandingBalances);
 router.get('/payments', hasPermission(PERMISSIONS.FEES.VIEW), feeController.getPayments);
+router.delete('/payments/bulk', hasPermission(PERMISSIONS.FEES.DELETE), feeController.bulkReversePayments);
 router.delete('/payments/:paymentId', hasPermission(PERMISSIONS.FEES.DELETE), feeController.reversePayment);
 
 // Voucher routes
