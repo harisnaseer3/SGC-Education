@@ -126,8 +126,13 @@ class InstitutionService {
       }
     }
 
+    // Filter out immutable and sensitive fields that shouldn't be updated directly
+    const immutableFields = ['_id', 'createdBy', 'createdAt', 'updatedAt', '__v'];
+    const filteredUpdateData = { ...updateData };
+    immutableFields.forEach(field => delete filteredUpdateData[field]);
+
     // Update institution
-    Object.assign(institution, updateData);
+    Object.assign(institution, filteredUpdateData);
     await institution.save();
 
     return institution;
