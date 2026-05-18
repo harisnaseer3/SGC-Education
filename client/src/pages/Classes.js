@@ -43,6 +43,7 @@ import {
   School,
   People,
   Payment,
+  Delete,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -150,6 +151,22 @@ const Classes = () => {
       fetchData();
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to toggle status');
+    }
+  };
+
+  const handleDeleteClass = async (classId) => {
+    if (!window.confirm('Are you sure you want to delete this class?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(getApiUrl(`classes/${classId}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete class');
     }
   };
 
@@ -544,19 +561,34 @@ const Classes = () => {
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/classes/edit/${cls._id}`)}
-                          sx={{
-                            color: '#667eea',
-                            '&:hover': {
-                              bgcolor: '#667eea15',
-                            },
-                          }}
-                          title="Edit Class"
-                        >
-                          <Edit fontSize="small" />
-                        </IconButton>
+                        <Box display="flex" justifyContent="center" gap={1}>
+                          <IconButton
+                            size="small"
+                            onClick={() => navigate(`/classes/edit/${cls._id}`)}
+                            sx={{
+                              color: '#667eea',
+                              '&:hover': {
+                                bgcolor: '#667eea15',
+                              },
+                            }}
+                            title="Edit Class"
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteClass(cls._id)}
+                            sx={{
+                              color: '#dc3545',
+                              '&:hover': {
+                                bgcolor: '#dc354515',
+                              },
+                            }}
+                            title="Delete Class"
+                          >
+                            <Delete fontSize="small" />
+                          </IconButton>
+                        </Box>
                       </TableCell>
                       <TableCell align="center">
                         <Button

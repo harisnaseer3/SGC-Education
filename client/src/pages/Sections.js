@@ -202,6 +202,25 @@ const Sections = () => {
     handleMenuClose();
   };
 
+  const handleDeleteSection = async () => {
+    if (!selectedSection) return;
+    
+    if (!window.confirm('Are you sure you want to delete this section?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(getApiUrl(`sections/${selectedSection._id}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete section');
+    }
+    handleMenuClose();
+  };
+
   const handleDeactivate = async () => {
     if (selectedSection) {
       await handleToggleStatus(selectedSection._id);
@@ -907,6 +926,13 @@ const Sections = () => {
               <Edit fontSize="small" color="primary" />
             </ListItemIcon>
             <ListItemText>Edit</ListItemText>
+          </MenuItem>
+          
+          <MenuItem onClick={handleDeleteSection}>
+            <ListItemIcon>
+              <Delete fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText>Delete Section</ListItemText>
           </MenuItem>
           
           <MenuItem onClick={handleDeactivate}>

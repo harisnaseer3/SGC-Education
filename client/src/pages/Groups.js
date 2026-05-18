@@ -138,6 +138,22 @@ const Groups = () => {
     }
   };
 
+  const handleDeleteGroup = async (groupId) => {
+    if (!window.confirm('Are you sure you want to delete this group?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(getApiUrl(`groups/${groupId}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete group');
+    }
+  };
+
   const filteredGroups = groups;
 
   if (loading && groups.length === 0 && !error) {
@@ -493,6 +509,19 @@ const Groups = () => {
                               title="Edit Group"
                             >
                               <Edit fontSize="small" />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleDeleteGroup(group._id)}
+                              sx={{
+                                color: '#dc3545',
+                                '&:hover': {
+                                  bgcolor: '#dc354515',
+                                },
+                              }}
+                              title="Delete Group"
+                            >
+                              <Delete fontSize="small" />
                             </IconButton>
                             <Button
                               variant="outlined"
