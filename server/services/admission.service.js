@@ -1761,8 +1761,8 @@ class AdmissionService {
     for (let i = 0; i < Math.min(20, rawData.length); i++) {
       const row = rawData[i];
       const rowString = JSON.stringify(row).toLowerCase();
-      // Check for mandatory fields in header
-      if (rowString.includes('student name') && rowString.includes('father name')) {
+      // Check for mandatory fields in header (Name or Student Name)
+      if ((rowString.includes('student name') || rowString.includes('name')) && rowString.includes('father name')) {
         headerRowIndex = i;
         headers = row;
         console.log(`Found header at row ${i + 1}`);
@@ -1926,9 +1926,12 @@ class AdmissionService {
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
       try {
+        // Handle both "Student Name" and "Name" column headers
+        const studentName = row['Student Name'] || row['Name'];
+        
         // Stop processing if Student Name is missing (treat as end of data)
-        if (!row['Student Name']) {
-          console.log(`Stopping at row ${i + headerRowIndex + 2}: Student Name is missing (end of file)`);
+        if (!studentName) {
+          console.log(`Stopping at row ${i + headerRowIndex + 2}: Student Name/Name is missing (end of file)`);
           break;
         }
         
@@ -1978,23 +1981,52 @@ class AdmissionService {
         // === CLASS MAPPING ===
         let classId = null;
         let classObj = null;
-        if (row['Class Name']) {
-          const classNameLower = row['Class Name'].toString().trim().toLowerCase();
-          const potentialClasses = classMap[classNameLower];
+        const classNameInput = row['Class Name'] || row['Class'];
+        if (classNameInput) {
+          const classNameLower = classNameInput.toString().trim().toLowerCase();
+          let potentialClasses = classMap[classNameLower];
+          
+          // Fuzzy class matching aliases
+          if (!potentialClasses || potentialClasses.length === 0) {
+            const aliases = {
+              'one': 'grade-1', '1': 'grade-1', '1st': 'grade-1', 'grade 1': 'grade-1', 'class 1': 'grade-1',
+              'two': 'grade-2', '2': 'grade-2', '2nd': 'grade-2', 'grade 2': 'grade-2', 'class 2': 'grade-2',
+              'three': 'grade-3', '3': 'grade-3', '3rd': 'grade-3', 'grade 3': 'grade-3', 'class 3': 'grade-3',
+              'four': 'grade-4', '4': 'grade-4', '4th': 'grade-4', 'grade 4': 'grade-4', 'class 4': 'grade-4',
+              'five': 'grade-5', '5': 'grade-5', '5th': 'grade-5', 'grade 5': 'grade-5', 'class 5': 'grade-5',
+              'six': 'grade-6', '6': 'grade-6', '6th': 'grade-6', 'grade 6': 'grade-6', 'class 6': 'grade-6',
+              'seven': 'grade-7', '7': 'grade-7', '7th': 'grade-7', 'grade 7': 'grade-7', 'class 7': 'grade-7',
+              'eight': 'grade-8', '8': 'grade-8', '8th': 'grade-8', 'grade 8': 'grade-8', 'class 8': 'grade-8',
+              'nine': '9th', '9': '9th', 'grade-9': '9th', 'grade 9': '9th', 'class 9': '9th',
+              'ten': '10th', '10': '10th', 'grade-10': '10th', 'grade 10': '10th', 'class 10': '10th',
+              'cor.mon': 'core montessori', 'core montessory': 'core montessori', 'cormon': 'core montessori'
+            };
+            
+            let matchedKey = aliases[classNameLower];
+            if (!matchedKey) {
+              // Try to find any key that matches ignoring spaces/hyphens
+              const normalizedInput = classNameLower.replace(/[-\s]/g, '');
+              matchedKey = Object.keys(classMap).find(k => k.replace(/[-\s]/g, '') === normalizedInput);
+            }
+            
+            if (matchedKey && classMap[matchedKey]) {
+              potentialClasses = classMap[matchedKey];
+            }
+          }
           
           if (!potentialClasses || potentialClasses.length === 0) {
              // Class not found - show available classes
              const availableClasses = Object.keys(classMap).map(k => {
                return classMap[k][0].name;
              }).join(', ');
-             throw new Error('Class "' + row['Class Name'] + '" not found. Available: ' + availableClasses);
+             throw new Error('Class "' + classNameInput + '" not found. Available: ' + availableClasses);
           }
           
           // Find class belonging to the correct institution
           classObj = potentialClasses.find(c => c.institution.toString() === rowInstitutionId.toString());
           
           if (!classObj) {
-            throw new Error(`Class "${row['Class Name']}" exists but not for institution "${row['School Type Name'] || 'your institution'}". Please check if the class is created in this institution.`);
+            throw new Error(`Class "${classNameInput}" exists but not for institution "${row['School Type Name'] || 'your institution'}". Please check if the class is created in this institution.`);
           }
           
           classId = classObj._id;
@@ -2002,8 +2034,9 @@ class AdmissionService {
         
         // === SECTION MAPPING ===
         let sectionId = null;
-        if (row['Section Name'] && classId) {
-           const sectionNameLower = row['Section Name'].toString().trim().toLowerCase();
+        const sectionNameInput = row['Section Name'] || row['Section'];
+        if (sectionNameInput && classId) {
+           const sectionNameLower = sectionNameInput.toString().trim().toLowerCase();
            const matchedSection = allSections.find(s => 
              s.class.toString() === classId.toString() && 
              s.name.toLowerCase() === sectionNameLower
@@ -2013,17 +2046,23 @@ class AdmissionService {
              sectionId = matchedSection._id;
            } else {
              // Allow section to be empty if not found, or log warning
-             console.warn(`Section '${row['Section Name']}' not found in Class '${row['Class Name']}'`);
+             console.warn(`Section '${sectionNameInput}' not found in Class '${classNameInput}'`);
            }
         }
 
         // Map Gender
         let gender = 'male'; // Default
-        if (row['Gender Name']) {
-           const g = row['Gender Name'].toLowerCase();
+        const genderInput = row['Gender Name'] || row['Gender'];
+        if (genderInput) {
+           const g = genderInput.toLowerCase();
            if (g.includes('female')) gender = 'female';
            else if (g.includes('other')) gender = 'other';
         }
+
+        // Helper to validate category
+        const validCategories = ['General', 'OBC', 'SC', 'ST', 'Other'];
+        const rawCategory = row['Student Category'];
+        const categoryToSet = validCategories.includes(rawCategory) ? rawCategory : 'General';
 
         // Prepare Admission Data
         const admissionData = {
@@ -2032,43 +2071,40 @@ class AdmissionService {
           program: 'General',
           class: classId,
           section: sectionId,
-          rollNumber: row['Roll Number'] || row['Section Roll Number'] || undefined,
+          rollNumber: row['Roll Number'] || row['Roll #'] || row['Section Roll Number'] || undefined,
           applicationNumber: row['Admission Number'] || row['Student Id'] || undefined, // Use Admission Number as Application Number if available
           
           personalInfo: {
-            name: row['Student Name'],
+            name: studentName,
             dateOfBirth: row['Date Of Birth'] ? new Date(row['Date Of Birth']) : undefined,
             gender: gender,
             nationality: 'Pakistani', // Default
-            religion: 'Islam', // Default or map if available
-            category: 'General' // Default
+            religion: row['Religion'] || 'Islam', // Default or map if available
+            category: categoryToSet
           },
           
           contactInfo: {
-             phone: row['Mobile Number'] || row['Whatsapp Mobile Number'] || undefined,
+             phone: row['Mobile Number'] || row['Mobile'] || row['Whatsapp Mobile Number'] || undefined,
              alternatePhone: row['Whatsapp Mobile Number'] || undefined,
              currentAddress: {
-               street: row['Student Address'] || undefined
+               street: row['Student Address'] || row['Address'] || undefined
              },
              permanentAddress: {
-               street: row['Student Address'] || undefined
+               street: row['Student Address'] || row['Address'] || undefined
              }
           },
           
           guardianInfo: {
             fatherName: row['Father Name'],
             // Map other fields
-            fatherCnic: row['Guardian CNIC'], // As requested mapping: Guardian CNIC -> fatherCnic/guardianCnic? 
-            // User requested: "Guardian CNIC" to... wait, usually Guardian CNIC maps to the actual guardian.
-            // If Father Name is provided, usually Father IS the guardian.
-            // Let's put it in guardianCnic AND fatherCnic if father is the guardian.
-            guardianCnic: row['Guardian CNIC'],
+            fatherCnic: row['Guardian CNIC'] || row['Father CNIC'], 
+            guardianCnic: row['Guardian CNIC'] || row['Father CNIC'],
             guardianName: row['Father Name'], // Default to father
             guardianRelation: 'Father'
           },
           
           studentId: undefined, // Will be set if we enroll them
-          status: row['Student Status'] ? 'approved' : 'pending', // If status provided, assume approved/migrated
+          status: (row['Student Status'] || row['Status']) ? 'approved' : 'pending', // If status provided, assume approved/migrated
           
           // Additional custom fields storage if needed (maybe in remarks or a generic field?)
           // For now, we only map standard fields.

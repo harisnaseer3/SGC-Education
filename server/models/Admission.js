@@ -51,8 +51,7 @@ const admissionSchema = new mongoose.Schema({
       trim: true
     },
     dateOfBirth: {
-      type: Date,
-      required: [true, 'Please provide date of birth']
+      type: Date
     },
     gender: {
       type: String,
