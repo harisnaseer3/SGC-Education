@@ -50,6 +50,19 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   else if (req.user.role === 'super_admin') {
     // No filters - show everything
   }
+  // For finance manager (scoped to their organization's institutions)
+  else if (req.user.role === 'finance_manager') {
+    if (!req.user.organization) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any organization.');
+    }
+    const orgId = req.user.organization._id || req.user.organization;
+    const institutions = await Institution.find({ organization: orgId }).select('_id name code');
+    const institutionIds = institutions.map(i => i._id);
+    institutionQuery = { _id: { $in: institutionIds } };
+    referenceQuery = { institution: { $in: institutionIds } };
+    userQuery = { institution: { $in: institutionIds } };
+    req.financeInstitutions = institutions; // Save for breakdown
+  }
   else {
     throw new ApiError(403, 'Access denied. Admin access required.');
   }
@@ -164,6 +177,34 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const totalReceivable = financialStats[1][0]?.totalReceivable || 0;
   const lastMonthTotal = lastMonthFees[0]?.total || 0;
 
+  // Campus Breakdown for Finance Managers
+  let campusBreakdown = [];
+  if (req.user.role === 'finance_manager' && req.financeInstitutions) {
+    campusBreakdown = await Promise.all(req.financeInstitutions.map(async (inst) => {
+      const instQuery = { institution: inst._id };
+      const [students, received, receivable] = await Promise.all([
+        User.countDocuments({ ...instQuery, role: 'student' }),
+        FeePayment.aggregate([
+          { $match: { ...instQuery, status: 'completed' } },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]),
+        StudentFee.aggregate([
+          { $match: { ...instQuery, isActive: true } },
+          { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+        ])
+      ]);
+      
+      return {
+        _id: inst._id,
+        name: inst.name,
+        code: inst.code,
+        students,
+        received: received[0]?.total || 0,
+        receivable: receivable[0]?.total || 0
+      };
+    }));
+  }
+
   res.json({
     success: true,
     data: {
@@ -199,7 +240,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         overdueFees: overdueFeesCount
       },
       upcomingEvents,
-      recentInstitutions
+      recentInstitutions,
+      campusBreakdown
     }
   });
 });
@@ -241,6 +283,17 @@ const getAnalytics = asyncHandler(async (req, res) => {
   }
   else if (req.user.role === 'super_admin') {
     // No specific institution filter
+  }
+  else if (req.user.role === 'finance_manager') {
+    if (!req.user.organization) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any organization.');
+    }
+    const orgId = req.user.organization._id || req.user.organization;
+    const institutions = await Institution.find({ organization: orgId }).select('_id');
+    const institutionIds = institutions.map(i => i._id);
+    institutionGrowthMatch._id = { $in: institutionIds };
+    userMatch.institution = { $in: institutionIds };
+    groupMatch.institution = { $in: institutionIds };
   }
   else {
     throw new ApiError(403, 'Access denied. Admin access required.');

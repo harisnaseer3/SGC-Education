@@ -38,6 +38,7 @@ import axios from 'axios';
 import { getApiUrl } from '../config/api';
 import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
+import FinanceDashboard from './FinanceDashboard';
 
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -280,6 +281,10 @@ const Dashboard = () => {
       </Box>
     </Box>
   );
+
+  if (user.role === 'finance_manager') {
+    return <FinanceDashboard />;
+  }
 
   if (loading) {
     return (

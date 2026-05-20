@@ -16,7 +16,7 @@ const organizationSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['school', 'college', 'mixed'],
+    enum: ['school_level', 'college_level', 'university_level', 'mixed'],
     default: 'mixed'
   },
   description: {

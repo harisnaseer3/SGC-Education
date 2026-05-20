@@ -7,7 +7,8 @@ const USER_ROLES = {
   ADMIN: 'admin',
   SCHOOL_ADMIN: 'school_admin', // Deprecated, use ADMIN
   TEACHER: 'teacher',
-  STUDENT: 'student'
+  STUDENT: 'student',
+  FINANCE_MANAGER: 'finance_manager'
 };
 
 const INSTITUTION_TYPES = {

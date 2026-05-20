@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import Institutions from './pages/Institutions';
 import InstitutionForm from './pages/InstitutionForm';
+import Organizations from './pages/Organizations';
+import OrganizationForm from './pages/OrganizationForm';
 import Classes from './pages/Classes';
 import ClassForm from './pages/ClassForm';
 import Sections from './pages/Sections';
@@ -74,6 +76,8 @@ const ProtectedRoute = ({ children, title, permission }) => {
     const titleMap = {
       '/dashboard': 'Dashboard',
       '/profile': 'Profile',
+      '/organizations': 'Organizations',
+      '/organizations/new': 'Create Organization',
       '/institutions': 'Institutions',
       '/institutions/new': 'Create Institution',
       '/classes': 'Classes',
@@ -94,6 +98,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
     
     // Check for edit routes
     if (path.includes('/edit/')) {
+      if (path.includes('/organizations')) return 'Edit Organization';
       if (path.includes('/institutions')) return 'Edit Institution';
       if (path.includes('/classes')) return 'Edit Class';
       if (path.includes('/sections')) return 'Edit Section';
@@ -105,6 +110,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
     
     // Check for new routes
     if (path.includes('/new')) {
+      if (path.includes('/organizations')) return 'Create Organization';
       if (path.includes('/institutions')) return 'Create Institution';
       if (path.includes('/classes')) return 'Create Class';
       if (path.includes('/sections')) return 'Create Section';
@@ -170,6 +176,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
+                <Organizations />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/new"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
+                <OrganizationForm />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/organizations/edit/:id"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
+                <OrganizationForm />
               </ProtectedRoute>
             }
           />

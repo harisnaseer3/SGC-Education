@@ -22,7 +22,8 @@ const authenticate = async (req, res, next) => {
     // Get user from database with institution populated
     const user = await User.findById(decoded.id)
       .select('-password')
-      .populate('institution', '_id name code');
+      .populate('institution', '_id name code')
+      .populate('organization', '_id name code');
 
     if (!user) {
       return res.status(401).json({

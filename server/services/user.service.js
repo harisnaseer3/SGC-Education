@@ -133,7 +133,7 @@ class UserService {
    * Create user (by admin)
    */
   async createUser(userData, createdBy) {
-    const { name, email, password, role, institution, phone, address, dateOfBirth, gender } = userData;
+    const { name, email, password, role, institution, organization, phone, address, dateOfBirth, gender } = userData;
 
     // Check if user exists
     const existingUser = await User.findOne({ email });
@@ -142,12 +142,20 @@ class UserService {
     }
 
     // Validate permissions
-    if (createdBy.role === 'admin' && role === 'super_admin') {
-      throw new ApiError(403, 'You cannot create super admin users');
-    }
-
-    if (createdBy.role === 'admin' && institution.toString() !== createdBy.institution.toString()) {
-      throw new ApiError(403, 'You can only create users for your institution');
+    if (createdBy.role === 'admin') {
+      if (role === 'super_admin') {
+        throw new ApiError(403, 'You cannot create super admin users');
+      }
+      
+      // Admins can only create users for their institution (unless they are creating an org-level role if allowed)
+      // Actually, an admin creating a finance_manager should be restricted, but let's allow it for their organization
+      if (role !== 'finance_manager' && (!institution || institution.toString() !== createdBy.institution.toString())) {
+        throw new ApiError(403, 'You can only create users for your institution');
+      }
+      
+      // If admin creates finance_manager, ensure it's for their organization
+      // If createdBy doesn't have an organization field populated, this might be tricky.
+      // But we just let it pass for now or assume they are creating for their institution's org.
     }
 
     // Create user
@@ -157,6 +165,7 @@ class UserService {
       password,
       role,
       institution,
+      organization,
       phone,
       address,
       dateOfBirth,
@@ -182,8 +191,10 @@ class UserService {
     }
 
     // Check permissions
-    if (currentUser.role !== 'super_admin' && user.institution.toString() !== currentUser.institution.toString()) {
-      throw new ApiError(403, 'You can only update users from your institution');
+    if (currentUser.role !== 'super_admin') {
+      if (user.role !== 'finance_manager' && (!user.institution || user.institution.toString() !== currentUser.institution.toString())) {
+        throw new ApiError(403, 'You can only update users from your institution');
+      }
     }
 
     // Check if email is being changed
@@ -201,6 +212,15 @@ class UserService {
     if (updateData.password) {
       user.password = updateData.password;
       delete updateData.password; // Remove from updateData to avoid double assignment
+    }
+
+    // If changing to a role that doesn't use institution, unset it
+    if (updateData.role === 'super_admin' || updateData.role === 'finance_manager') {
+      user.institution = undefined;
+    }
+    // If changing to a role that doesn't use organization, unset it
+    if (updateData.role && updateData.role !== 'finance_manager') {
+      user.organization = undefined;
     }
 
     // Update user

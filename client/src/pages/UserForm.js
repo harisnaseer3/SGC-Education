@@ -60,6 +60,7 @@ const UserForm = () => {
   const [departments, setDepartments] = useState([]);
   const [allDepartments, setAllDepartments] = useState([]);
   const [roles, setRoles] = useState([]); // Dynamic roles state
+  const [organizations, setOrganizations] = useState([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -68,6 +69,7 @@ const UserForm = () => {
     confirmPassword: '',
     role: 'student',
     institution: '',
+    organization: '',
     department: '',
     phone: '',
   });
@@ -84,6 +86,7 @@ const UserForm = () => {
     fetchInstitutions();
     fetchDepartments();
     fetchRoles();
+    fetchOrganizations();
 
     if (isEditMode) {
       fetchUser();
@@ -138,6 +141,18 @@ const UserForm = () => {
     }
   };
 
+  const fetchOrganizations = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(getApiUrl('organizations'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setOrganizations(response.data.data);
+    } catch (err) {
+      console.error('Failed to fetch organizations:', err);
+    }
+  };
+
   const fetchUser = async () => {
     try {
       setFetchLoading(true);
@@ -157,6 +172,7 @@ const UserForm = () => {
         confirmPassword: '',
         role: userData.role || 'student',
         institution: userData.institution?._id || userData.institution || '',
+        organization: userData.organization?._id || userData.organization || '',
         department: userData.department?._id || userData.department || '',
         phone: userData.phone || '',
       });
@@ -190,9 +206,14 @@ const UserForm = () => {
       return false;
     }
 
-    // Institution is required for all roles except super_admin
-    if (formData.role !== 'super_admin' && !formData.institution) {
+    // Institution is required for all roles except super_admin and finance_manager
+    if (formData.role !== 'super_admin' && formData.role !== 'finance_manager' && !formData.institution) {
       setError('Institution is required for this role');
+      return false;
+    }
+
+    if (formData.role === 'finance_manager' && !formData.organization) {
+      setError('Organization is required for Finance Manager');
       return false;
     }
 
@@ -245,11 +266,15 @@ const UserForm = () => {
         delete submitData.password;
       }
 
-      // Remove institution field if role is super_admin or if it's empty
-      if (submitData.role === 'super_admin') {
+      // Remove institution field if role is super_admin or finance_manager or if it's empty
+      if (submitData.role === 'super_admin' || submitData.role === 'finance_manager') {
         delete submitData.institution;
       } else if (!submitData.institution || submitData.institution === '') {
         delete submitData.institution;
+      }
+
+      if (submitData.role !== 'finance_manager') {
+        delete submitData.organization;
       }
 
       // Remove department if it's empty
@@ -569,45 +594,82 @@ const UserForm = () => {
               <CardContent sx={{ p: 3 }}>
                 <Grid container spacing={3}>
                   <Grid item xs={12} md={6}>
-                    <FormControl 
-                      fullWidth 
-                      required={formData.role !== 'super_admin'}
-                      disabled={formData.role === 'super_admin'}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 2,
-                        }
-                      }}
-                    >
-                      <InputLabel>Institution</InputLabel>
-                      <Select
-                        name="institution"
-                        value={formData.institution}
-                        onChange={handleChange}
-                        label="Institution"
-                        disabled={!isSuperAdmin || formData.role === 'super_admin'}
-                        startAdornment={
-                          <InputAdornment position="start" sx={{ ml: 1 }}>
-                            <School color="action" />
-                          </InputAdornment>
-                        }
+                    {formData.role === 'finance_manager' ? (
+                      <FormControl 
+                        fullWidth 
+                        required
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
                       >
-                        {institutions.length === 0 ? (
-                          <MenuItem disabled>No institutions available</MenuItem>
-                        ) : (
-                          institutions.map((inst) => (
-                            <MenuItem key={inst._id} value={inst._id}>
-                              <Box>
-                                <Typography variant="body1">{inst.name}</Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                  {inst.code} • {inst.type}
-                                </Typography>
-                              </Box>
-                            </MenuItem>
-                          ))
-                        )}
-                      </Select>
-                    </FormControl>
+                        <InputLabel>Organization</InputLabel>
+                        <Select
+                          name="organization"
+                          value={formData.organization}
+                          onChange={handleChange}
+                          label="Organization"
+                          startAdornment={
+                            <InputAdornment position="start" sx={{ ml: 1 }}>
+                              <Business color="action" />
+                            </InputAdornment>
+                          }
+                        >
+                          {organizations.length === 0 ? (
+                            <MenuItem disabled>No organizations available</MenuItem>
+                          ) : (
+                            organizations.map((org) => (
+                              <MenuItem key={org._id} value={org._id}>
+                                <Box>
+                                  <Typography variant="body1">{org.name}</Typography>
+                                </Box>
+                              </MenuItem>
+                            ))
+                          )}
+                        </Select>
+                      </FormControl>
+                    ) : (
+                      <FormControl 
+                        fullWidth 
+                        required={formData.role !== 'super_admin'}
+                        disabled={formData.role === 'super_admin'}
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            borderRadius: 2,
+                          }
+                        }}
+                      >
+                        <InputLabel>Institution</InputLabel>
+                        <Select
+                          name="institution"
+                          value={formData.institution}
+                          onChange={handleChange}
+                          label="Institution"
+                          disabled={!isSuperAdmin || formData.role === 'super_admin'}
+                          startAdornment={
+                            <InputAdornment position="start" sx={{ ml: 1 }}>
+                              <School color="action" />
+                            </InputAdornment>
+                          }
+                        >
+                          {institutions.length === 0 ? (
+                            <MenuItem disabled>No institutions available</MenuItem>
+                          ) : (
+                            institutions.map((inst) => (
+                              <MenuItem key={inst._id} value={inst._id}>
+                                <Box>
+                                  <Typography variant="body1">{inst.name}</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {inst.code} • {inst.type}
+                                  </Typography>
+                                </Box>
+                              </MenuItem>
+                            ))
+                          )}
+                        </Select>
+                      </FormControl>
+                    )}
                     {formData.role === 'super_admin' && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
                         Super Admin has access to all institutions

@@ -34,8 +34,11 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [step, setStep] = useState(1); // 1: credentials, 2: institution selection
+  const [step, setStep] = useState(1); // 1: credentials, 2: organization selection, 3: institution selection
   const [userInfo, setUserInfo] = useState(null);
+  const [organizations, setOrganizations] = useState([]);
+  const [selectedOrganization, setSelectedOrganization] = useState('');
+  const [loadingOrganizations, setLoadingOrganizations] = useState(false);
   const [institutions, setInstitutions] = useState([]);
   const [selectedInstitution, setSelectedInstitution] = useState('');
   const [loadingInstitutions, setLoadingInstitutions] = useState(false);
@@ -48,25 +51,38 @@ const Login = () => {
     setError('');
   };
 
-  const fetchInstitutions = async (token, user) => {
+  const fetchOrganizations = async (token, user) => {
+    try {
+      setLoadingOrganizations(true);
+      const response = await axios.get(getApiUrl('organizations'), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const fetchedOrgs = response.data.data || [];
+      setOrganizations(fetchedOrgs);
+      
+      if (fetchedOrgs.length === 0 && user) {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+        window.location.href = '/dashboard';
+      }
+    } catch (err) {
+      setError('Failed to load organizations');
+    } finally {
+      setLoadingOrganizations(false);
+    }
+  };
+
+  const fetchInstitutions = async (token, orgDataStr) => {
     try {
       setLoadingInstitutions(true);
-      const response = await axios.get(getApiUrl('institutions'), {
+      const org = JSON.parse(orgDataStr);
+      const response = await axios.get(getApiUrl(`organizations/${org._id}/institutions`), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const fetchedInstitutions = response.data.data || [];
       setInstitutions(fetchedInstitutions);
-      
-      // If no institutions exist, allow super admin to proceed without selecting
-      if (fetchedInstitutions.length === 0 && user) {
-        // Store authentication data without institution
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
-        // Redirect to dashboard - they can create institution from there
-        window.location.href = '/dashboard';
-      }
     } catch (err) {
-      setError('Failed to load institutions');
+      setError('Failed to load campuses');
     } finally {
       setLoadingInstitutions(false);
     }
@@ -87,15 +103,20 @@ const Login = () => {
 
       // Check if user is super admin
       if (user.role === 'super_admin') {
-        // Move to institution selection step
+        // Move to organization selection step
         setStep(2);
-        await fetchInstitutions(token, user);
+        await fetchOrganizations(token, user);
         setLoading(false);
       } else {
-        // For regular admin, auto-select their institution and proceed
+        // For regular admin, auto-select their institution and organization, then proceed
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
-        localStorage.setItem('selectedInstitution', JSON.stringify(user.institution));
+        if (user.institution) {
+          localStorage.setItem('selectedInstitution', JSON.stringify(user.institution));
+        }
+        if (user.organization) {
+          localStorage.setItem('selectedOrganization', JSON.stringify(user.organization));
+        }
 
         // Redirect to dashboard
         window.location.href = '/dashboard';
@@ -106,15 +127,25 @@ const Login = () => {
     }
   };
 
+  const handleOrganizationSelect = async () => {
+    if (!selectedOrganization) {
+      setError('Please select an organization');
+      return;
+    }
+    setStep(3);
+    await fetchInstitutions(userInfo.token, selectedOrganization);
+  };
+
   const handleInstitutionSelect = () => {
     if (!selectedInstitution) {
-      setError('Please select an institution');
+      setError('Please select a campus');
       return;
     }
 
-    // Store authentication data with selected institution
+    // Store authentication data with selected institution and organization
     localStorage.setItem('token', userInfo.token);
     localStorage.setItem('user', JSON.stringify(userInfo.user));
+    localStorage.setItem('selectedOrganization', selectedOrganization);
     localStorage.setItem('selectedInstitution', selectedInstitution);
 
     // Redirect to dashboard
@@ -123,8 +154,17 @@ const Login = () => {
 
   const handleBackToCredentials = () => {
     setStep(1);
+    setSelectedOrganization('');
     setSelectedInstitution('');
     setUserInfo(null);
+    setOrganizations([]);
+    setInstitutions([]);
+    setError('');
+  };
+
+  const handleBackToOrganizations = () => {
+    setStep(2);
+    setSelectedInstitution('');
     setInstitutions([]);
     setError('');
   };
@@ -166,7 +206,7 @@ const Login = () => {
               SGC Education
             </Typography>
             <Typography variant="body1" color="text.secondary">
-              {step === 1 ? 'Super Admin Portal' : 'Select Institution'}
+              {step === 1 ? 'Super Admin Portal' : step === 2 ? 'Select Organization' : 'Select Campus'}
             </Typography>
           </Box>
 
@@ -247,8 +287,91 @@ const Login = () => {
           </form>
           )}
 
-          {/* Step 2: Institution Selection */}
+          {/* Step 2: Organization Selection */}
           {step === 2 && (
+            <Box>
+              {loadingOrganizations ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : organizations.length === 0 ? (
+                <>
+                  <Alert severity="info" sx={{ mb: 3 }}>
+                    No organizations found. You can create your first organization from the dashboard.
+                  </Alert>
+
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="large"
+                    onClick={() => {
+                      localStorage.setItem('token', userInfo.token);
+                      localStorage.setItem('user', JSON.stringify(userInfo.user));
+                      window.location.href = '/dashboard';
+                    }}
+                    sx={{
+                      mt: 3, mb: 2, py: 1.5,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    }}
+                  >
+                    Continue to Dashboard
+                  </Button>
+
+                  <Button fullWidth variant="outlined" onClick={handleBackToCredentials} sx={{ mb: 2 }}>
+                    Back to Login
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Alert severity="info" sx={{ mb: 3 }}>
+                    Welcome, {userInfo?.user?.name}! Please select an organization.
+                  </Alert>
+
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Select Organization</InputLabel>
+                    <Select
+                      value={selectedOrganization}
+                      onChange={(e) => setSelectedOrganization(e.target.value)}
+                      label="Select Organization"
+                      startAdornment={<InputAdornment position="start"><Business color="action" /></InputAdornment>}
+                    >
+                      {organizations.map((org) => (
+                        <MenuItem key={org._id} value={JSON.stringify(org)}>
+                          <Box>
+                            <Typography variant="body1">{org.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {org.code} • {org.type}
+                            </Typography>
+                          </Box>
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <Button
+                    fullWidth
+                    variant="contained"
+                    size="large"
+                    onClick={handleOrganizationSelect}
+                    disabled={!selectedOrganization}
+                    sx={{
+                      mt: 3, mb: 2, py: 1.5,
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    }}
+                  >
+                    Next Step
+                  </Button>
+
+                  <Button fullWidth variant="outlined" onClick={handleBackToCredentials} sx={{ mb: 2 }}>
+                    Back to Login
+                  </Button>
+                </>
+              )}
+            </Box>
+          )}
+
+          {/* Step 3: Institution/Campus Selection */}
+          {step === 3 && (
             <Box>
               {loadingInstitutions ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
@@ -257,7 +380,7 @@ const Login = () => {
               ) : institutions.length === 0 ? (
                 <>
                   <Alert severity="info" sx={{ mb: 3 }}>
-                    No institutions found. You can create your first institution from the dashboard.
+                    No campuses found for this organization.
                   </Alert>
 
                   <Button
@@ -265,51 +388,36 @@ const Login = () => {
                     variant="contained"
                     size="large"
                     onClick={() => {
-                      // Store authentication data without institution
                       localStorage.setItem('token', userInfo.token);
                       localStorage.setItem('user', JSON.stringify(userInfo.user));
-                      // Redirect to dashboard
+                      localStorage.setItem('selectedOrganization', selectedOrganization);
                       window.location.href = '/dashboard';
                     }}
                     sx={{
-                      mt: 3,
-                      mb: 2,
-                      py: 1.5,
+                      mt: 3, mb: 2, py: 1.5,
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
-                      },
                     }}
                   >
                     Continue to Dashboard
                   </Button>
 
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    onClick={handleBackToCredentials}
-                    sx={{ mb: 2 }}
-                  >
-                    Back to Login
+                  <Button fullWidth variant="outlined" onClick={handleBackToOrganizations} sx={{ mb: 2 }}>
+                    Back to Organizations
                   </Button>
                 </>
               ) : (
                 <>
-                  <Alert severity="info" sx={{ mb: 3 }}>
-                    Welcome, {userInfo?.user?.name}! Please select an institution to manage.
+                  <Alert severity="success" sx={{ mb: 3 }}>
+                    Organization selected. Now, select a specific campus.
                   </Alert>
 
                   <FormControl fullWidth margin="normal">
-                    <InputLabel>Select Institution</InputLabel>
+                    <InputLabel>Select Campus</InputLabel>
                     <Select
                       value={selectedInstitution}
                       onChange={(e) => setSelectedInstitution(e.target.value)}
-                      label="Select Institution"
-                      startAdornment={
-                        <InputAdornment position="start">
-                          <Business color="action" />
-                        </InputAdornment>
-                      }
+                      label="Select Campus"
+                      startAdornment={<InputAdornment position="start"><School color="action" /></InputAdornment>}
                     >
                       {institutions.map((institution) => (
                         <MenuItem key={institution._id} value={JSON.stringify(institution)}>
@@ -331,25 +439,15 @@ const Login = () => {
                     onClick={handleInstitutionSelect}
                     disabled={!selectedInstitution}
                     sx={{
-                      mt: 3,
-                      mb: 2,
-                      py: 1.5,
+                      mt: 3, mb: 2, py: 1.5,
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      '&:hover': {
-                        background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
-                      },
                     }}
                   >
-                    Continue to Dashboard
+                    Enter Dashboard
                   </Button>
 
-                  <Button
-                    fullWidth
-                    variant="outlined"
-                    onClick={handleBackToCredentials}
-                    sx={{ mb: 2 }}
-                  >
-                    Back to Login
+                  <Button fullWidth variant="outlined" onClick={handleBackToOrganizations} sx={{ mb: 2 }}>
+                    Back to Organizations
                   </Button>
                 </>
               )}

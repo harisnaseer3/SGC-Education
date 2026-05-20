@@ -28,7 +28,14 @@ const userSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Institution',
     required: function() {
-      return this.role !== 'super_admin';
+      return this.role !== 'super_admin' && this.role !== 'finance_manager';
+    }
+  },
+  organization: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organization',
+    required: function() {
+      return this.role === 'finance_manager';
     }
   },
   phone: {

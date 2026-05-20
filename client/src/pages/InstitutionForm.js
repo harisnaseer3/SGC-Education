@@ -979,8 +979,9 @@ const InstitutionForm = () => {
                   onChange={(e) => setOrgFormData({ ...orgFormData, type: e.target.value })}
                   label="Type"
                 >
-                  <MenuItem value="school">School</MenuItem>
-                  <MenuItem value="college">College</MenuItem>
+                  <MenuItem value="school_level">School Level</MenuItem>
+                  <MenuItem value="college_level">College Level</MenuItem>
+                  <MenuItem value="university_level">University Level</MenuItem>
                   <MenuItem value="mixed">Mixed</MenuItem>
                 </Select>
               </FormControl>
