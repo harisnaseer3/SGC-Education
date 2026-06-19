@@ -288,7 +288,6 @@ const FinanceDashboard = () => {
 
       {dashboardData && (
         <>
-          {/* Key Overviews (Summary Cards) */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
             {[
               { 
@@ -313,23 +312,38 @@ const FinanceDashboard = () => {
                 subtitle: 'Unpaid remaining balance' 
               },
               { 
+                title: 'Total Students', 
+                value: (dashboardData?.overview?.totalStudents || 0).toLocaleString(), 
+                icon: <People />, 
+                color: '#8b5cf6', 
+                subtitle: 'All application statuses combined' 
+              },
+              { 
                 title: 'Active Students', 
                 value: (dashboardData?.overview?.activeStudents || 0).toLocaleString(), 
                 icon: <People />, 
                 color: '#0ea5e9', 
-                subtitle: `New Admissions: ${dashboardData?.overview?.newAdmissions || 0}` 
+                subtitle: 'Students with enrolled status' 
+              },
+              { 
+                title: 'New Admissions', 
+                value: (dashboardData?.overview?.newAdmissions || 0).toLocaleString(), 
+                icon: <TrendingUp />, 
+                color: '#ec4899', 
+                subtitle: 'Newly enrolled in period' 
               }
             ].map((stat, i) => (
-              <Grid item xs={12} sm={6} lg={3} key={i}>
+              <Grid item xs={12} sm={6} md={4} lg={2} key={i}>
                 <StatCard compact {...stat} />
               </Grid>
             ))}
           </Grid>
 
+
           {/* Charts Section */}
           <Grid container spacing={3} sx={{ mb: 4 }}>
             {/* Area Chart: Fee Collection Trend */}
-            <Grid item xs={12} lg={8}>
+            <Grid item xs={12} lg={6}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', minHeight: 450, display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h6" fontWeight="800">

@@ -52,10 +52,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       }
     }
 
-    // Student filters
+    // Student filters (using Admission model as requested)
     const studentTotalFilter = { institution: { $in: selectedInstitutionIds } };
-    const studentActiveFilter = { institution: { $in: selectedInstitutionIds }, status: 'active' };
-    const studentNewAdmissionsFilter = { institution: { $in: selectedInstitutionIds } };
+    const studentActiveFilter = { institution: { $in: selectedInstitutionIds }, status: 'enrolled' };
+    const studentNewAdmissionsFilter = { institution: { $in: selectedInstitutionIds }, status: 'enrolled' };
     
     if (endDate) {
       const parsedEnd = new Date(endDate);
@@ -73,9 +73,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }
     
     const [totalStudents, activeStudents, newAdmissions] = await Promise.all([
-      Student.countDocuments(studentTotalFilter),
-      Student.countDocuments(studentActiveFilter),
-      Student.countDocuments(studentNewAdmissionsFilter)
+      Admission.countDocuments(studentTotalFilter),
+      Admission.countDocuments(studentActiveFilter),
+      Admission.countDocuments(studentNewAdmissionsFilter)
     ]);
 
     // Finance counts
@@ -128,10 +128,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         instGeneratedAgg,
         instOutstandingAgg
       ] = await Promise.all([
-        Student.countDocuments({ institution: instId, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
-        Student.countDocuments({ institution: instId, status: 'active', ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
-        Student.countDocuments({ 
+        Admission.countDocuments({ institution: instId, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Admission.countDocuments({ institution: instId, status: 'enrolled', ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Admission.countDocuments({ 
           institution: instId, 
+          status: 'enrolled',
           admissionDate: hasDates 
             ? { $gte: parsedStartDate, $lte: parsedEndDate } 
             : { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } 
@@ -165,7 +166,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     // Trends calculations for charts
     const paymentTrendMatch = { institution: { $in: selectedInstitutionIds }, status: 'completed' };
-    const admissionTrendMatch = { institution: { $in: selectedInstitutionIds } };
+    const admissionTrendMatch = { institution: { $in: selectedInstitutionIds }, status: 'enrolled' };
     
     if (hasDates) {
       paymentTrendMatch.paymentDate = { $gte: parsedStartDate, $lte: parsedEndDate };
@@ -188,7 +189,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         },
         { $sort: { _id: 1 } }
       ]),
-      Student.aggregate([
+      Admission.aggregate([
         { $match: admissionTrendMatch },
         {
           $group: {
