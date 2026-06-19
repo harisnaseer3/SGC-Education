@@ -7,6 +7,7 @@ const StudentFee = require('../models/StudentFee');
 const AcademicCalendar = require('../models/AcademicCalendar');
 const Admission = require('../models/Admission');
 const Group = require('../models/Group');
+const Student = require('../models/Student');
 const { asyncHandler } = require('../middleware/error.middleware');
 const { ApiError } = require('../middleware/error.middleware');
 const { buildInstitutionQuery } = require('../middleware/institution.middleware');
@@ -22,6 +23,208 @@ const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils')
  * @access  Private (Super Admin and Admin)
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
+  // If user is a finance manager, handle with dedicated logic
+  if (req.user.role === 'finance_manager') {
+    if (!req.user.organization) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any organization.');
+    }
+    const orgId = req.user.organization._id || req.user.organization;
+    const institutions = await Institution.find({ organization: orgId }).select('_id name code');
+    const institutionIds = institutions.map(i => i._id);
+
+    const { startDate, endDate, institution } = req.query;
+    const hasDates = startDate && endDate;
+    let parsedStartDate, parsedEndDate;
+    if (hasDates) {
+      parsedStartDate = new Date(startDate);
+      parsedStartDate.setHours(0, 0, 0, 0);
+      parsedEndDate = new Date(endDate);
+      parsedEndDate.setHours(23, 59, 59, 999);
+    }
+
+    let selectedInstitutionIds = institutionIds;
+    if (institution) {
+      const requestedInstId = extractInstitutionId(institution);
+      if (institutionIds.some(id => id.toString() === requestedInstId.toString())) {
+        selectedInstitutionIds = [new mongoose.Types.ObjectId(requestedInstId)];
+      } else {
+        throw new ApiError(403, 'Access denied. The requested campus does not belong to your organization.');
+      }
+    }
+
+    // Student filters
+    const studentTotalFilter = { institution: { $in: selectedInstitutionIds } };
+    const studentActiveFilter = { institution: { $in: selectedInstitutionIds }, status: 'active' };
+    const studentNewAdmissionsFilter = { institution: { $in: selectedInstitutionIds } };
+    
+    if (endDate) {
+      const parsedEnd = new Date(endDate);
+      parsedEnd.setHours(23, 59, 59, 999);
+      studentTotalFilter.createdAt = { $lte: parsedEnd };
+      studentActiveFilter.createdAt = { $lte: parsedEnd };
+    }
+    
+    if (hasDates) {
+      studentNewAdmissionsFilter.admissionDate = { $gte: parsedStartDate, $lte: parsedEndDate };
+    } else {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      studentNewAdmissionsFilter.admissionDate = { $gte: thirtyDaysAgo };
+    }
+    
+    const [totalStudents, activeStudents, newAdmissions] = await Promise.all([
+      Student.countDocuments(studentTotalFilter),
+      Student.countDocuments(studentActiveFilter),
+      Student.countDocuments(studentNewAdmissionsFilter)
+    ]);
+
+    // Finance counts
+    const paymentMatch = { institution: { $in: selectedInstitutionIds }, status: 'completed' };
+    const feeMatch = { institution: { $in: selectedInstitutionIds }, isActive: true };
+    
+    if (hasDates) {
+      paymentMatch.paymentDate = { $gte: parsedStartDate, $lte: parsedEndDate };
+      feeMatch.createdAt = { $gte: parsedStartDate, $lte: parsedEndDate };
+    }
+    
+    const [receivedAgg, generatedAgg, outstandingAgg] = await Promise.all([
+      FeePayment.aggregate([
+        { $match: paymentMatch },
+        { $group: { _id: null, total: { $sum: '$amount' } } }
+      ]),
+      StudentFee.aggregate([
+        { $match: feeMatch },
+        { $group: { _id: null, total: { $sum: '$finalAmount' } } }
+      ]),
+      StudentFee.aggregate([
+        { $match: feeMatch },
+        { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+      ])
+    ]);
+    
+    const totalReceived = receivedAgg[0]?.total || 0;
+    const totalFeesGenerated = generatedAgg[0]?.total || 0;
+    const totalReceivable = outstandingAgg[0]?.total || 0;
+
+    // Campus Breakdown
+    const campusBreakdown = await Promise.all(institutions.map(async (inst) => {
+      const instId = inst._id;
+      
+      const paymentMatchInst = { institution: instId, status: 'completed' };
+      const feeGeneratedMatchInst = { institution: instId, isActive: true };
+      const feeOutstandingMatchInst = { institution: instId, isActive: true };
+      
+      if (hasDates) {
+        paymentMatchInst.paymentDate = { $gte: parsedStartDate, $lte: parsedEndDate };
+        feeGeneratedMatchInst.createdAt = { $gte: parsedStartDate, $lte: parsedEndDate };
+        feeOutstandingMatchInst.createdAt = { $gte: parsedStartDate, $lte: parsedEndDate };
+      }
+      
+      const [
+        totalStudentsCount,
+        activeStudentsCount,
+        newAdmissionsCount,
+        instReceivedAgg,
+        instGeneratedAgg,
+        instOutstandingAgg
+      ] = await Promise.all([
+        Student.countDocuments({ institution: instId, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Student.countDocuments({ institution: instId, status: 'active', ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Student.countDocuments({ 
+          institution: instId, 
+          admissionDate: hasDates 
+            ? { $gte: parsedStartDate, $lte: parsedEndDate } 
+            : { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } 
+        }),
+        FeePayment.aggregate([
+          { $match: paymentMatchInst },
+          { $group: { _id: null, total: { $sum: '$amount' } } }
+        ]),
+        StudentFee.aggregate([
+          { $match: feeGeneratedMatchInst },
+          { $group: { _id: null, total: { $sum: '$finalAmount' } } }
+        ]),
+        StudentFee.aggregate([
+          { $match: feeOutstandingMatchInst },
+          { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+        ])
+      ]);
+      
+      return {
+        _id: instId,
+        name: inst.name,
+        code: inst.code,
+        totalStudents: totalStudentsCount,
+        activeStudents: activeStudentsCount,
+        newAdmissions: newAdmissionsCount,
+        feesGenerated: instGeneratedAgg[0]?.total || 0,
+        feesCollected: instReceivedAgg[0]?.total || 0,
+        outstandingDues: instOutstandingAgg[0]?.total || 0
+      };
+    }));
+
+    // Trends calculations for charts
+    const paymentTrendMatch = { institution: { $in: selectedInstitutionIds }, status: 'completed' };
+    const admissionTrendMatch = { institution: { $in: selectedInstitutionIds } };
+    
+    if (hasDates) {
+      paymentTrendMatch.paymentDate = { $gte: parsedStartDate, $lte: parsedEndDate };
+      admissionTrendMatch.admissionDate = { $gte: parsedStartDate, $lte: parsedEndDate };
+    } else {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      paymentTrendMatch.paymentDate = { $gte: thirtyDaysAgo };
+      admissionTrendMatch.admissionDate = { $gte: thirtyDaysAgo };
+    }
+    
+    const [feeCollectionTrend, admissionTrend] = await Promise.all([
+      FeePayment.aggregate([
+        { $match: paymentTrendMatch },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$paymentDate', timezone: '+05:00' } },
+            amount: { $sum: '$amount' }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+      Student.aggregate([
+        { $match: admissionTrendMatch },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$admissionDate', timezone: '+05:00' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        overview: {
+          totalInstitutions: institutions.length,
+          activeInstitutions: institutions.length,
+          totalStudents,
+          activeStudents,
+          newAdmissions
+        },
+        finance: {
+          totalReceived,
+          totalReceivable,
+          totalGenerated: totalFeesGenerated,
+          currency: 'PKR'
+        },
+        campusBreakdown,
+        trends: {
+          feeCollectionTrend: feeCollectionTrend.map(t => ({ date: t._id, amount: t.amount })),
+          admissionTrend: admissionTrend.map(t => ({ date: t._id, count: t.count }))
+        }
+      }
+    });
+  }
+
   // Build filters based on user role
   let institutionQuery = {}; // For Institution model (_id)
   let referenceQuery = {};   // For models referring to institution (institution)
