@@ -126,6 +126,13 @@ class UserService {
       .populate('institution', 'name type')
       .sort({ createdAt: -1 });
 
+    console.log('=== GET USERS SERVICE ===', {
+      filters,
+      currentUserRole: currentUser.role,
+      queryObject: query,
+      returnedCount: users.length
+    });
+
     return users;
   }
 

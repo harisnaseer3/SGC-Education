@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Paper,
@@ -54,15 +54,20 @@ const Users = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [roles, setRoles] = useState([]); // Dynamic roles state
 
+  const isInitialLoad = useRef(true);
+
   useEffect(() => {
-    // Auto-set institution filter from selected institution (but not when filtering by super_admin)
-    const institutionData = localStorage.getItem('selectedInstitution');
-    if (institutionData && !institutionFilter && roleFilter !== 'super_admin') {
-      try {
-        const institution = JSON.parse(institutionData);
-        setInstitutionFilter(institution._id);
-      } catch (e) {
-        console.error('Failed to parse institution data', e);
+    if (isInitialLoad.current) {
+      isInitialLoad.current = false;
+      const institutionData = localStorage.getItem('selectedInstitution');
+      if (institutionData && roleFilter !== 'super_admin') {
+        try {
+          const institution = JSON.parse(institutionData);
+          setInstitutionFilter(institution._id);
+          return;
+        } catch (e) {
+          console.error('Failed to parse institution data', e);
+        }
       }
     }
 

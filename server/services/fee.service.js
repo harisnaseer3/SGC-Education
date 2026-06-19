@@ -718,7 +718,7 @@ class FeeService {
           },
           {
             path: 'admission',
-            select: 'applicationNumber personalInfo guardianInfo class section admissionEffectiveDate admissionDate createdAt',
+            select: 'applicationNumber personalInfo guardianInfo class section admissionEffectiveDate admissionDate createdAt statusHistory',
             populate: [
               {
                 path: 'class',
@@ -786,7 +786,8 @@ class FeeService {
       _id: { $in: studentIds },
       isActive: true
     })
-      .populate('institution');
+      .populate('institution')
+      .populate('admission');
 
     // If not found, try to find by admission ID
     if (students.length === 0) {
@@ -806,12 +807,35 @@ class FeeService {
           _id: { $in: actualStudentIds },
           isActive: true
         })
-          .populate('institution');
+          .populate('institution')
+          .populate('admission');
       }
     }
 
     if (students.length === 0) {
       throw new ApiError(404, 'No active students found');
+    }
+
+    // Filter out students who are struck off BEFORE the voucher month ends
+    const voucherEndDate = new Date(year, month, 0, 23, 59, 59, 999);
+    students = students.filter(student => {
+      const isStruckOff = student.status === 'struck_off' || (student.admission && student.admission.status === 'struck_off');
+      if (isStruckOff && student.admission) {
+        // Sort history by changedAt descending to get the latest struck_off record if multiple exist
+        const history = student.admission.statusHistory ? [...student.admission.statusHistory].sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt)) : [];
+        const struckOffRecord = history.find(h => h.status === 'struck_off');
+        const struckOffDate = struckOffRecord && struckOffRecord.changedAt ? new Date(struckOffRecord.changedAt) : new Date(student.admission.updatedAt || new Date());
+        
+        // If struck off before the end of the voucher month, exclude
+        if (struckOffDate <= voucherEndDate) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (students.length === 0) {
+      throw new ApiError(404, 'No eligible students found for voucher generation in this period');
     }
 
     const actualStudentIds = students.map(s => s._id);

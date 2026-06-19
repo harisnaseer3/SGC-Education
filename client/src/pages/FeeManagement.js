@@ -1134,7 +1134,7 @@ const FeeManagement = () => {
             class: studentFee.class?.name || admission?.class?.name || 'N/A',
             classId: studentFee.class?._id || admission?.class?._id || null,
             section: admission?.section?.name || 'N/A',
-            status: student?.status || admission?.status || 'active',
+            status: (student?.status === 'struck_off' || admission?.status === 'struck_off') ? 'Struck Off' : (student?.status || admission?.status || 'Active').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
             voucherStatus: voucherStatus
           });
         }
@@ -1191,7 +1191,19 @@ const FeeManagement = () => {
           }
           
           // Compare admission date with cutoff date
-          const shouldInclude = studentAdmissionDate <= cutoffDate;
+          let shouldInclude = studentAdmissionDate <= cutoffDate;
+          
+          // Exclude if struck off before the end of the voucher month
+          const isStruckOff = student.status === 'struck_off' || admission.status === 'struck_off';
+          if (shouldInclude && isStruckOff) {
+            const history = admission.statusHistory ? [...admission.statusHistory].sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt)) : [];
+            const struckOffRecord = history.find(h => h.status === 'struck_off');
+            const struckOffDate = struckOffRecord && struckOffRecord.changedAt ? new Date(struckOffRecord.changedAt) : new Date(admission.updatedAt || new Date());
+            const voucherEndDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
+            if (struckOffDate <= voucherEndDate) {
+              shouldInclude = false;
+            }
+          }
           
           return shouldInclude;
 
