@@ -216,7 +216,8 @@ const FeeManagement = () => {
     name: '',
     id: '',
     rollNumber: '',
-    class: ''
+    class: '',
+    voucherStatus: ''
   });
   const [generateVoucherStudents, setGenerateVoucherStudents] = useState([]);
   const [selectedGenerateVoucherStudents, setSelectedGenerateVoucherStudents] = useState([]);
@@ -307,8 +308,17 @@ const FeeManagement = () => {
     name: '',
     id: '',
     rollNumber: '',
-    class: ''
+    class: '',
+    feeStatus: ''
   });
+
+  // Reset pagination when Assign Fee Structure filters change
+  useEffect(() => {
+    setPagination(prev => ({
+      ...prev,
+      assignFeeStructure: { ...prev.assignFeeStructure, page: 0 }
+    }));
+  }, [assignFeeStructureFilters]);
   const [feeStructureDialogMode, setFeeStructureDialogMode] = useState('assign'); // 'assign' | 'update'
   const [selectedAssignFeeStructureStudents, setSelectedAssignFeeStructureStudents] = useState([]);
   const [bulkFeeUpdateDialogOpen, setBulkFeeUpdateDialogOpen] = useState(false);
@@ -1618,6 +1628,12 @@ const FeeManagement = () => {
       // Class filter
       if (generateVoucherFilters.class && 
           student.class !== generateVoucherFilters.class) {
+        return false;
+      }
+
+      // Voucher Status filter
+      if (generateVoucherFilters.voucherStatus &&
+          student.voucherStatus !== generateVoucherFilters.voucherStatus) {
         return false;
       }
 
@@ -3024,6 +3040,17 @@ const FeeManagement = () => {
         return false;
       }
 
+      // Fee assigned status filter
+      if (assignFeeStructureFilters.feeStatus) {
+        const isAssigned = student.hasAssignedFee;
+        if (assignFeeStructureFilters.feeStatus === 'assigned' && !isAssigned) {
+          return false;
+        }
+        if (assignFeeStructureFilters.feeStatus === 'not_assigned' && isAssigned) {
+          return false;
+        }
+      }
+
       return true;
     });
   };
@@ -4105,7 +4132,7 @@ const FeeManagement = () => {
             {/* Filter Section */}
             <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={2.5}>
                   <TextField
                     label="Student Name"
                     variant="outlined"
@@ -4116,7 +4143,7 @@ const FeeManagement = () => {
                     placeholder="Search by name..."
                   />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid item xs={12} sm={6} md={1.5}>
                   <TextField
                     label="ID / Admission #"
                     variant="outlined"
@@ -4127,7 +4154,7 @@ const FeeManagement = () => {
                     placeholder="Search by ID..."
                   />
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid item xs={12} sm={6} md={1.5}>
                   <TextField
                     label="Roll Number"
                     variant="outlined"
@@ -4138,7 +4165,7 @@ const FeeManagement = () => {
                     placeholder="Search by roll..."
                   />
                 </Grid>
-                <Grid item xs={12} sm={6} md={3}>
+                <Grid item xs={12} sm={6} md={2}>
                   <FormControl fullWidth variant="outlined" size="small">
                     <InputLabel>Class</InputLabel>
                     <Select
@@ -4153,11 +4180,25 @@ const FeeManagement = () => {
                     </Select>
                   </FormControl>
                 </Grid>
+                <Grid item xs={12} sm={6} md={2.5}>
+                  <FormControl fullWidth variant="outlined" size="small">
+                    <InputLabel>Fee Status</InputLabel>
+                    <Select
+                      value={assignFeeStructureFilters.feeStatus}
+                      onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, feeStatus: e.target.value }))}
+                      label="Fee Status"
+                    >
+                      <MenuItem value="">All Statuses</MenuItem>
+                      <MenuItem value="assigned">Fee Assigned</MenuItem>
+                      <MenuItem value="not_assigned">Not Assigned Fee</MenuItem>
+                    </Select>
+                  </FormControl>
+                </Grid>
                 <Grid item xs={12} sm={6} md={2}>
                   <Button
                     variant="outlined"
                     fullWidth
-                    onClick={() => setAssignFeeStructureFilters({ name: '', id: '', rollNumber: '', class: '' })}
+                    onClick={() => setAssignFeeStructureFilters({ name: '', id: '', rollNumber: '', class: '', feeStatus: '' })}
                     sx={{ borderColor: '#667eea', color: '#667eea' }}
                   >
                     Clear Filters
@@ -4366,10 +4407,24 @@ const FeeManagement = () => {
                         </FormControl>
                       </Grid>
                       <Grid item xs={12} sm={6} md={2}>
+                        <FormControl fullWidth size="small">
+                          <InputLabel>Voucher Status</InputLabel>
+                          <Select
+                            value={generateVoucherFilters.voucherStatus}
+                            onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, voucherStatus: e.target.value })}
+                            label="Voucher Status"
+                          >
+                            <MenuItem value="">All</MenuItem>
+                            <MenuItem value="Generated">Generated</MenuItem>
+                            <MenuItem value="Not Generated">Not Generated</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} sm={6} md={2}>
                         <Button
                           variant="outlined"
                           fullWidth
-                          onClick={() => setGenerateVoucherFilters(prev => ({ ...prev, name: '', id: '', rollNumber: '', class: '' }))}
+                          onClick={() => setGenerateVoucherFilters(prev => ({ ...prev, name: '', id: '', rollNumber: '', class: '', voucherStatus: '' }))}
                           sx={{ borderColor: '#667eea', color: '#667eea' }}
                         >
                           Clear Filters

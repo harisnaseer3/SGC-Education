@@ -385,14 +385,10 @@ const Admissions = () => {
       const admissionsData = await getAllAdmissions(filters);
       let allAdmissions = admissionsData.data || [];
       
-      // Filter for enrolled admissions that have studentId (students)
-      let studentsData = allAdmissions.filter(admission => 
-        admission.status === 'enrolled' && admission.studentId
-      );
+      // Filter for admissions that have studentId (students)
+      let studentsData = allAdmissions.filter(admission => admission.studentId);
       
-      // If status filter is applied, we need to fetch student details
-      // For now, we'll work with enrolled admissions
-      // Map UI statuses to admission/student statuses
+      // If status filter is applied, filter by selected statuses
       const statusMapping = {
         'Enrolled': 'enrolled',
         'Struck Off': 'struck_off',
@@ -404,12 +400,11 @@ const Admissions = () => {
       };
       
       if (allDataStatusFilter && allDataStatusFilter.length > 0 && allDataStatusFilter.length < allStudentStatusOptions.length) {
-        // Filter by selected statuses
         const mappedStatuses = allDataStatusFilter.map(s => statusMapping[s] || s.toLowerCase());
         studentsData = studentsData.filter(admission => {
-          // For now, we'll show all enrolled students
-          // Later, we can filter by actual student status when we have student API
-          return mappedStatuses.includes('enrolled') || mappedStatuses.includes(admission.status?.toLowerCase());
+          const currentStatus = admission.status;
+          const studentStatus = admission.studentId?.status || currentStatus;
+          return mappedStatuses.includes(currentStatus) || mappedStatuses.includes(studentStatus);
         });
       }
       
@@ -1029,7 +1024,7 @@ const Admissions = () => {
         <>
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4, px: 3 }}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={4} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1049,7 +1044,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={4} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1069,7 +1064,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={4} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1089,7 +1084,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid item xs={12} sm={4} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1105,6 +1100,26 @@ const Admissions = () => {
                   <Typography variant="h4" fontWeight="bold" color="#2196f3">{stats.enrolledApplications || 0}</Typography>
                 </Box>
                 <PersonAdd sx={{ fontSize: 40, color: '#2196f3', opacity: 0.7 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={4} md={2.4}>
+          <Card
+            elevation={0}
+            sx={{
+              background: 'linear-gradient(135deg, #e91e6315 0%, #e91e6305 100%)',
+              border: '1px solid #e91e6330',
+              borderRadius: 2,
+            }}
+          >
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="text.secondary" variant="body2">Struck Off</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="#e91e63">{stats.struckOffApplications || 0}</Typography>
+                </Box>
+                <Cancel sx={{ fontSize: 40, color: '#e91e63', opacity: 0.7 }} />
               </Box>
             </CardContent>
           </Card>
@@ -1147,6 +1162,11 @@ const Admissions = () => {
             <Chip
               label={`Enrolled: ${stats.enrolledApplications || 0}`}
               color="info"
+              variant="outlined"
+            />
+            <Chip
+              label={`Struck Off: ${stats.struckOffApplications || 0}`}
+              color="error"
               variant="outlined"
             />
           </Box>
@@ -2587,11 +2607,28 @@ const Admissions = () => {
                     {(() => {
                       const filteredSearchStudents = admissions
                         .filter(admission => {
+                          if (!admission.studentId) return false;
+
+                          const statusMapping = {
+                            'Enrolled': 'enrolled',
+                            'Struck Off': 'struck_off',
+                            'Soft Admission': 'soft_admission',
+                            'Passout': 'passout',
+                            'Expelled': 'expelled',
+                            'Freeze': 'freeze',
+                            'School Leaving': 'school_leaving'
+                          };
+
                           // Apply status filter if studentStatusFilter is set
-                          if (studentStatusFilter.length > 0 && !studentStatusFilter.includes(admission.status)) {
-                            return false;
+                          if (studentStatusFilter.length > 0) {
+                            const mappedFilters = studentStatusFilter.map(s => statusMapping[s] || s.toLowerCase());
+                            const currentStatus = admission.status;
+                            const studentStatus = admission.studentId?.status || currentStatus;
+                            return mappedFilters.includes(currentStatus) || mappedFilters.includes(studentStatus);
                           }
-                          return admission.status === 'enrolled';
+                          
+                          // Default when no status filter is selected: show all students (having studentId)
+                          return true;
                         })
                         .filter(admission => {
                           if (searchTerm) {
