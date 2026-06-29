@@ -226,7 +226,7 @@ export const isValidVoucherNumber = (voucherNumber) => {
   const patterns = [
     /^VCH-\d{4}-\d{2}-\d{6}$/,
     /^RCP-\d{4}-\d{6}$/,
-    /^17340-\d{5,}$/
+    /^\d{5,}$/
   ];
   return patterns.some(pattern => pattern.test(voucherNumber));
 };

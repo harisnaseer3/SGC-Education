@@ -121,8 +121,13 @@ const BankVouchersReport = ({ onBack }) => {
         const admission = studentData.student?.admission || {};
         const className = admission.class?.name || studentData.student?.currentClass?.name || studentData.student?.currentClass || 'Unassigned';
 
+        let vNo = firstVoucher.voucherNumber;
+        if (vNo && vNo.startsWith('17340-')) {
+          vNo = vNo.replace('17340-', '');
+        }
+
         vouchersList.push({
-          voucherNumber: firstVoucher.voucherNumber,
+          voucherNumber: vNo,
           dealerCode: '',
           amount: totalAmount,
           afterDueDateAmount: totalAmount + lateFee,

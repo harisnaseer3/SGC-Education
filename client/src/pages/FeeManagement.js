@@ -930,7 +930,11 @@ const FeeManagement = () => {
               v.voucherNumber
             );
             if (voucher && voucher.voucherNumber) {
-              voucherNumber = voucher.voucherNumber;
+              let vNo = voucher.voucherNumber;
+              if (vNo && vNo.startsWith('17340-')) {
+                vNo = vNo.replace('17340-', '');
+              }
+              voucherNumber = vNo;
               break; // Use the first voucher number found (they should all be the same)
             }
           }
@@ -1849,8 +1853,12 @@ const FeeManagement = () => {
                     const voucherKey = `${voucher.voucherNumber}-${voucher.month}-${voucher.year}`;
                     
                     if (!voucherMap.has(voucherKey)) {
+                      let vNo = voucher.voucherNumber;
+                      if (vNo && vNo.startsWith('17340-')) {
+                        vNo = vNo.replace('17340-', '');
+                      }
                       voucherMap.set(voucherKey, {
-                        voucherNumber: voucher.voucherNumber,
+                        voucherNumber: vNo,
                         month: voucher.month,
                         year: voucher.year,
                         generatedAt: voucher.generatedAt,
@@ -2963,11 +2971,17 @@ const FeeManagement = () => {
       return {
         voucherNo: (() => {
           // Prefer voucher number from feesWithVouchers if available
+          let vNo = 'N/A';
           if (typeof voucherNumber !== 'undefined' && voucherNumber !== 'N/A') {
-            return voucherNumber;
+            vNo = voucherNumber;
+          } else {
+            vNo = admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A';
           }
-          // Fallback to enrollment/application
-          return admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A';
+          // Remove 17340- prefix if it exists
+          if (vNo && vNo.startsWith('17340-')) {
+            vNo = vNo.replace('17340-', '');
+          }
+          return vNo;
         })(),
         rollNo: admission.rollNumber || admission.studentId?.rollNumber || 'N/A',
         feeMonth: formattedFeeMonth,
