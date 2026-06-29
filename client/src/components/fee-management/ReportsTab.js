@@ -20,6 +20,7 @@ import {
 import BankReconciliationReport from './reports/BankReconciliationReport';
 import FeeListReport from './reports/FeeListReport';
 import RemainingBalanceReport from './reports/RemainingBalanceReport';
+import BankVouchersReport from './reports/BankVouchersReport';
 
 const ReportsTab = () => {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -32,6 +33,8 @@ const ReportsTab = () => {
         return <FeeListReport onBack={() => setSelectedReport(null)} />;
       case 'remaining-balance':
         return <RemainingBalanceReport onBack={() => setSelectedReport(null)} />;
+      case 'bank-vouchers':
+        return <BankVouchersReport onBack={() => setSelectedReport(null)} />;
       default:
         return null;
     }
@@ -55,6 +58,12 @@ const ReportsTab = () => {
       title: 'Remaining Balance',
       description: 'Student List with Remaining Balance. Track outstanding dues for all students.',
       icon: <Search sx={{ fontSize: 40, color: '#f89d13' }} />
+    },
+    {
+      id: 'bank-vouchers',
+      title: 'Bank Vouchers',
+      description: 'Detailed report of Bank Vouchers for fee collection.',
+      icon: <Receipt sx={{ fontSize: 40, color: '#4caf50' }} />
     }
   ];
 
