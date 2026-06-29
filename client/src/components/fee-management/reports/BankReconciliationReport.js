@@ -41,10 +41,19 @@ const BankReconciliationReport = ({ onBack }) => {
     bankAccount: ''
   });
 
-  const bankAccounts = [
-    { id: 'allied', name: 'Allied Bank Account No #: -0010000076780246' },
-    { id: 'bankislami', name: 'Bank Islami Account No #: -310000223490001' }
-  ];
+  const [bankAccounts, setBankAccounts] = useState([]);
+
+  useEffect(() => {
+    const fetchBankAccounts = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/bank-accounts`, createAxiosConfig());
+        setBankAccounts(response.data.data || []);
+      } catch (err) {
+        console.error('Error fetching bank accounts:', err);
+      }
+    };
+    fetchBankAccounts();
+  }, []);
 
   useEffect(() => {
     // Load existing data from localStorage
@@ -86,9 +95,9 @@ const BankReconciliationReport = ({ onBack }) => {
       
       // Filter by bank if selected
       if (filters.bankAccount) {
-        const selectedBank = bankAccounts.find(b => b.id === filters.bankAccount);
-        // Find by partial match of the name or ID
-        const bankKey = selectedBank.id === 'allied' ? 'Allied' : 'Islami';
+        const selectedBank = bankAccounts.find(b => b._id === filters.bankAccount);
+        // Find by partial match of the name
+        const bankKey = selectedBank ? selectedBank.bankName : '';
         filteredData = filteredData.filter(p => 
           (p.bankName?.toLowerCase().includes(bankKey.toLowerCase()) ||
           p.remarks?.toLowerCase().includes(bankKey.toLowerCase())) &&
@@ -232,7 +241,7 @@ const BankReconciliationReport = ({ onBack }) => {
               >
                 <MenuItem value="">All Bank Accounts</MenuItem>
                 {bankAccounts.map((acc) => (
-                  <MenuItem key={acc.id} value={acc.id}>{acc.name}</MenuItem>
+                  <MenuItem key={acc._id} value={acc._id}>{acc.bankName} - {acc.accountNumber}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -293,7 +302,7 @@ const BankReconciliationReport = ({ onBack }) => {
               <Typography variant="body2"><b>From:</b> {formatDate(filters.dateFrom)}</Typography>
               <Typography variant="body2"><b>To:</b> {formatDate(filters.dateTo)}</Typography>
               <Typography variant="body2">
-                <b>Account.#</b> {filters.bankAccount ? bankAccounts.find(b => b.id === filters.bankAccount)?.name : 'All Accounts'}
+                <b>Account.#</b> {filters.bankAccount ? bankAccounts.find(b => b._id === filters.bankAccount)?.accountNumber : 'All Accounts'}
               </Typography>
             </Box>
             <Box sx={{ textAlign: 'right' }}>

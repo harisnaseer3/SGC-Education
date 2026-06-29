@@ -97,6 +97,7 @@ export const modules = [
   { name: 'Hostel Management', icon: Hotel, color: '#43e97b', route: null },
   { name: 'Organization Management', icon: Business, color: '#f093fb', route: '/organizations', permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
   { name: 'Campus Management', icon: Business, color: '#667eea', route: '/institutions', permission: PERMISSIONS.INSTITUTIONS.VIEW, superAdminOnly: true },
+  { name: 'Bank Accounts', icon: AccountBalance, color: '#10b981', route: '/bank-accounts', permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
   { name: 'Backup', icon: CloudDownload, color: '#667eea', route: '/backup-management', permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
 ];
 

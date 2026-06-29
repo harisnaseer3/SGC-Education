@@ -202,6 +202,7 @@ const FeeManagement = () => {
     changeDate: new Date().toISOString().split('T')[0]
   });
   const [changeMonthlyFeeDialog, setChangeMonthlyFeeDialog] = useState(false);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [changeMonthlyFeeForm, setChangeMonthlyFeeForm] = useState({
     operation: 'update',
     feeHead: '',
@@ -506,6 +507,20 @@ const FeeManagement = () => {
       }
     };
     fetchAdmissionStatuses();
+  }, []);
+
+  // Fetch bank accounts
+  const fetchBankAccounts = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/bank-accounts`, createAxiosConfig());
+      setBankAccounts(response.data.data || []);
+    } catch (err) {
+      console.error('Error fetching bank accounts:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchBankAccounts();
   }, []);
 
   // Fetch institutions
@@ -5249,18 +5264,23 @@ const FeeManagement = () => {
                             <Select
                               value={manualDepositForm.bankAccount}
                               onChange={(e) => {
-                                const account = e.target.value;
-                                let name = manualDepositForm.bankName;
-                                if (account === 'allied') name = 'Allied Bank';
-                                else if (account === 'bankislami') name = 'Bank Islami';
-                                setManualDepositForm({ ...manualDepositForm, bankAccount: account, bankName: name });
+                                const accountId = e.target.value;
+                                const selectedBank = bankAccounts.find(b => b._id === accountId);
+                                setManualDepositForm({ 
+                                  ...manualDepositForm, 
+                                  bankAccount: accountId, 
+                                  bankName: selectedBank ? selectedBank.bankName : '' 
+                                });
                               }}
                               label="Select Bank Account *"
                               error={!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === ''}
                             >
                               <MenuItem value="">Select Bank Account</MenuItem>
-                              <MenuItem value="allied">Allied Bank - 0010000076780246</MenuItem>
-                              <MenuItem value="bankislami">Bank Islami - 310000223490001</MenuItem>
+                              {bankAccounts.map((bank) => (
+                                <MenuItem key={bank._id} value={bank._id}>
+                                  {bank.bankName} - {bank.accountNumber}
+                                </MenuItem>
+                              ))}
                             </Select>
                             {(!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === '') && (
                               <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>

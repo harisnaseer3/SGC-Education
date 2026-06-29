@@ -33,6 +33,7 @@ import Results from './pages/Results';
 import ResultForm from './pages/ResultForm';
 import BackupManagement from './pages/BackupManagement';
 import RoleManagement from './pages/RoleManagement';
+import BankAccounts from './pages/BankAccounts';
 import usePermissions from './hooks/usePermissions';
 import { PERMISSIONS } from './utils/constants';
 
@@ -92,6 +93,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
       '/student-promotion': 'Student Promotion',
       '/results': 'Results',
       '/backup-management': 'Backup Management',
+      '/bank-accounts': 'Bank Accounts',
     };
     
     // Check for edit routes
@@ -511,6 +513,14 @@ function App() {
             element={
               <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
                 <RoleManagement />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/bank-accounts"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
+                <BankAccounts />
               </ProtectedRoute>
             }
           />

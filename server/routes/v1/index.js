@@ -25,6 +25,7 @@ const organizationRoutes = require('./organization.routes');
 const resultRoutes = require('./result.routes');
 const backupRoutes = require('./backup.routes');
 const roleRoutes = require('./role.routes');
+const bankAccountRoutes = require('./bankAccount.routes');
 
 /**
  * API v1 Routes
@@ -54,12 +55,13 @@ router.use('/organizations', organizationRoutes);
 router.use('/results', resultRoutes);
 router.use('/backups', backupRoutes);
 router.use('/roles', roleRoutes);
+router.use('/bank-accounts', bankAccountRoutes);
 
 // Health check
 router.get('/health', (req, res) => {
   res.json({
     success: true,
-    message: 'API v1 is running',
+    message: 'API v1 is running 12345',
     timestamp: new Date().toISOString()
   });
 });
