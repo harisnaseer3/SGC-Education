@@ -936,8 +936,8 @@ const FeeManagement = () => {
             );
             if (voucher && voucher.voucherNumber) {
               let vNo = voucher.voucherNumber;
-              if (vNo && vNo.startsWith('17340-')) {
-                vNo = vNo.replace('17340-', '');
+              if (vNo && vNo.includes('-')) {
+                vNo = vNo.split('-').pop();
               }
               voucherNumber = vNo;
               break; // Use the first voucher number found (they should all be the same)
@@ -1858,12 +1858,14 @@ const FeeManagement = () => {
                     const voucherKey = `${voucher.voucherNumber}-${voucher.month}-${voucher.year}`;
                     
                     if (!voucherMap.has(voucherKey)) {
-                      let vNo = voucher.voucherNumber;
-                      if (vNo && vNo.startsWith('17340-')) {
-                        vNo = vNo.replace('17340-', '');
+                      let originalVNo = voucher.voucherNumber;
+                      let displayVNo = originalVNo;
+                      if (displayVNo && displayVNo.includes('-')) {
+                        displayVNo = displayVNo.split('-').pop();
                       }
                       voucherMap.set(voucherKey, {
-                        voucherNumber: vNo,
+                        voucherNumber: originalVNo,
+                        displayVoucherNumber: displayVNo,
                         month: voucher.month,
                         year: voucher.year,
                         generatedAt: voucher.generatedAt,
@@ -2025,7 +2027,7 @@ const FeeManagement = () => {
                 
                 studentsWithVouchers.push({
                   ...student,
-                  lastVoucher: voucherInfo.voucherNumber,
+                  lastVoucher: voucherInfo.displayVoucherNumber || voucherInfo.voucherNumber,
                   voucherAmount: voucherAmount,
                   voucherMonth: voucherMonth,
                   voucherStatus: voucherStatus,
@@ -2982,9 +2984,9 @@ const FeeManagement = () => {
           } else {
             vNo = admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A';
           }
-          // Remove 17340- prefix if it exists
-          if (vNo && vNo.startsWith('17340-')) {
-            vNo = vNo.replace('17340-', '');
+          // Remove prefix if it exists
+          if (vNo && vNo.includes('-')) {
+            vNo = vNo.split('-').pop();
           }
           return vNo;
         })(),
