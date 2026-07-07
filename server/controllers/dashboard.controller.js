@@ -366,14 +366,28 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+  let prevMonth = currentMonth - 1;
+  let prevYear = currentYear;
+  if (prevMonth === 0) {
+    prevMonth = 12;
+    prevYear -= 1;
+  }
+
   const [
     financialStats,
     lastMonthFees,
     recentInstitutionsCount,
     recentUsersCount,
     pendingAdmissionsCount,
+    newAdmissionsCount,
     overdueFeesCount,
-    upcomingEvents
+    upcomingEvents,
+    struckOffStudentsCount,
+    allTimeVouchersAgg,
+    currentMonthVouchersAgg,
+    prevMonthVouchersAgg
   ] = await Promise.all([
     // Total Collected, Total Billed, and Total Outstanding
     Promise.all([
@@ -401,13 +415,32 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     User.countDocuments({ ...userQuery, createdAt: { $gte: thirtyDaysAgo } }),
     // New Content: Pending Admissions
     Admission.countDocuments({ ...referenceQuery, status: 'pending' }),
+    // New Content: New Admissions (last 30 days)
+    Admission.countDocuments({ ...referenceQuery, createdAt: { $gte: thirtyDaysAgo } }),
     // New Content: Overdue Fees
     StudentFee.countDocuments({ ...referenceQuery, status: 'overdue', isActive: true }),
     // New Content: Upcoming Events
     AcademicCalendar.find({ 
       ...referenceQuery, 
       startDate: { $gte: new Date() } 
-    }).sort({ startDate: 1 }).limit(5)
+    }).sort({ startDate: 1 }).limit(5),
+    // New Content: Struck Off Students
+    Student.countDocuments({ ...referenceQuery, status: 'struck_off' }),
+    // New Content: Voucher Stats (All Time)
+    StudentFee.aggregate([
+      { $match: { ...referenceQuery, 'vouchers.0': { $exists: true } } },
+      { $group: { _id: null, total: { $sum: 1 }, paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } } } }
+    ]),
+    // New Content: Voucher Stats (Current Month)
+    StudentFee.aggregate([
+      { $match: { ...referenceQuery, vouchers: { $elemMatch: { month: currentMonth, year: currentYear } } } },
+      { $group: { _id: null, total: { $sum: 1 }, paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } } } }
+    ]),
+    // New Content: Voucher Stats (Previous Month)
+    StudentFee.aggregate([
+      { $match: { ...referenceQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } } },
+      { $group: { _id: null, total: { $sum: 1 }, paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } } } }
+    ])
   ]);
 
   const totalCollected = financialStats[0][0]?.totalCollected || 0;
@@ -477,7 +510,14 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       },
       administrative: {
         pendingAdmissions: pendingAdmissionsCount,
-        overdueFees: overdueFeesCount
+        newAdmissions: newAdmissionsCount,
+        overdueFees: overdueFeesCount,
+        struckOffStudents: struckOffStudentsCount
+      },
+      vouchers: {
+        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
+        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
+        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 }
       },
       upcomingEvents,
       recentInstitutions,
