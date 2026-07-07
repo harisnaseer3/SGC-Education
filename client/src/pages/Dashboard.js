@@ -349,28 +349,35 @@ const Dashboard = () => {
                 <Grid container spacing={3} sx={{ mb: 4 }}>
                   {[
                     { 
-                      title: 'Received Fees', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalReceived || 0).toLocaleString()}`, 
+                      title: 'Total Billed', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalBilled || 0).toLocaleString()}`, 
+                      icon: <AccountBalance />, 
+                      color: '#6366f1', 
+                      subtitle: 'Accounts receivable' 
+                    },
+                    { 
+                      title: 'Total Collected', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalCollected || 0).toLocaleString()}`, 
                       icon: <Payment />, 
                       color: '#10b981', 
-                      subtitle: 'Total collections' 
+                      subtitle: 'All-time collections' 
                     },
                     { 
-                      title: 'Receivable Fees', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalReceivable || 0).toLocaleString()}`, 
-                      icon: <AccountBalance />, 
+                      title: 'Total Outstanding', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalOutstanding || 0).toLocaleString()}`, 
+                      icon: <Assessment />, 
                       color: '#f59e0b', 
-                      subtitle: 'Outstanding balance' 
+                      subtitle: 'Total unpaid arrears' 
                     },
                     { 
-                      title: "Last Month's Fees", 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.lastMonthReceived || 0).toLocaleString()}`, 
+                      title: "Last Month Collected", 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.lastMonthCollected || 0).toLocaleString()}`, 
                       icon: <EventAvailable />, 
-                      color: '#6366f1', 
+                      color: '#4facfe', 
                       subtitle: 'Previous month' 
                     }
                   ].map((fin, i) => (
-                    <Grid item xs={12} sm={6} lg={4} key={i}>
+                    <Grid item xs={12} sm={6} lg={3} key={i}>
                       <StatCard compact {...fin} />
                     </Grid>
                   ))}

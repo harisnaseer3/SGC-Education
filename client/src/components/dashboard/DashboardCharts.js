@@ -207,9 +207,13 @@ const DashboardCharts = () => {
       .filter(item => item.value > 0);
 
     // 5. Revenue vs Outstanding
-    const totalReceived = payments
+    const totalCollected = payments
       .filter(p => p.status === 'completed')
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const totalBilled = studentFees.reduce((sum, f) => {
+      if (!f.vouchers || f.vouchers.length === 0) return sum; // Skip unbilled fees
+      return sum + Number(f.finalAmount || 0);
+    }, 0);
     const totalOutstanding = studentFees.reduce((sum, f) => {
       if (!f.vouchers || f.vouchers.length === 0) return sum; // Skip unbilled fees
       const remaining = Number(f.remainingAmount || 0);
@@ -217,7 +221,8 @@ const DashboardCharts = () => {
     }, 0);
 
     const revenueData = [
-      { name: 'Received', amount: Math.round(totalReceived), color: '#10b981' },
+      { name: 'Billed', amount: Math.round(totalBilled), color: '#6366f1' },
+      { name: 'Collected', amount: Math.round(totalCollected), color: '#10b981' },
       { name: 'Outstanding', amount: Math.round(totalOutstanding), color: '#f59e0b' }
     ];
 
@@ -246,7 +251,8 @@ const DashboardCharts = () => {
       institutionTypes: institutionTypeData,
       revenue: revenueData,
       classDistribution: classDistributionData,
-      totalReceived,
+      totalCollected,
+      totalBilled,
       totalOutstanding
     };
   };
@@ -258,7 +264,8 @@ const DashboardCharts = () => {
     institutionTypes: [],
     revenue: [],
     classDistribution: [],
-    totalReceived: 0,
+    totalCollected: 0,
+    totalBilled: 0,
     totalOutstanding: 0
   });
 
@@ -473,15 +480,21 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">Financial Overview</Typography>
-                <Typography variant="caption" color="text.secondary">Received vs Outstanding</Typography>
+                <Typography variant="caption" color="text.secondary">Billed, Collected vs Outstanding</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
             <Box sx={{ mb: 2 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
-                <Typography variant="body2" fontWeight="700" color="text.secondary">Total Received</Typography>
+                <Typography variant="body2" fontWeight="700" color="text.secondary">Total Billed</Typography>
+                <Typography variant="h6" fontWeight="800" color="#6366f1">
+                  PKR {chartData?.totalBilled?.toLocaleString() || 0}
+                </Typography>
+              </Box>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+                <Typography variant="body2" fontWeight="700" color="text.secondary">Total Collected</Typography>
                 <Typography variant="h6" fontWeight="800" color="#10b981">
-                  PKR {chartData?.totalReceived?.toLocaleString() || 0}
+                  PKR {chartData?.totalCollected?.toLocaleString() || 0}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

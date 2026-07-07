@@ -163,7 +163,7 @@ const FinanceDashboard = () => {
   const campusChartData = (dashboardData?.campusBreakdown || []).map(c => ({
     name: c.code || c.name,
     fullName: c.name,
-    Receivable: c.feesGenerated,
+    Billed: c.feesGenerated,
     Collected: c.feesCollected,
     Outstanding: c.outstandingDues
   }));
@@ -291,25 +291,25 @@ const FinanceDashboard = () => {
           <Grid container spacing={3} sx={{ mb: 4 }}>
             {[
               { 
-                title: 'Total Receivable', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalReceivable || 0).toLocaleString()}`, 
+                title: 'Total Billed', 
+                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalBilled || 0).toLocaleString()}`, 
                 icon: <MonetizationOn />, 
                 color: '#6366f1', 
-                subtitle: 'Total billed volume (generated vouchers)' 
+                subtitle: 'Accounts receivable (billed volume)' 
               },
               { 
-                title: 'Total Received', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalReceived || 0).toLocaleString()}`, 
+                title: 'Total Collected', 
+                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalCollected || 0).toLocaleString()}`, 
                 icon: <Payment />, 
                 color: '#10b981', 
-                subtitle: 'Payments cleared and received' 
+                subtitle: 'Revenue (payments cleared)' 
               },
               { 
-                title: 'Total Remaining', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalRemaining || 0).toLocaleString()}`, 
+                title: 'Total Outstanding', 
+                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalOutstanding || 0).toLocaleString()}`, 
                 icon: <AccountBalance />, 
                 color: '#f59e0b', 
-                subtitle: 'Unpaid remaining balance' 
+                subtitle: 'Total unpaid arrears' 
               },
               { 
                 title: 'Previous Receivable', 
@@ -516,7 +516,7 @@ const FinanceDashboard = () => {
                           formatter={(value) => [`PKR ${value.toLocaleString()}`]}
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
-                        <Bar dataKey="Receivable" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Billed" fill="#6366f1" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="Collected" fill="#10b981" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="Outstanding" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                       </BarChart>
@@ -545,9 +545,9 @@ const FinanceDashboard = () => {
                           <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Students</th>
                           <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Active Students</th>
                           <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>New Admissions</th>
-                          <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Receivable</th>
-                          <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Received</th>
-                          <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Remaining</th>
+                          <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Billed</th>
+                          <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Collected</th>
+                          <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Total Outstanding</th>
                           <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Prev. Receivable</th>
                           <th style={{ padding: '16px', color: '#64748b', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 700 }}>Recovery</th>
                         </tr>

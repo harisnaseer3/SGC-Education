@@ -138,9 +138,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       StudentFee.aggregate(buildArrearsPipeline({ $in: selectedInstitutionIds }))
     ]);
 
-    const totalReceived = receivedAgg[0]?.total || 0;
-    const totalReceivable = studentFeeStats[0]?.totalReceivable || 0;   // sum of finalAmount from StudentFees with vouchers
-    const totalRemaining = studentFeeStats[0]?.totalRemaining || 0;      // sum of remainingAmount (unpaid portion)
+    const totalCollected = receivedAgg[0]?.total || 0;
+    const totalBilled = studentFeeStats[0]?.totalReceivable || 0;
+    const totalOutstanding = studentFeeStats[0]?.totalRemaining || 0;
     const previousReceivableVal = arrearsStats[0]?.totalPreviousReceivable || 0;
     const recoveryVal = arrearsStats[0]?.totalRecovery || 0;
 
@@ -243,9 +243,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           newAdmissions
         },
         finance: {
-          totalReceived,
-          totalReceivable,          // sum of billedAmount (generated vouchers)
-          totalRemaining,            // sum of remainingAmount (unpaid)
+          totalCollected,
+          totalBilled,
+          totalOutstanding,
           previousReceivable: previousReceivableVal,
           recovery: recoveryVal,
           currency: 'PKR'
@@ -375,15 +375,15 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     overdueFeesCount,
     upcomingEvents
   ] = await Promise.all([
-    // Total Received and Receivable
+    // Total Collected, Total Billed, and Total Outstanding
     Promise.all([
       FeePayment.aggregate([
         { $match: { ...referenceQuery, status: 'completed' } },
-        { $group: { _id: null, totalReceived: { $sum: '$amount' } } }
+        { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
       ]),
       StudentFee.aggregate([
-        { $match: { ...referenceQuery, isActive: true, 'vouchers.0': { $exists: true } } },
-        { $group: { _id: null, totalReceivable: { $sum: '$remainingAmount' } } }
+        { $match: { ...referenceQuery, 'vouchers.0': { $exists: true } } },
+        { $group: { _id: null, totalBilled: { $sum: '$finalAmount' }, totalOutstanding: { $sum: '$remainingAmount' } } }
       ])
     ]),
     // Last Month's Fees
@@ -410,8 +410,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }).sort({ startDate: 1 }).limit(5)
   ]);
 
-  const totalReceived = financialStats[0][0]?.totalReceived || 0;
-  const totalReceivable = financialStats[1][0]?.totalReceivable || 0;
+  const totalCollected = financialStats[0][0]?.totalCollected || 0;
+  const totalBilled = financialStats[1][0]?.totalBilled || 0;
+  const totalOutstanding = financialStats[1][0]?.totalOutstanding || 0;
   const lastMonthTotal = lastMonthFees[0]?.total || 0;
 
   // Campus Breakdown for Finance Managers
@@ -423,11 +424,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         User.countDocuments({ ...instQuery, role: 'student' }),
         FeePayment.aggregate([
           { $match: { ...instQuery, status: 'completed' } },
-          { $group: { _id: null, total: { $sum: '$amount' } } }
+          { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
         ]),
         StudentFee.aggregate([
-          { $match: { ...instQuery, isActive: true, 'vouchers.0': { $exists: true } } },
-          { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
+          { $match: { ...instQuery, 'vouchers.0': { $exists: true } } },
+          { $group: { _id: null, totalBilled: { $sum: '$finalAmount' }, totalOutstanding: { $sum: '$remainingAmount' } } }
         ])
       ]);
       
@@ -435,9 +436,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         _id: inst._id,
         name: inst.name,
         code: inst.code,
-        students,
-        received: received[0]?.total || 0,
-        receivable: receivable[0]?.total || 0
+        totalStudents: students,
+        collected: received[0]?.totalCollected || 0,
+        billed: receivable[0]?.totalBilled || 0,
+        outstanding: receivable[0]?.totalOutstanding || 0
       };
     }));
   }
@@ -467,9 +469,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         usersLast30Days: recentUsersCount,
       },
       finance: {
-        totalReceived,
-        totalReceivable,
-        lastMonthReceived: lastMonthTotal,
+        totalBilled,
+        totalCollected,
+        totalOutstanding,
+        lastMonthCollected: lastMonthTotal,
         currency: 'PKR'
       },
       administrative: {
