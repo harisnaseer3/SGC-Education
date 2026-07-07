@@ -318,7 +318,7 @@ const FeeListReport = ({ onBack }) => {
         'Std. ID': item.student?.enrollmentNumber || 'N/A',
         'Roll#': item.student?.rollNumber || 'N/A',
         'Adm#': item.student?.admission?.applicationNumber || 'N/A',
-        'Student Name': item.student?.user?.name || 'N/A',
+        'Student Name': item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A',
         'Class': item.displayClassName || 'N/A',
         'Section': item.student?.admission?.section?.name || 'N/A',
         'Father Name': item.student?.admission?.guardianInfo?.fatherName || 'N/A',
@@ -583,7 +583,7 @@ const FeeListReport = ({ onBack }) => {
                           <TableCell sx={{ fontSize: '10px' }}>{item.student?.enrollmentNumber || 'N/A'}</TableCell>
                           <TableCell sx={{ fontSize: '10px' }}>{item.student?.rollNumber || 'N/A'}</TableCell>
                           <TableCell sx={{ fontSize: '10px' }}>{item.student?.admission?.applicationNumber || 'N/A'}</TableCell>
-                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.user?.name || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A'}</TableCell>
                           <TableCell sx={{ fontSize: '10px' }}>{item.student?.admission?.guardianInfo?.fatherName || 'N/A'}</TableCell>
                           <TableCell sx={{ fontSize: '10px', textAlign: 'right' }}>{item.monthlyFees.toLocaleString()}</TableCell>
                           <TableCell sx={{ fontSize: '10px', textAlign: 'right' }}>{item.totalReceived.toLocaleString()}</TableCell>
