@@ -164,6 +164,7 @@ const DashboardCharts = () => {
     // 3. Payment Status Distribution (grouped per student, not per fee-head record)
     const studentTotals = {};
     studentFees.forEach(fee => {
+      if (!fee.vouchers || fee.vouchers.length === 0) return; // Skip unbilled fees
       const studentId = fee.student?._id || fee.student;
       if (!studentId) return;
       const key = studentId.toString();
@@ -210,6 +211,7 @@ const DashboardCharts = () => {
       .filter(p => p.status === 'completed')
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
     const totalOutstanding = studentFees.reduce((sum, f) => {
+      if (!f.vouchers || f.vouchers.length === 0) return sum; // Skip unbilled fees
       const remaining = Number(f.remainingAmount || 0);
       return sum + (remaining > 0 ? remaining : 0);
     }, 0);

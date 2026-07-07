@@ -382,7 +382,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         { $group: { _id: null, totalReceived: { $sum: '$amount' } } }
       ]),
       StudentFee.aggregate([
-        { $match: { ...referenceQuery, isActive: true } },
+        { $match: { ...referenceQuery, isActive: true, 'vouchers.0': { $exists: true } } },
         { $group: { _id: null, totalReceivable: { $sum: '$remainingAmount' } } }
       ])
     ]),
@@ -426,7 +426,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           { $group: { _id: null, total: { $sum: '$amount' } } }
         ]),
         StudentFee.aggregate([
-          { $match: { ...instQuery, isActive: true } },
+          { $match: { ...instQuery, isActive: true, 'vouchers.0': { $exists: true } } },
           { $group: { _id: null, total: { $sum: '$remainingAmount' } } }
         ])
       ]);

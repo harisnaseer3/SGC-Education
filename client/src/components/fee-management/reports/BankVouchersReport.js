@@ -134,7 +134,7 @@ const BankVouchersReport = ({ onBack }) => {
           invoiceDate: firstVoucher.createdAt || firstVoucher.issueDate || new Date(targetYear, targetMonth - 1, 1),
           validityDate: firstVoucher.validityDate || firstVoucher.dueDate || new Date(targetYear, targetMonth - 1, 30),
           dueDate: firstVoucher.dueDate || new Date(targetYear, targetMonth - 1, 20),
-          studentName: studentData.student?.user?.name || studentData.student?.name || 'N/A',
+          studentName: studentData.student?.user?.name || studentData.student?.admission?.personalInfo?.name || studentData.student?.name || 'N/A',
           studentId: studentData.student?.enrollmentNumber || 'N/A',
           rollNo: studentData.student?.rollNumber || 'N/A',
           className: className,

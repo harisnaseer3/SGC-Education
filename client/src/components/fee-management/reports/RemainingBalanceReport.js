@@ -108,20 +108,142 @@ const RemainingBalanceReport = ({ onBack }) => {
   const handleGenerate = async () => {
     try {
       setLoading(true);
+      const isSuperAdmin = user?.role === 'super_admin';
+      const institutionId = getInstitutionId(user, isSuperAdmin);
       const { month, year } = parseMonthYear(filters.monthYear);
-      const response = await axios.post(
-        `${API_URL}/reports/generate`,
-        { 
-          type: 'remaining-balance', 
-          filters: { 
-            ...filters, 
-            month, 
-            year
-          } 
-        },
-        createAxiosConfig()
-      );
-      setReportData(response.data.data);
+      const targetMonth = Number(month);
+      const targetYear = Number(year);
+
+      const params = {
+        institution: institutionId,
+      };
+
+      const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }));
+      const allStudentFees = response.data.data || [];
+
+      // Filter students based on Class Name and Status
+      let filteredFees = allStudentFees.filter(sf => {
+        const admission = sf.student?.admission || {};
+        const student = sf.student || {};
+        
+        if (filters.classId !== 'all') {
+          const classId = admission.class?._id || student.currentClass?._id || admission.class || student.currentClass;
+          if (classId?.toString() !== filters.classId) return false;
+        }
+
+        if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
+          const sStatus = student.status || admission.status || '';
+          const matchStatus = filters.studentStatus.some(s => s.toLowerCase() === sStatus.toLowerCase());
+          if (!matchStatus) return false;
+        }
+
+        return true;
+      });
+
+      // Identify students who have a fee in the target month OR have arrears
+      const studentsGroup = new Map();
+      const feeHeadsMap = new Map();
+
+      filteredFees.forEach(sf => {
+        const studentId = sf.student?._id?.toString();
+        if (!studentId) return;
+        
+        if (sf.feeHead && sf.feeHead._id) {
+           feeHeadsMap.set(sf.feeHead._id.toString(), { _id: sf.feeHead._id.toString(), name: sf.feeHead.name });
+        }
+
+        const relevantVouchers = (sf.vouchers || []).filter(v => {
+          const vMonth = Number(v.month);
+          const vYear = Number(v.year);
+          return vYear < targetYear || (vYear === targetYear && vMonth <= targetMonth);
+        });
+
+        if (relevantVouchers.length > 0) {
+          if (!studentsGroup.has(studentId)) {
+            const admission = sf.student?.admission || {};
+            studentsGroup.set(studentId, {
+              studentId,
+              enrollmentNumber: sf.student?.enrollmentNumber || 'N/A',
+              admissionNumber: admission.applicationNumber || 'N/A',
+              rollNumber: sf.student?.rollNumber || 'N/A',
+              studentName: sf.student?.user?.name || admission.personalInfo?.name || sf.student?.name || 'N/A',
+              fatherName: admission.guardianInfo?.fatherName || 'N/A',
+              class: admission.class?.name || sf.student?.currentClass?.name || 'Unassigned',
+              section: admission.section?.name || 'Unassigned',
+              previousBalance: 0,
+              currentBalance: 0,
+              receivable: 0,
+              received: 0,
+              remaining: 0,
+              heads: {}
+            });
+          }
+
+          const group = studentsGroup.get(studentId);
+          const headId = sf.feeHead?._id?.toString();
+
+          const isCurrentMonth = (sf.vouchers || []).some(v => 
+            Number(v.month) === targetMonth && Number(v.year) === targetYear
+          );
+
+          if (isCurrentMonth) {
+            group.currentBalance += (sf.finalAmount || 0);
+            if (headId) {
+              group.heads[headId] = (group.heads[headId] || 0) + (sf.finalAmount || 0);
+            }
+            
+            group.receivable += (sf.finalAmount || 0);
+            group.received += (sf.paidAmount || 0);
+            group.remaining += (sf.remainingAmount || 0);
+          } else {
+            // For previous months, only count the REMAINING balance as Arrears
+            const unpaidPrev = sf.remainingAmount || 0;
+            if (unpaidPrev > 0) {
+              group.previousBalance += unpaidPrev;
+              group.receivable += unpaidPrev;
+              group.remaining += unpaidPrev;
+              // Add arrears to the head as well (or map to a specific Arrears head if needed)
+              if (headId) {
+                group.heads[headId] = (group.heads[headId] || 0) + unpaidPrev;
+              }
+            }
+          }
+        }
+      });
+
+      let finalData = Array.from(studentsGroup.values());
+
+      // Filter by Payment Status
+      if (filters.paymentStatus !== 'all') {
+        finalData = finalData.filter(row => {
+          if (filters.paymentStatus === 'paid') return row.remaining === 0 && row.receivable > 0;
+          if (filters.paymentStatus === 'not_paid') return row.received === 0 && row.receivable > 0;
+          if (filters.paymentStatus === 'partially_paid') return row.received > 0 && row.remaining > 0;
+          return true;
+        });
+      }
+
+      // Sort
+      finalData.sort((a, b) => {
+         const classComp = a.class.localeCompare(b.class);
+         if (classComp !== 0) return classComp;
+         return a.studentName.localeCompare(b.studentName);
+      });
+
+      const summary = finalData.reduce((acc, curr) => ({
+        totalPBal: acc.totalPBal + curr.previousBalance,
+        totalCBal: acc.totalCBal + curr.currentBalance,
+        totalReceivable: acc.totalReceivable + curr.receivable,
+        totalReceived: acc.totalReceived + curr.received,
+        totalRemaining: acc.totalRemaining + curr.remaining
+      }), { totalPBal: 0, totalCBal: 0, totalReceivable: 0, totalReceived: 0, totalRemaining: 0 });
+
+      setReportData({
+        data: finalData,
+        feeHeads: Array.from(feeHeadsMap.values()),
+        viewType: filters.viewType,
+        summary
+      });
     } catch (err) {
       console.error('Failed to generate report', err);
       alert(err.response?.data?.message || 'Failed to generate report');
