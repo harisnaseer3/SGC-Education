@@ -13,6 +13,19 @@ const { ApiError } = require('../middleware/error.middleware');
 const { buildInstitutionQuery } = require('../middleware/institution.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
+const activeStudentLookupStages = [
+  {
+    $lookup: {
+      from: 'students',
+      localField: 'student',
+      foreignField: '_id',
+      as: 'studentDoc'
+    }
+  },
+  { $unwind: { path: '$studentDoc', preserveNullAndEmptyArrays: false } },
+  { $match: { 'studentDoc.isActive': { $ne: false } } }
+];
+
 /**
  * Dashboard Controller - Handles dashboard statistics
  */
@@ -91,6 +104,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         // Unwind vouchers, filter by date, then de-dup by StudentFee _id
         return [
           { $match: { institution: instFilter, 'vouchers.0': { $exists: true } } },
+          ...activeStudentLookupStages,
           { $unwind: '$vouchers' },
           { $match: { 'vouchers.generatedAt': { $gte: parsedStartDate, $lte: parsedEndDate } } },
           { $group: { _id: '$_id', finalAmount: { $first: '$finalAmount' }, remainingAmount: { $first: '$remainingAmount' }, paidAmount: { $first: '$paidAmount' } } },
@@ -99,6 +113,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       } else {
         return [
           { $match: { institution: instFilter, 'vouchers.0': { $exists: true } } },
+          ...activeStudentLookupStages,
           { $group: { _id: null, totalReceivable: { $sum: '$finalAmount' }, totalRemaining: { $sum: '$remainingAmount' }, totalPaid: { $sum: '$paidAmount' } } }
         ];
       }
@@ -109,6 +124,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       const matchStage = { institution: instFilter, 'vouchers.0': { $exists: true } };
       return [
         { $match: matchStage },
+        ...activeStudentLookupStages,
         {
           $lookup: {
             from: 'feeheads',
@@ -132,6 +148,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const [receivedAgg, studentFeeStats, arrearsStats] = await Promise.all([
       FeePayment.aggregate([
         { $match: paymentMatch },
+        ...activeStudentLookupStages,
         { $group: { _id: null, total: { $sum: '$amount' } } }
       ]),
       StudentFee.aggregate(buildStudentFeeReceivablePipeline({ $in: selectedInstitutionIds })),
@@ -171,6 +188,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         }),
         FeePayment.aggregate([
           { $match: paymentMatchInst },
+          ...activeStudentLookupStages,
           { $group: { _id: null, total: { $sum: '$amount' } } }
         ]),
         // Total Receivable & Remaining from StudentFee.vouchers[]
@@ -212,6 +230,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const [feeCollectionTrend, admissionTrend] = await Promise.all([
       FeePayment.aggregate([
         { $match: paymentTrendMatch },
+        ...activeStudentLookupStages,
         {
           $group: {
             _id: { $dateToString: { format: '%Y-%m-%d', date: '$paymentDate', timezone: '+05:00' } },
@@ -375,6 +394,69 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     prevYear -= 1;
   }
 
+  // Helper: count unique vouchers grouped by (student, month, year).
+  // One voucher = one student fee bill for one month.
+  //
+  // Status rules (matching FeeManagement page behaviour):
+  //   PAID    = totalPaid > 0  (any payment has been made on this voucher)
+  //   OVERDUE = totalPaid = 0 AND the due date has already passed
+  //   PENDING = totalPaid = 0 AND the due date has NOT yet passed
+  const _now = new Date();
+  const buildUniqueVoucherPipeline = (matchQuery, extraMonthFilter) => {
+    const stages = [
+      { $match: matchQuery },
+      ...activeStudentLookupStages,
+      { $unwind: '$vouchers' },
+    ];
+    if (extraMonthFilter) {
+      stages.push({ $match: extraMonthFilter });
+    }
+    stages.push(
+      {
+        $group: {
+          _id: { student: '$student', month: '$vouchers.month', year: '$vouchers.year' },
+          totalPaid:      { $sum: '$paidAmount' },
+          totalFinal:     { $sum: '$finalAmount' },
+          totalRemaining: { $sum: '$remainingAmount' },
+          minDueDate:     { $min: '$dueDate' }
+        }
+      },
+      {
+        $addFields: {
+          voucherStatus: {
+            $switch: {
+              branches: [
+                // Any payment made => Paid
+                { case: { $gt: ['$totalPaid', 0] }, then: 'paid' },
+                // No payment + due date has passed => Overdue
+                {
+                  case: {
+                    $and: [
+                      { $eq: ['$totalPaid', 0] },
+                      { $and: [{ $ne: ['$minDueDate', null] }, { $lt: ['$minDueDate', _now] }] }
+                    ]
+                  },
+                  then: 'overdue'
+                }
+              ],
+              default: 'pending'
+            }
+          }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total:   { $sum: 1 },
+          paid:    { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] },    1, 0] } },
+          pending: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'pending'] }, 1, 0] } },
+          overdue: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'overdue'] }, 1, 0] } }
+        }
+      }
+    );
+    return stages;
+  };
+
   const [
     financialStats,
     lastMonthFees,
@@ -393,10 +475,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     Promise.all([
       FeePayment.aggregate([
         { $match: { ...referenceQuery, status: 'completed' } },
+        ...activeStudentLookupStages,
         { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
       ]),
       StudentFee.aggregate([
         { $match: { ...referenceQuery, 'vouchers.0': { $exists: true } } },
+        ...activeStudentLookupStages,
         { $group: { _id: null, totalBilled: { $sum: '$finalAmount' }, totalOutstanding: { $sum: '$remainingAmount' } } }
       ])
     ]),
@@ -409,6 +493,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           paymentDate: { $gte: startOfLastMonth, $lte: endOfLastMonth }
         } 
       },
+      ...activeStudentLookupStages,
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]),
     Institution.countDocuments({ ...institutionQuery, createdAt: { $gte: thirtyDaysAgo } }),
@@ -426,21 +511,21 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }).sort({ startDate: 1 }).limit(5),
     // New Content: Struck Off Students
     Student.countDocuments({ ...referenceQuery, status: 'struck_off' }),
-    // New Content: Voucher Stats (All Time)
-    StudentFee.aggregate([
-      { $match: { ...referenceQuery, 'vouchers.0': { $exists: true } } },
-      { $group: { _id: null, total: { $sum: 1 }, paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } } } }
-    ]),
-    // New Content: Voucher Stats (Current Month)
-    StudentFee.aggregate([
-      { $match: { ...referenceQuery, vouchers: { $elemMatch: { month: currentMonth, year: currentYear } } } },
-      { $group: { _id: null, total: { $sum: 1 }, paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } } } }
-    ]),
-    // New Content: Voucher Stats (Previous Month)
-    StudentFee.aggregate([
-      { $match: { ...referenceQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } } },
-      { $group: { _id: null, total: { $sum: 1 }, paid: { $sum: { $cond: [{ $eq: ['$status', 'paid'] }, 1, 0] } }, pending: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } }, overdue: { $sum: { $cond: [{ $eq: ['$status', 'overdue'] }, 1, 0] } } } }
-    ])
+
+    // Voucher Stats (All Time) — all StudentFee records with at least one voucher
+    StudentFee.aggregate(buildUniqueVoucherPipeline(
+      { ...referenceQuery, 'vouchers.0': { $exists: true } }
+    )),
+    // Voucher Stats (Current Month) — only entries whose voucher matches this month/year
+    StudentFee.aggregate(buildUniqueVoucherPipeline(
+      { ...referenceQuery, vouchers: { $elemMatch: { month: currentMonth, year: currentYear } } },
+      { 'vouchers.month': currentMonth, 'vouchers.year': currentYear }
+    )),
+    // Voucher Stats (Previous Month)
+    StudentFee.aggregate(buildUniqueVoucherPipeline(
+      { ...referenceQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } },
+      { 'vouchers.month': prevMonth, 'vouchers.year': prevYear }
+    ))
   ]);
 
   const totalCollected = financialStats[0][0]?.totalCollected || 0;
@@ -457,10 +542,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         User.countDocuments({ ...instQuery, role: 'student' }),
         FeePayment.aggregate([
           { $match: { ...instQuery, status: 'completed' } },
+          ...activeStudentLookupStages,
           { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
         ]),
         StudentFee.aggregate([
           { $match: { ...instQuery, 'vouchers.0': { $exists: true } } },
+          ...activeStudentLookupStages,
           { $group: { _id: null, totalBilled: { $sum: '$finalAmount' }, totalOutstanding: { $sum: '$remainingAmount' } } }
         ])
       ]);
@@ -546,12 +633,14 @@ const getAnalytics = asyncHandler(async (req, res) => {
   const userMatch = { isActive: true, createdAt: { $gte: startDate } };
   const groupMatch = { isActive: true, createdAt: { $gte: startDate } };
   const institutionGrowthMatch = { isActive: true, createdAt: { $gte: startDate } };
+  const classDistributionMatch = { status: { $in: ['active', 'enrolled'] }, isActive: true };
 
   if (institutionId) {
     const oid = new mongoose.Types.ObjectId(institutionId);
     institutionGrowthMatch._id = oid;
     userMatch.institution = oid;
     groupMatch.institution = oid;
+    classDistributionMatch.institution = oid;
   }
   else if (req.user.role === 'admin') {
     const id = getInstitutionId(req.user);
@@ -560,6 +649,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
     institutionGrowthMatch._id = oid;
     userMatch.institution = oid;
     groupMatch.institution = oid;
+    classDistributionMatch.institution = oid;
   }
   else if (req.user.role === 'super_admin') {
     // No specific institution filter
@@ -574,13 +664,14 @@ const getAnalytics = asyncHandler(async (req, res) => {
     institutionGrowthMatch._id = { $in: institutionIds };
     userMatch.institution = { $in: institutionIds };
     groupMatch.institution = { $in: institutionIds };
+    classDistributionMatch.institution = { $in: institutionIds };
   }
   else {
     throw new ApiError(403, 'Access denied. Admin access required.');
   }
 
   // Get daily growth trends
-  const [institutionTrends, userTrends, departmentTrends] = await Promise.all([
+  const [institutionTrends, nonStudentTrends, studentTrends, departmentTrends, classDistribution] = await Promise.all([
     Institution.aggregate([
       { $match: institutionGrowthMatch },
       {
@@ -593,7 +684,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
     ]),
 
     User.aggregate([
-      { $match: userMatch },
+      { $match: { ...userMatch, role: { $ne: 'student' } } },
       {
         $group: {
           _id: {
@@ -602,8 +693,20 @@ const getAnalytics = asyncHandler(async (req, res) => {
           },
           count: { $sum: 1 }
         }
-      },
-      { $sort: { '_id.date': 1 } }
+      }
+    ]),
+
+    Admission.aggregate([
+      { $match: { ...userMatch, status: 'enrolled' } },
+      {
+        $group: {
+          _id: {
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: '+05:00' } },
+            role: { $literal: 'student' }
+          },
+          count: { $sum: 1 }
+        }
+      }
     ]),
 
     Group.aggregate([
@@ -615,8 +718,51 @@ const getAnalytics = asyncHandler(async (req, res) => {
         }
       },
       { $sort: { _id: 1 } }
+    ]),
+
+    Student.aggregate([
+      { $match: classDistributionMatch },
+      {
+        $lookup: {
+          from: 'admissions',
+          localField: 'admission',
+          foreignField: '_id',
+          as: 'admissionDetails'
+        }
+      },
+      { $unwind: { path: '$admissionDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'classes',
+          localField: 'admissionDetails.class',
+          foreignField: '_id',
+          as: 'classDetails'
+        }
+      },
+      { $unwind: { path: '$classDetails', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: { $ifNull: ['$classDetails.name', 'Unassigned'] },
+          count: { $sum: 1 }
+        }
+      },
+      {
+        $project: {
+          name: '$_id',
+          students: '$count',
+          _id: 0
+        }
+      },
+      { $sort: { students: -1 } }
     ])
   ]);
+
+  // Combine and sort user trends
+  let userTrends = [...nonStudentTrends, ...studentTrends];
+  userTrends.sort((a, b) => {
+    if (a._id.date === b._id.date) return 0;
+    return a._id.date < b._id.date ? -1 : 1;
+  });
 
   // Get activity trends if available
   let activityTrends = [];
@@ -643,6 +789,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
       userTrends,
       departmentTrends, // Fulfills frontend's department growth chart (using Groups)
       activityTrends,
+      classDistribution,
       period: {
         days: daysNum,
         startDate,

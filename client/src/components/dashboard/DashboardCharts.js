@@ -162,49 +162,41 @@ const DashboardCharts = () => {
       }));
 
     // 3. Payment Status Distribution (grouped per student, not per fee-head record)
-    const studentTotals = {};
+    const statusCounts = { paid: 0, partial: 0, unpaid: 0 };
     studentFees.forEach(fee => {
       if (!fee.vouchers || fee.vouchers.length === 0) return; // Skip unbilled fees
-      const studentId = fee.student?._id || fee.student;
-      if (!studentId) return;
-      const key = studentId.toString();
-      if (!studentTotals[key]) {
-        studentTotals[key] = { total: 0, paid: 0 };
-      }
-      const feeTotal = Number(fee.finalAmount || fee.billedAmount || fee.totalAmount || 0);
-      const feePaid = Number(fee.paidAmount || 0);
-      studentTotals[key].total += feeTotal;
-      studentTotals[key].paid += feePaid;
-    });
-
-    const statusCounts = { paid: 0, partial: 0, unpaid: 0 };
-    Object.values(studentTotals).forEach(({ total, paid }) => {
-      if (total <= 0) return; // skip students with no billed amount
-      const remaining = total - paid;
-      if (remaining <= 0) {
+      
+      if (fee.status === 'paid') {
         statusCounts.paid++;
-      } else if (paid > 0) {
+      } else if (fee.status === 'partial') {
         statusCounts.partial++;
       } else {
         statusCounts.unpaid++;
       }
     });
 
-    const paymentStatusData = Object.keys(statusCounts)
-      .filter(key => statusCounts[key] > 0)
-      .map(key => ({
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        value: statusCounts[key]
-      }));
+    const paymentStatusData = [
+      { name: 'Paid', value: statusCounts.paid },
+      { name: 'Partial', value: statusCounts.partial },
+      { name: 'Unpaid', value: statusCounts.unpaid }
+    ].filter(item => item.value > 0);
 
-    // 4. Institution Type Distribution
-    const institutionTypes = stats.institutions?.typeBreakdown || {};
-    const institutionTypeData = Object.keys(institutionTypes)
+    // 4. Student Enrollment Trend (new students per month)
+    // Aggregate daily student growth into monthly buckets
+    const monthlyStudentGrowth = {};
+    userGrowthData.forEach(item => {
+      const date = new Date(item.date);
+      const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthlyStudentGrowth[monthKey]) monthlyStudentGrowth[monthKey] = 0;
+      monthlyStudentGrowth[monthKey] += item.students;
+    });
+    const studentGrowthData = Object.keys(monthlyStudentGrowth)
+      .sort()
+      .slice(-6) // last 6 months
       .map(key => ({
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        value: institutionTypes[key]
-      }))
-      .filter(item => item.value > 0);
+        month: new Date(key + '-01').toLocaleDateString('en-US', { month: 'short' }),
+        students: monthlyStudentGrowth[key]
+      }));
 
     // 5. Revenue vs Outstanding
     const totalCollected = payments
@@ -227,28 +219,17 @@ const DashboardCharts = () => {
     ];
 
     // 6. Student Distribution by Class
-    const classDistribution = {};
-    studentFees.forEach(fee => {
-      const className = fee.class?.name || fee.admission?.class?.name || 'Unknown';
-      if (!classDistribution[className]) {
-        classDistribution[className] = 0;
-      }
-      classDistribution[className]++;
-    });
-
-    const classDistributionData = Object.keys(classDistribution)
-      .map(key => ({
-        name: key.length > 12 ? key.substring(0, 12) + '...' : key,
-        students: classDistribution[key]
-      }))
-      .sort((a, b) => b.students - a.students)
-      .slice(0, 6); // Top 6 classes
+    // Now fetched directly from the backend to ensure all active students are counted, not just those with fees
+    const classDistributionData = (analytics.classDistribution || []).map(item => ({
+      name: item.name.length > 12 ? item.name.substring(0, 12) + '...' : item.name,
+      students: item.students
+    }));
 
     return {
       userGrowth: Object.values(userGrowthGrouped),
       monthlyCollection: monthlyCollectionData,
       paymentStatus: paymentStatusData,
-      institutionTypes: institutionTypeData,
+      studentGrowth: studentGrowthData,
       revenue: revenueData,
       classDistribution: classDistributionData,
       totalCollected,
@@ -261,7 +242,7 @@ const DashboardCharts = () => {
     userGrowth: [],
     monthlyCollection: [],
     paymentStatus: [],
-    institutionTypes: [],
+    studentGrowth: [],
     revenue: [],
     classDistribution: [],
     totalCollected: 0,
@@ -472,7 +453,7 @@ const DashboardCharts = () => {
         </Grid>
 
         {/* Revenue vs Outstanding */}
-        <Grid item xs={12} lg={6}>
+        <Grid item xs={12} lg={12}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#f59e0b15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -545,53 +526,39 @@ const DashboardCharts = () => {
           </Paper>
         </Grid>
 
-        {/* Institution Type Distribution */}
-        {chartData?.institutionTypes?.length > 0 && (
-          <Grid item xs={12} lg={6}>
-            <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-                <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#667eea15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <School sx={{ color: '#667eea', fontSize: 28 }} />
-                </Box>
-                <Box>
-                  <Typography variant="h6" fontWeight="800">Institution Types</Typography>
-                  <Typography variant="caption" color="text.secondary">Distribution by type</Typography>
-                </Box>
+        {/* Student Enrollment Trend */}
+        <Grid item xs={12} lg={8}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Assessment sx={{ color: '#4facfe', fontSize: 28 }} />
               </Box>
-              <Divider sx={{ mb: 3 }} />
+              <Box>
+                <Typography variant="h6" fontWeight="800">Student Enrollment Trend</Typography>
+                <Typography variant="caption" color="text.secondary">New students per month</Typography>
+              </Box>
+            </Box>
+            <Divider sx={{ mb: 3 }} />
+            {chartData?.studentGrowth?.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="body2" color="text.secondary">No enrollment data available</Typography>
+              </Box>
+            ) : (
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart 
-                  data={chartData?.institutionTypes || []} 
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                >
+                <LineChart data={chartData?.studentGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="name" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                  <Bar 
-                    dataKey="value" 
-                    fill="#667eea" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                </BarChart>
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                  <Line type="monotone" dataKey="students" stroke="#4facfe" strokeWidth={3} name="Students" dot={{ fill: '#4facfe', strokeWidth: 2, r: 4, stroke: '#fff' }} activeDot={{ r: 6 }} />
+                </LineChart>
               </ResponsiveContainer>
-            </Paper>
-          </Grid>
-        )}
+            )}
+          </Paper>
+        </Grid>
 
         {/* Student Distribution by Class */}
-        <Grid item xs={12} lg={chartData?.institutionTypes?.length > 0 ? 6 : 12}>
+        <Grid item xs={12} lg={4}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

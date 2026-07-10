@@ -244,9 +244,8 @@ const Admissions = () => {
   // Extract filtering logic to a reusable function for register tab
   const getFilteredRegisterAdmissions = () => {
     return admissions.filter((admission) => {
-      // Filter by show deleted toggle
-      if (showDeleted && admission.isActive !== false) return false;
-      if (!showDeleted && admission.isActive === false) return false;
+      // Always filter out soft-deleted records since the UI toggle is removed
+      if (admission.isActive === false) return false;
       
       // Filter by Student Name
       if (filterStudentName) {
@@ -386,7 +385,7 @@ const Admissions = () => {
       let allAdmissions = admissionsData.data || [];
       
       // Filter for admissions that have studentId (students)
-      let studentsData = allAdmissions.filter(admission => admission.studentId);
+      let studentsData = allAdmissions.filter(admission => admission.studentId && admission.isActive !== false);
       
       // If status filter is applied, filter by selected statuses
       const statusMapping = {
@@ -616,14 +615,14 @@ const Admissions = () => {
   };
 
   const handleDeleteAdmission = async (admissionId, studentName) => {
-    if (!window.confirm(`Are you sure you want to delete the admission for ${studentName}? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to permanently delete the admission for ${studentName}? This action cannot be undone.`)) {
       return;
     }
 
     try {
       setLoading(true);
       setError('');
-      await deleteAdmission(admissionId);
+      await permanentlyDeleteAdmission(admissionId);
       setError(''); // Clear any previous errors
       notifySuccess('Admission deleted successfully');
       fetchData(); // Refresh the list
@@ -2159,34 +2158,12 @@ const Admissions = () => {
                 ADMISSIONS REGISTER
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-                {/* Show Deleted Toggle */}
-                <Button
-                  variant={showDeleted ? 'contained' : 'outlined'}
-                  size="small"
-                  onClick={() => {
-                    setShowDeleted(!showDeleted);
-                    setSelectedAdmissions([]);
-                  }}
-                  sx={{
-                    textTransform: 'none',
-                    borderColor: '#6c757d',
-                    color: showDeleted ? 'white' : '#6c757d',
-                    bgcolor: showDeleted ? '#6c757d' : 'transparent',
-                    '&:hover': {
-                      bgcolor: showDeleted ? '#5c636a' : 'rgba(108, 117, 125, 0.1)',
-                      borderColor: '#5c636a',
-                    },
-                  }}
-                >
-                  {showDeleted ? 'Hide Deleted' : 'Show Deleted'}
-                </Button>
-                
                 {/* Bulk Delete Button */}
-                {selectedAdmissions.length > 0 && !showDeleted && (
+                {selectedAdmissions.length > 0 && (
                   <Button
                     variant="contained"
                     startIcon={<Delete />}
-                    onClick={handleBulkSoftDelete}
+                    onClick={handleBulkPermanentDelete}
                     sx={{
                       bgcolor: '#dc3545',
                       '&:hover': { bgcolor: '#c82333' },
@@ -2207,43 +2184,10 @@ const Admissions = () => {
                       bgcolor: '#ff9800',
                       '&:hover': { bgcolor: '#f57c00' },
                       textTransform: 'none',
-                      mr: 1
-                    }}
-                  >
-                    Update Status ({selectedAdmissions.length})
-                  </Button>
-                )}
-
-                {/* Bulk Restore Button */}
-                {selectedAdmissions.length > 0 && showDeleted && (
-                  <Button
-                    variant="contained"
-                    startIcon={<Lock />}
-                    onClick={handleBulkRestore}
-                    sx={{
-                      bgcolor: '#28a745',
-                      '&:hover': { bgcolor: '#218838' },
-                      textTransform: 'none',
-                    }}
-                  >
-                    Restore Selected ({selectedAdmissions.length})
-                  </Button>
-                )}
-
-                {/* Bulk Permanent Delete Button */}
-                {selectedAdmissions.length > 0 && showDeleted && (
-                  <Button
-                    variant="contained"
-                    startIcon={<DeleteForever />}
-                    onClick={handleBulkPermanentDelete}
-                    sx={{
-                      bgcolor: '#dc3545',
-                      '&:hover': { bgcolor: '#c82333' },
-                      textTransform: 'none',
                       ml: 1
                     }}
                   >
-                    Permanent Delete ({selectedAdmissions.length})
+                    Update Status ({selectedAdmissions.length})
                   </Button>
                 )}
 
@@ -2607,6 +2551,7 @@ const Admissions = () => {
                     {(() => {
                       const filteredSearchStudents = admissions
                         .filter(admission => {
+                          if (admission.isActive === false) return false;
                           if (!admission.studentId) return false;
 
                           const statusMapping = {
@@ -2808,6 +2753,7 @@ const Admissions = () => {
                 {(() => {
                   const filteredSearchStudents = admissions
                     .filter(admission => {
+                      if (admission.isActive === false) return false;
                       // Apply status filter if studentStatusFilter is set
                       if (studentStatusFilter.length > 0 && !studentStatusFilter.includes(admission.status)) {
                         return false;

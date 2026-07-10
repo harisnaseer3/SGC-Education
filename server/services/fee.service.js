@@ -687,6 +687,13 @@ class FeeService {
       throw new ApiError(400, 'Institution is required');
     }
 
+    // Get active students to prevent orphaned records from showing up
+    const activeStudents = await Student.find({ 
+      institution: institutionId, 
+      isActive: { $ne: false } 
+    }).select('_id');
+    const activeStudentIds = activeStudents.map(s => s._id);
+
     // Build query: Include active records AND records with vouchers (history)
     const query = {
       institution: institutionId,
@@ -696,9 +703,15 @@ class FeeService {
       ]
     };
 
-    // Optional student filter
+    // Optional student filter OR default to all active students
     if (student) {
-      query.student = student;
+      if (activeStudentIds.some(id => id.toString() === student.toString())) {
+        query.student = student;
+      } else {
+        return []; // Requested student is not active
+      }
+    } else {
+      query.student = { $in: activeStudentIds };
     }
 
     // Optional academic year filter
@@ -1451,6 +1464,13 @@ class FeeService {
       throw new ApiError(400, 'Institution is required');
     }
 
+    // Get active students to prevent orphaned records from showing up
+    const activeStudents = await Student.find({ 
+      institution: institutionId, 
+      isActive: { $ne: false } 
+    }).select('_id');
+    const activeStudentIds = activeStudents.map(s => s._id.toString());
+
     // Build query
     const query = {
       institution: institutionId
@@ -1556,11 +1576,20 @@ class FeeService {
       }
 
       if (uniqueStudentIds.length > 0) {
-        query.student = { $in: uniqueStudentIds };
+        // Intersect with active students to drop orphaned records
+        const filteredIds = uniqueStudentIds.filter(id => activeStudentIds.includes(id.toString()));
+        if (filteredIds.length > 0) {
+          query.student = { $in: filteredIds };
+        } else {
+          return [];
+        }
       } else {
         // No matching students found, return empty array
         return [];
       }
+    } else {
+      // Default: only return payments for active students
+      query.student = { $in: activeStudents.map(s => s._id) };
     }
 
     // Fetch payments with populated student and collectedBy
