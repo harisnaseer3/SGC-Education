@@ -32,7 +32,21 @@ class InstitutionService {
     const institutions = await Institution.find(query)
       .populate('createdBy', 'name email')
       .populate('organization', 'name code')
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
+
+    // Fetch dynamic stats for each institution
+    for (let inst of institutions) {
+      const [studentsCount, teachersCount] = await Promise.all([
+        User.countDocuments({ institution: inst._id, role: 'student', isActive: true }),
+        User.countDocuments({ institution: inst._id, role: 'teacher', isActive: true })
+      ]);
+      
+      inst.stats = {
+        totalStudents: studentsCount || 0,
+        totalTeachers: teachersCount || 0
+      };
+    }
 
     return institutions;
   }

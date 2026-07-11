@@ -25,7 +25,6 @@ import axios from 'axios';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 import { getApiUrl } from '../config/api';
 
-const sessionsDefault = ['2025-2026', '2024-2025', '2023-2024'];
 
 const SectionForm = () => {
   const navigate = useNavigate();
@@ -37,7 +36,7 @@ const SectionForm = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [classes, setClasses] = useState([]);
-  const [sessions] = useState(sessionsDefault);
+
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -50,12 +49,11 @@ const SectionForm = () => {
   const [formData, setFormData] = useState({
     name: '',
     code: '',
-    session: '',
+
     class: '',
     academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
     strength: '',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+
     isActive: true,
     institution: getUserInstitutionId(),
     department: '',
@@ -122,14 +120,13 @@ const SectionForm = () => {
       setFormData({
         name: section.name,
         code: section.code,
-        session: section.session || '',
+
         institution: section.institution?._id || user.institution || '',
         department: section.department?._id || '',
         class: section.class?._id || '',
         academicYear: section.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
         strength: section.capacity || '',
-        startDate: section.startDate ? new Date(section.startDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        endDate: section.endDate ? new Date(section.endDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+
         isActive: section.isActive !== undefined ? section.isActive : true,
       });
     } catch (err) {
@@ -362,36 +359,7 @@ const SectionForm = () => {
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <FormControl 
-                    fullWidth 
-                    required
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        '&:hover fieldset': {
-                          borderColor: '#667eea',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#667eea',
-                        },
-                      },
-                    }}
-                  >
-                    <InputLabel>Session</InputLabel>
-                    <Select
-                      name="session"
-                      value={formData.session}
-                      onChange={handleChange}
-                      label="Session"
-                    >
-                      <MenuItem value="">Select Session</MenuItem>
-                      {sessions.map((s) => (
-                        <MenuItem key={s} value={s}>{s}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+
 
                 <Grid item xs={12}>
                   <FormControl 
@@ -501,51 +469,7 @@ const SectionForm = () => {
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="Start Date"
-                    name="startDate"
-                    type="date"
-                    value={formData.startDate}
-                    onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        '&:hover fieldset': {
-                          borderColor: '#667eea',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#667eea',
-                        },
-                      },
-                    }}
-                  />
-                </Grid>
 
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    label="End Date"
-                    name="endDate"
-                    type="date"
-                    value={formData.endDate}
-                    onChange={handleChange}
-                    InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        '&:hover fieldset': {
-                          borderColor: '#667eea',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#667eea',
-                        },
-                      },
-                    }}
-                  />
-                </Grid>
 
                 <Grid item xs={12}>
                   <FormControlLabel

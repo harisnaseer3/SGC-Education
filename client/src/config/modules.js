@@ -49,6 +49,18 @@ export const modules = [
       { name: 'Search (All)', route: '/admissions/students/search-all', permission: PERMISSIONS.ADMISSIONS.VIEW },
     ]
   },
+  { 
+    name: 'Academic Setup', 
+    icon: MenuBook, 
+    color: '#764ba2', 
+    route: '/classes', 
+    permission: PERMISSIONS.ACADEMIC.VIEW,
+    children: [
+      { name: 'Classes', route: '/classes', permission: PERMISSIONS.ACADEMIC.MANAGE },
+      { name: 'Sections', route: '/sections', permission: PERMISSIONS.ACADEMIC.MANAGE },
+      { name: 'Groups', route: '/groups', permission: PERMISSIONS.ACADEMIC.MANAGE },
+    ]
+  },
   { name: 'Student Promotion', icon: SwapHoriz, color: '#10b981', route: '/student-promotion', permission: PERMISSIONS.ACADEMIC.MANAGE },
   { name: 'Attendance', icon: EventAvailable, color: '#4facfe', route: null, permission: PERMISSIONS.ATTENDANCE.VIEW },
   { 
@@ -72,7 +84,7 @@ export const modules = [
   { name: 'Results', icon: Assessment, color: '#feca57', route: '/results', permission: PERMISSIONS.RESULTS.VIEW },
   { name: 'SMS & Notification', icon: Notifications, color: '#fa709a', route: '/notifications', permission: PERMISSIONS.SYSTEM.MANAGE },
   { name: 'Complaints', icon: Report, color: '#ee5a6f', route: null },
-  { name: 'Academics', icon: MenuBook, color: '#764ba2', route: null, permission: PERMISSIONS.ACADEMIC.VIEW },
+  
   { name: 'HR Management', icon: People, color: '#667eea', route: null },
   { name: 'Library', icon: LocalLibrary, color: '#f093fb', route: null },
   { name: 'Assets Management', icon: Inventory, color: '#4facfe', route: null },
