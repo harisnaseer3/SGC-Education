@@ -100,39 +100,28 @@ const Sections = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
 
-  // Initialize institution on mount
-  useEffect(() => {
-    if (!selectedInstitution) {
-      const institutionData = localStorage.getItem('selectedInstitution');
-      if (institutionData) {
+  const getInstitutionId = () => {
+    if (user.role === 'super_admin') {
+      const selectedInstitutionStr = localStorage.getItem('selectedInstitution');
+      if (selectedInstitutionStr) {
         try {
-          const institution = JSON.parse(institutionData);
-          setSelectedInstitution(institution._id || institution);
+          const parsed = JSON.parse(selectedInstitutionStr);
+          return parsed._id || parsed;
         } catch (e) {
-          console.error('Failed to parse institution data', e);
+          return selectedInstitutionStr;
         }
-      } else if (!isSuperAdmin && user.institution) {
-        setSelectedInstitution(user.institution);
       }
     }
-  }, []);
+    if (user.institution) {
+      return typeof user.institution === 'object' ? user.institution._id : user.institution;
+    }
+    return null;
+  };
 
-  // Fetch data on mount
   useEffect(() => {
-    if (!isSuperAdmin && !selectedInstitution) {
-      if (user.institution) {
-        return;
-      } else {
-        setError('Your account is not assigned to an institution. Please contact administrator.');
-        setLoading(false);
-        return;
-      }
-    }
-
-    if (isSuperAdmin || selectedInstitution) {
-      fetchData();
-    }
-  }, [selectedInstitution]);
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchData = async () => {
     try {
@@ -144,19 +133,25 @@ const Sections = () => {
         throw new Error('No authentication token found');
       }
 
-      // Fetch sections
-      let url = getApiUrl('sections');
-      if (selectedInstitution) {
-        url += `?institution=${selectedInstitution}`;
+      const institutionId = getInstitutionId();
+      if (!isSuperAdmin && !institutionId) {
+        setError('Your account is not assigned to an institution. Please contact administrator.');
+        setLoading(false);
+        return;
       }
 
+      const params = new URLSearchParams();
+      if (institutionId) {
+        params.append('institution', institutionId);
+      }
+
+      const url = getApiUrl(`sections?${params.toString()}`);
       const sectionResponse = await axios.get(url, {
         headers: { Authorization: `Bearer ${token}` }
       });
 
       const sectionsData = sectionResponse.data.data || [];
       console.log('Sections data:', sectionsData);
-      console.log('Sample section class data:', sectionsData[0]?.class);
       setSections(sectionsData);
     } catch (err) {
       console.error('Error fetching sections data:', err);
