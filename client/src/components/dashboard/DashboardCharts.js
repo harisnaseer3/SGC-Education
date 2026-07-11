@@ -283,176 +283,7 @@ const DashboardCharts = () => {
       </Box>
 
       <Grid container spacing={3}>
-        {/* User Growth Trend */}
-        <Grid item xs={12} lg={8}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#6366f115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <People sx={{ color: '#6366f1', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight="800">User Growth Trend</Typography>
-                <Typography variant="caption" color="text.secondary">New registrations by role</Typography>
-              </Box>
-            </Box>
-            <Divider sx={{ mb: 3 }} />
-            {chartData?.userGrowth?.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 6 }}>
-                <Typography variant="body2" color="text.secondary">No growth data available</Typography>
-              </Box>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={chartData?.userGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
-                  <Line
-                    type="monotone"
-                    dataKey="students"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    name="Students"
-                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4, stroke: '#fff' }}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="teachers"
-                    stroke="#06b6d4"
-                    strokeWidth={3}
-                    name="Teachers"
-                    dot={{ fill: '#06b6d4', strokeWidth: 2, r: 4, stroke: '#fff' }}
-                    activeDot={{ r: 6 }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="admins"
-                    stroke="#f59e0b"
-                    strokeWidth={3}
-                    name="Admins"
-                    dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4, stroke: '#fff' }}
-                    activeDot={{ r: 6 }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Payment Status Distribution */}
-        <Grid item xs={12} lg={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ec489915', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Payment sx={{ color: '#ec4899', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight="800">Payment Status</Typography>
-                <Typography variant="caption" color="text.secondary">Fee payment breakdown</Typography>
-              </Box>
-            </Box>
-            <Divider sx={{ mb: 3 }} />
-            {chartData?.paymentStatus?.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 6 }}>
-                <Typography variant="body2" color="text.secondary">No payment data available</Typography>
-              </Box>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={chartData?.paymentStatus || []}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {(chartData?.paymentStatus || []).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Monthly Fee Collection */}
-        <Grid item xs={12} lg={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#10b98115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <TrendingUp sx={{ color: '#10b981', fontSize: 28 }} />
-              </Box>
-              <Box>
-                <Typography variant="h6" fontWeight="800">Monthly Fee Collection</Typography>
-                <Typography variant="caption" color="text.secondary">Last 6 months trend</Typography>
-              </Box>
-            </Box>
-            <Divider sx={{ mb: 3 }} />
-            {chartData?.monthlyCollection?.length === 0 ? (
-              <Box sx={{ textAlign: 'center', py: 6 }}>
-                <Typography variant="body2" color="text.secondary">No collection data available</Typography>
-              </Box>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={chartData?.monthlyCollection || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorCollection" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis 
-                    dataKey="month" 
-                    axisLine={false} 
-                    tickLine={false} 
-                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} 
-                  />
-                  <YAxis 
-                    axisLine={false} 
-                    tickLine={false} 
-                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
-                  />
-                  <Tooltip 
-                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                    formatter={(value) => [`PKR ${value.toLocaleString()}`, 'Collection']}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="amount"
-                    stroke="#10b981"
-                    strokeWidth={3}
-                    fillOpacity={1}
-                    fill="url(#colorCollection)"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Revenue vs Outstanding */}
+        {/* Financial Overview (Revenue vs Outstanding) */}
         <Grid item xs={12} lg={12}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -521,6 +352,175 @@ const DashboardCharts = () => {
                     ))}
                   </Bar>
                 </BarChart>
+              </ResponsiveContainer>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Payment Status Distribution */}
+        <Grid item xs={12} lg={4}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ec489915', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Payment sx={{ color: '#ec4899', fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight="800">Payment Status</Typography>
+                <Typography variant="caption" color="text.secondary">Fee payment breakdown</Typography>
+              </Box>
+            </Box>
+            <Divider sx={{ mb: 3 }} />
+            {chartData?.paymentStatus?.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="body2" color="text.secondary">No payment data available</Typography>
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={chartData?.paymentStatus || []}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {(chartData?.paymentStatus || []).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* Monthly Fee Collection */}
+        <Grid item xs={12} lg={8}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#10b98115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <TrendingUp sx={{ color: '#10b981', fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight="800">Monthly Fee Collection</Typography>
+                <Typography variant="caption" color="text.secondary">Last 6 months trend</Typography>
+              </Box>
+            </Box>
+            <Divider sx={{ mb: 3 }} />
+            {chartData?.monthlyCollection?.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="body2" color="text.secondary">No collection data available</Typography>
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={chartData?.monthlyCollection || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorCollection" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="month" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                    formatter={(value) => [`PKR ${value.toLocaleString()}`, 'Collection']}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#colorCollection)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </Paper>
+        </Grid>
+
+        {/* User Growth Trend */}
+        <Grid item xs={12} lg={12}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#6366f115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <People sx={{ color: '#6366f1', fontSize: 28 }} />
+              </Box>
+              <Box>
+                <Typography variant="h6" fontWeight="800">User Growth Trend</Typography>
+                <Typography variant="caption" color="text.secondary">New registrations by role</Typography>
+              </Box>
+            </Box>
+            <Divider sx={{ mb: 3 }} />
+            {chartData?.userGrowth?.length === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 6 }}>
+                <Typography variant="body2" color="text.secondary">No growth data available</Typography>
+              </Box>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData?.userGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis 
+                    dataKey="date" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} 
+                  />
+                  <YAxis 
+                    axisLine={false} 
+                    tickLine={false} 
+                    style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }}
+                  />
+                  <Tooltip 
+                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
+                  <Line
+                    type="monotone"
+                    dataKey="students"
+                    stroke="#10b981"
+                    strokeWidth={3}
+                    name="Students"
+                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="teachers"
+                    stroke="#06b6d4"
+                    strokeWidth={3}
+                    name="Teachers"
+                    dot={{ fill: '#06b6d4', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="admins"
+                    stroke="#f59e0b"
+                    strokeWidth={3}
+                    name="Admins"
+                    dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4, stroke: '#fff' }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             )}
           </Paper>

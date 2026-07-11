@@ -838,6 +838,11 @@ class FeeService {
         return false;
       }
 
+      // Struck-off students can NEVER have new vouchers generated
+      if (student.status === 'struck_off' || student.admission.status === 'struck_off') {
+        return false;
+      }
+
       // If the student's admission status is NOT 'enrolled', find when it changed
       if (student.admission.status !== 'enrolled') {
         const currentStatus = student.admission.status;
@@ -856,7 +861,7 @@ class FeeService {
         }
       }
 
-      // Also check student model level status for safety (e.g. struck_off, expelled)
+      // Also check student model level status for safety (e.g. expelled)
       if (student.status && student.status !== 'active') {
         const studentChangeDate = new Date(student.updatedAt || new Date());
         if (studentChangeDate <= voucherEndDate) {

@@ -1227,16 +1227,10 @@ const FeeManagement = () => {
           // Compare admission date with cutoff date
           let shouldInclude = studentAdmissionDate <= cutoffDate;
           
-          // Exclude if struck off before the end of the voucher month
+          // Exclude immediately if struck off (no new vouchers can be generated for struck-off students)
           const isStruckOff = student.status === 'struck_off' || admission.status === 'struck_off';
           if (shouldInclude && isStruckOff) {
-            const history = admission.statusHistory ? [...admission.statusHistory].sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt)) : [];
-            const struckOffRecord = history.find(h => h.status === 'struck_off');
-            const struckOffDate = struckOffRecord && struckOffRecord.changedAt ? new Date(struckOffRecord.changedAt) : new Date(admission.updatedAt || new Date());
-            const voucherEndDate = new Date(selectedYear, selectedMonth, 0, 23, 59, 59, 999);
-            if (struckOffDate <= voucherEndDate) {
-              shouldInclude = false;
-            }
+            shouldInclude = false;
           }
           
           return shouldInclude;
