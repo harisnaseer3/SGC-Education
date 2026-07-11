@@ -1228,7 +1228,7 @@ const FeeManagement = () => {
           let shouldInclude = studentAdmissionDate <= cutoffDate;
           
           // Exclude immediately if struck off (no new vouchers can be generated for struck-off students)
-          const isStruckOff = student.status === 'struck_off' || admission.status === 'struck_off';
+          const isStruckOff = student.status === 'Struck Off' || (admission && admission.status === 'struck_off');
           if (shouldInclude && isStruckOff) {
             shouldInclude = false;
           }
