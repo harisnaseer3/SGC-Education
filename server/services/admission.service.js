@@ -198,7 +198,7 @@ class AdmissionService {
    * Update admission application
    */
   async updateAdmission(admissionId, updateData, currentUser) {
-    const admission = await Admission.findById(admissionId);
+    let admission = await Admission.findById(admissionId);
 
     if (!admission) {
       throw new ApiError(404, 'Admission not found');
@@ -208,6 +208,15 @@ class AdmissionService {
     if (currentUser.role !== 'super_admin' &&
         admission.institution.toString() !== getInstitutionId(currentUser)) {
       throw new ApiError(403, 'You can only update admissions in your institution');
+    }
+
+    // If status is being changed via the edit form, delegate to the dedicated status update method FIRST
+    // This ensures all the complex business logic (student creation, fee cleanup, history) runs properly
+    if (updateData.status && updateData.status !== admission.status) {
+      await this.updateAdmissionStatus(admissionId, updateData.status, 'Status updated via edit form', currentUser);
+      delete updateData.status; // Remove so we don't blindly overwrite it
+      // Re-fetch the admission to get the updated state (e.g. populated studentId)
+      admission = await Admission.findById(admissionId);
     }
 
     // Update admission
@@ -248,6 +257,12 @@ class AdmissionService {
         }
         if (updateData.academicYear) student.academicYear = updateData.academicYear;
         if (updateData.program) student.program = updateData.program;
+        
+        // Ensure student status is synced if they were previously struck off
+        if (student.status !== 'active') {
+          student.status = 'active';
+          student.isActive = true;
+        }
         
         await student.save();
 
@@ -314,10 +329,20 @@ class AdmissionService {
     await admission.save();
   
     // Handle status-specific actions
-    if (status === 'enrolled' && (oldStatus !== 'enrolled' || !admission.studentId)) {
+    if (status === 'enrolled') {
       try {
         await admission.populate('institution');
         const student = await this._createStudentFromAdmission(admission, currentUser);
+        
+        // If student was previously struck_off or inactive, reactivate them
+        if (student.status !== 'active') {
+          await Student.findByIdAndUpdate(student._id, {
+            status: 'active',
+            isActive: true,
+            remarks: remarks || 'Re-enrolled from admission register'
+          });
+        }
+        
         admission.studentId = student._id;
         await admission.save();
       } catch (err) {
@@ -2405,13 +2430,22 @@ class AdmissionService {
         
         // If enrolling (status changed to 'enrolled'), create Student record
         // Also create it if it was already marked as enrolled but is missing a studentId
-        if (status === 'enrolled' && (oldStatus !== 'enrolled' || !admission.studentId)) {
+        if (status === 'enrolled') {
           try {
             // Populate institution for student creation
             await admission.populate('institution');
             
             // Create student record using shared helper
             const student = await this._createStudentFromAdmission(admission, currentUser);
+            
+            // If student was previously struck_off or inactive, reactivate them
+            if (student.status !== 'active') {
+              await Student.findByIdAndUpdate(student._id, {
+                status: 'active',
+                isActive: true,
+                remarks: remarks || 'Re-enrolled from admissions bulk register'
+              });
+            }
             
             // Link student to admission
             admission.studentId = student._id;

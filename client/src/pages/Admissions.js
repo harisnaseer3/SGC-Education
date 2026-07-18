@@ -494,20 +494,36 @@ const Admissions = () => {
     if (sectionFromPath !== activeSection) {
       setActiveSection(sectionFromPath);
     }
+    
+    // Process query parameters for pre-filtering
+    const params = new URLSearchParams(location.search);
+    const statusParam = params.get('status');
+    if (statusParam) {
+      if (sectionFromPath === 'search-all-data') {
+        setAllDataStatusFilter([statusParam]);
+      } else if (sectionFromPath === 'register') {
+        setFilterStatus(statusParam.toLowerCase().replace(' ', '_'));
+      } else if (sectionFromPath === 'list') {
+        setSelectedStatus(statusParam.toLowerCase().replace(' ', '_'));
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [location.pathname, location.search]);
 
   // Auto-fetch data when navigating to search-all-data section
   useEffect(() => {
     if (activeSection === 'search-all-data' && admissions.length > 0) {
+      const params = new URLSearchParams(location.search);
+      const hasStatusQuery = params.has('status');
+      
       // Auto-search when section is active and we have admissions data
-      // Only if no rows are currently displayed
-      if (studentAllDataRows.length === 0) {
-        // Don't auto-search, let user click Search button
+      // Only if no rows are currently displayed, and we came with a specific query
+      if (studentAllDataRows.length === 0 && hasStatusQuery) {
+        handleSearchStudentAllData();
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSection, admissions]);
+  }, [activeSection, admissions, location.search]);
 
   // Fetch data when filters change
   useEffect(() => {

@@ -142,10 +142,12 @@ const Dashboard = () => {
     }
   };
 
-  const StatCard = ({ title, value, icon, color, subtitle, trend, compact = false }) => (
+  const StatCard = ({ title, value, icon, color, subtitle, trend, compact = false, onClick }) => (
     <Card
+      onClick={onClick}
       elevation={0}
       sx={{
+        cursor: onClick ? 'pointer' : 'default',
         background: `linear-gradient(135deg, ${color}10 0%, #ffffff 100%)`,
         border: `1px solid ${color}20`,
         borderRadius: 3,
@@ -153,9 +155,9 @@ const Dashboard = () => {
         height: '100%',
         boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         '&:hover': {
-          transform: 'translateY(-6px)',
-          boxShadow: `0 20px 40px ${color}15`,
-          border: `1px solid ${color}40`,
+          transform: onClick ? 'translateY(-6px)' : 'none',
+          boxShadow: onClick ? `0 20px 40px ${color}15` : '0 4px 20px rgba(0,0,0,0.03)',
+          border: onClick ? `1px solid ${color}40` : `1px solid ${color}20`,
         }
       }}
     >
@@ -323,32 +325,36 @@ const Dashboard = () => {
                     value: dashboardData?.users?.roleBreakdown?.students || 0, 
                     icon: <People />, 
                     color: '#4facfe', 
-                    subtitle: 'Active enrollments'
+                    subtitle: 'Active enrollments',
+                    path: '/users'
                   },
                   { 
                     title: 'New Admissions', 
                     value: dashboardData?.administrative?.newAdmissions || 0, 
                     icon: <PersonAdd />, 
                     color: '#6366f1', 
-                    subtitle: 'Last 30 days' 
+                    subtitle: 'Last 30 days',
+                    path: '/admissions'
                   },
                   { 
-                    title: 'Pending Admissions', 
-                    value: dashboardData?.administrative?.pendingAdmissions || 0, 
-                    icon: <Report />, 
-                    color: '#f59e0b', 
-                    subtitle: 'Awaiting review' 
+                    title: 'Enrolled Students', 
+                    value: dashboardData?.administrative?.enrolledStudents || 0, 
+                    icon: <CheckCircle />, 
+                    color: '#10b981', 
+                    subtitle: 'Currently enrolled',
+                    path: '/admissions'
                   },
                   { 
                     title: 'Struck Off Students', 
                     value: dashboardData?.administrative?.struckOffStudents || 0, 
                     icon: <PersonOff />, 
                     color: '#ff6b6b', 
-                    subtitle: 'Total struck off' 
+                    subtitle: 'Total struck off',
+                    path: '/admissions/students/search-all?status=Struck%20Off'
                   }
                 ].map((stat, i) => (
                   <Grid item xs={12} sm={6} lg={3} key={i}>
-                    <StatCard compact {...stat} />
+                    <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                   </Grid>
                 ))}
               </Grid>
@@ -362,32 +368,36 @@ const Dashboard = () => {
                       value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalBilled || 0).toLocaleString()}`, 
                       icon: <AccountBalance />, 
                       color: '#6366f1', 
-                      subtitle: 'Accounts receivable' 
+                      subtitle: 'Accounts receivable',
+                      path: '/fee-management'
                     },
                     { 
                       title: 'Total Collected', 
                       value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalCollected || 0).toLocaleString()}`, 
                       icon: <Payment />, 
                       color: '#10b981', 
-                      subtitle: 'All-time collections' 
+                      subtitle: 'All-time collections',
+                      path: '/fee-management'
                     },
                     { 
                       title: 'Total Outstanding', 
                       value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalOutstanding || 0).toLocaleString()}`, 
                       icon: <Assessment />, 
                       color: '#f59e0b', 
-                      subtitle: 'Total unpaid arrears' 
+                      subtitle: 'Total unpaid arrears',
+                      path: '/fee-management'
                     },
                     { 
                       title: "Last Month Collected", 
                       value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.lastMonthCollected || 0).toLocaleString()}`, 
                       icon: <EventAvailable />, 
                       color: '#4facfe', 
-                      subtitle: 'Previous month' 
+                      subtitle: 'Previous month',
+                      path: '/fee-management'
                     }
                   ].map((fin, i) => (
                     <Grid item xs={12} sm={6} lg={3} key={i}>
-                      <StatCard compact {...fin} />
+                      <StatCard compact {...fin} onClick={() => fin.path && navigate(fin.path)} />
                     </Grid>
                   ))}
                 </Grid>
@@ -419,32 +429,36 @@ const Dashboard = () => {
                       value: dashboardData.vouchers[voucherFilter].total || 0, 
                       icon: <Receipt />, 
                       color: '#6366f1', 
-                      subtitle: 'Generated' 
+                      subtitle: 'Generated',
+                      path: '/fee-management'
                     },
                     { 
                       title: 'Paid Vouchers', 
                       value: dashboardData.vouchers[voucherFilter].paid || 0, 
                       icon: <CheckCircle />, 
                       color: '#34d399', 
-                      subtitle: 'Fully paid' 
+                      subtitle: 'Fully paid',
+                      path: '/fee-management'
                     },
                     { 
                       title: 'Pending Vouchers', 
                       value: dashboardData.vouchers[voucherFilter].pending || 0, 
                       icon: <PendingActions />, 
                       color: '#f59e0b', 
-                      subtitle: 'Unpaid / Partial' 
+                      subtitle: 'Unpaid / Partial',
+                      path: '/fee-management'
                     },
                     { 
                       title: 'Overdue Vouchers', 
                       value: dashboardData.vouchers[voucherFilter].overdue || 0, 
                       icon: <Warning />, 
                       color: '#ef4444', 
-                      subtitle: 'Past due date' 
+                      subtitle: 'Past due date',
+                      path: '/fee-management'
                     }
                   ].map((stat, i) => (
                     <Grid item xs={12} sm={6} lg={3} key={i}>
-                      <StatCard compact {...stat} />
+                      <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                     </Grid>
                   ))}
                   </Grid>

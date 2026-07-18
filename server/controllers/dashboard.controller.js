@@ -462,7 +462,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     lastMonthFees,
     recentInstitutionsCount,
     recentUsersCount,
-    pendingAdmissionsCount,
+    enrolledStudentsCount,
     newAdmissionsCount,
     overdueFeesCount,
     upcomingEvents,
@@ -498,8 +498,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     ]),
     Institution.countDocuments({ ...institutionQuery, createdAt: { $gte: thirtyDaysAgo } }),
     User.countDocuments({ ...userQuery, createdAt: { $gte: thirtyDaysAgo } }),
-    // New Content: Pending Admissions
-    Admission.countDocuments({ ...referenceQuery, status: 'pending' }),
+    // New Content: Enrolled Students
+    Admission.countDocuments({ ...referenceQuery, status: 'enrolled' }),
     // New Content: New Admissions (last 30 days)
     Admission.countDocuments({ ...referenceQuery, createdAt: { $gte: thirtyDaysAgo } }),
     // New Content: Overdue Fees
@@ -596,7 +596,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         currency: 'PKR'
       },
       administrative: {
-        pendingAdmissions: pendingAdmissionsCount,
+        enrolledStudents: enrolledStudentsCount,
         newAdmissions: newAdmissionsCount,
         overdueFees: overdueFeesCount,
         struckOffStudents: struckOffStudentsCount
