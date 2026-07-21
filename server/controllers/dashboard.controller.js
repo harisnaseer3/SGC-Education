@@ -440,7 +440,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           total:   { $sum: 1 },
           paid:    { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] },    1, 0] } },
           unpaid:  { $sum: { $cond: [{ $eq: ['$voucherStatus', 'unpaid'] },  1, 0] } },
-          partial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, 1, 0] } }
+          partial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, 1, 0] } },
+          totalBilled: { $sum: '$totalFinal' },
+          totalCollected: { $sum: '$totalPaid' },
+          totalOutstanding: { $sum: '$totalRemaining' }
         }
       }
     );
@@ -602,9 +605,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         struckOffStudents: struckOffStudentsCount
       },
       vouchers: {
-        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0 },
-        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0 },
-        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0 },
+        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0 },
+        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0 },
+        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0 },
         monthlyBreakdown: monthlyBreakdownAgg || []
       },
       upcomingEvents,

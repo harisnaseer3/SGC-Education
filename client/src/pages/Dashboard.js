@@ -399,56 +399,12 @@ const Dashboard = () => {
                 ))}
               </Grid>
 
-              {/* Row 2: Financial Metrics */}
-              {dashboardData?.finance && (
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                  {[
-                    { 
-                      title: 'Total Billed', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalBilled || 0).toLocaleString()}`, 
-                      icon: <AccountBalance />, 
-                      color: '#6366f1', 
-                      subtitle: 'Accounts receivable',
-                      path: '/fee-management'
-                    },
-                    { 
-                      title: 'Total Collected', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalCollected || 0).toLocaleString()}`, 
-                      icon: <Payment />, 
-                      color: '#10b981', 
-                      subtitle: 'All-time collections',
-                      path: '/fee-management'
-                    },
-                    { 
-                      title: 'Total Outstanding', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalOutstanding || 0).toLocaleString()}`, 
-                      icon: <Assessment />, 
-                      color: '#f59e0b', 
-                      subtitle: 'Total unpaid arrears',
-                      path: '/fee-management'
-                    },
-                    { 
-                      title: "Last Month Collected", 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.lastMonthCollected || 0).toLocaleString()}`, 
-                      icon: <EventAvailable />, 
-                      color: '#4facfe', 
-                      subtitle: 'Previous month',
-                      path: '/fee-management'
-                    }
-                  ].map((fin, i) => (
-                    <Grid item xs={12} sm={6} lg={3} key={i}>
-                      <StatCard compact {...fin} onClick={() => fin.path && navigate(fin.path)} />
-                    </Grid>
-                  ))}
-                </Grid>
-              )}
-
-              {/* Row 3: Voucher Overview */}
+              {/* Row 2: Financial & Voucher Overview */}
               {activeVoucherData && (
                 <Box sx={{ mb: 4 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h5" fontWeight="bold">
-                      Voucher Overview
+                      Financial & Voucher Overview
                     </Typography>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                       <Typography variant="button" color="text.secondary" fontWeight="bold">
@@ -481,8 +437,40 @@ const Dashboard = () => {
                       />
                     </Box>
                   </Box>
-                  <Grid container spacing={3}>
+                  <Grid container spacing={3} sx={{ mb: 3 }}>
                   {[
+                    { 
+                      title: 'Total Billed', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalBilled || 0).toLocaleString()}`, 
+                      icon: <AccountBalance />, 
+                      color: '#6366f1', 
+                      subtitle: 'Accounts receivable',
+                      path: '/fee-management?tab=print-voucher'
+                    },
+                    { 
+                      title: 'Total Collected', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalCollected || 0).toLocaleString()}`, 
+                      icon: <Payment />, 
+                      color: '#10b981', 
+                      subtitle: 'Received payments',
+                      path: '/fee-management?tab=receipt'
+                    },
+                    { 
+                      title: 'Total Outstanding', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalOutstanding || 0).toLocaleString()}`, 
+                      icon: <Assessment />, 
+                      color: '#f59e0b', 
+                      subtitle: 'Unpaid arrears',
+                      path: '/fee-management?tab=fee-deposit'
+                    },
+                    { 
+                      title: 'Collection Rate', 
+                      value: `${activeVoucherData.totalBilled ? ((activeVoucherData.totalCollected || 0) / activeVoucherData.totalBilled * 100).toFixed(1) : 0}%`, 
+                      icon: <EventAvailable />, 
+                      color: '#4facfe', 
+                      subtitle: 'Collected / Billed',
+                      path: '/fee-management'
+                    },
                     { 
                       title: 'Total Vouchers', 
                       value: activeVoucherData.total || 0, 
