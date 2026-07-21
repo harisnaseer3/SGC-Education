@@ -105,16 +105,22 @@ export const calculateAcademicYear = (month, year) => {
  * @returns {string} Student name or 'N/A'
  */
 export const getStudentName = (admission, student) => {
-  if (admission?.personalInfo?.name) {
-    return admission.personalInfo.name;
-  }
-  if (student?.user?.name) {
-    return student.user.name;
-  }
+  if (admission?.personalInfo?.name) return admission.personalInfo.name;
+  if (student?.personalDetails?.name) return student.personalDetails.name;
+  if (student?.name) return student.name;
+  if (student?.user?.name) return student.user.name;
+  
   if (admission?.personalInfo?.firstName) {
     const lastName = admission.personalInfo.lastName || '';
     return `${admission.personalInfo.firstName} ${lastName}`.trim();
   }
+  
+  if (student?.firstName || student?.personalDetails?.firstName) {
+    const fName = student.firstName || student.personalDetails?.firstName;
+    const lName = student.lastName || student.personalDetails?.lastName || '';
+    return `${fName} ${lName}`.trim();
+  }
+
   return 'N/A';
 };
 
@@ -128,6 +134,9 @@ export const getStudentId = (admission, student) => {
   return student?.enrollmentNumber || 
          student?.rollNumber || 
          admission?.applicationNumber || 
+         student?.applicationNumber ||
+         student?.admissionNo ||
+         student?.admissionNumber ||
          admission?.studentId?.enrollmentNumber || 
          'N/A';
 };

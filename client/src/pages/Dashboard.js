@@ -159,6 +159,8 @@ const Dashboard = () => {
         borderRadius: 3,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         height: '100%',
+        display: 'flex',
+        flexDirection: 'column',
         boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         '&:hover': {
           transform: onClick ? 'translateY(-6px)' : 'none',
@@ -167,9 +169,16 @@ const Dashboard = () => {
         }
       }}
     >
-      <CardContent sx={{ p: compact ? 3 : 4, '&:last-child': { pb: compact ? 3 : 4 } }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <Box sx={{ flex: 1 }}>
+      <CardContent sx={{ 
+        p: compact ? 2.5 : 3.5, 
+        '&:last-child': { pb: compact ? 2.5 : 3.5 },
+        flexGrow: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center'
+      }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%', gap: 2 }}>
+          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem', opacity: 0.8 }}>
               {title}
             </Typography>
@@ -199,13 +208,13 @@ const Dashboard = () => {
           </Box>
           <Box sx={{ 
             p: compact ? 1.5 : 2, 
-            borderRadius: 2.5, 
+            borderRadius: 3, 
             background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
             boxShadow: `0 8px 16px ${color}40`,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            ml: 2.5
+            flexShrink: 0
           }}>
             {React.cloneElement(icon, { sx: { fontSize: compact ? 28 : 36, color: '#fff' } })}
           </Box>
@@ -393,7 +402,7 @@ const Dashboard = () => {
                     path: '/admissions/students/search-all?status=Struck%20Off'
                   }
                 ].map((stat, i) => (
-                  <Grid item xs={12} sm={6} lg={3} key={i}>
+                  <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={i}>
                     <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                   </Grid>
                 ))}
@@ -437,7 +446,7 @@ const Dashboard = () => {
                       />
                     </Box>
                   </Box>
-                  <Grid container spacing={3} sx={{ mb: 3 }}>
+                  <Grid container spacing={3} sx={{ mb: 4 }}>
                   {[
                     { 
                       title: 'Total Billed', 
@@ -461,7 +470,15 @@ const Dashboard = () => {
                       icon: <Payment />, 
                       color: '#10b981', 
                       subtitle: 'Received payments',
-                      path: `/fee-management?tab=receipt`
+                      path: `/fee-management?tab=receipt&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     },
                     { 
                       title: 'Total Outstanding', 
@@ -469,7 +486,15 @@ const Dashboard = () => {
                       icon: <Assessment />, 
                       color: '#f59e0b', 
                       subtitle: 'Unpaid arrears',
-                      path: `/fee-management?tab=fee-deposit`
+                      path: `/fee-management?tab=fee-deposit&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     },
                     { 
                       title: 'Collection Rate', 
@@ -478,7 +503,19 @@ const Dashboard = () => {
                       color: '#4facfe', 
                       subtitle: 'Collected / Billed',
                       path: `/fee-management`
-                    },
+                    }
+                  ].map((stat, i) => (
+                    <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={`fin-${i}`}>
+                      <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
+                    </Grid>
+                  ))}
+                  </Grid>
+
+                  <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}>
+                    Voucher Overview
+                  </Typography>
+                  <Grid container spacing={3} sx={{ mb: 3 }}>
+                  {[
                     { 
                       title: 'Total Vouchers', 
                       value: activeVoucherData.total || 0, 
@@ -544,7 +581,7 @@ const Dashboard = () => {
                       })()}`
                     }
                   ].map((stat, i) => (
-                    <Grid item xs={12} sm={6} lg={3} key={i}>
+                    <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={`vouch-${i}`}>
                       <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                     </Grid>
                   ))}
@@ -601,7 +638,7 @@ const Dashboard = () => {
                         { label: 'Manage Classes', icon: <School />, color: '#8b5cf6', path: '/classes' },
                         { label: 'View Results', icon: <Assessment />, color: '#f59e0b', path: '/results' }
                       ].map((action, i) => (
-                        <Grid item xs={6} sm={4} md={3} lg={12/7} key={i}>
+                        <Grid item xs={6} sm={4} md={3} lg={12/7} xl={12/7} key={i}>
                           <Button
                             fullWidth
                             onClick={() => navigate(action.path)}

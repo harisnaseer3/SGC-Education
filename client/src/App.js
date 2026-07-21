@@ -135,7 +135,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
   const sidebarWidth = sidebarCollapsed ? 80 : 280;
   
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', width: '100%', minHeight: '100vh', maxWidth: '100vw', overflowX: 'hidden' }}>
       <TopBar title={getPageTitle()} />
       <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       <Box
@@ -143,7 +143,8 @@ const ProtectedRoute = ({ children, title, permission }) => {
         sx={{
           flexGrow: 1,
           mt: '64px',
-          width: { sm: `calc(100% - ${sidebarWidth}px)` },
+          width: { xs: '100%', sm: `calc(100% - ${sidebarWidth}px)` },
+          maxWidth: { xs: '100%', sm: `calc(100% - ${sidebarWidth}px)` },
           transition: (theme) => theme.transitions.create(['margin', 'width'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,

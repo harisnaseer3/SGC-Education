@@ -284,7 +284,7 @@ const DashboardCharts = () => {
 
       <Grid container spacing={3}>
         {/* Financial Overview (Revenue vs Outstanding) */}
-        <Grid item xs={12} lg={12}>
+        <Grid item xs={12} lg={12} xl={12}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#f59e0b15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -401,7 +401,7 @@ const DashboardCharts = () => {
         </Grid>
 
         {/* Monthly Fee Collection */}
-        <Grid item xs={12} lg={8}>
+        <Grid item xs={12} lg={8} xl={8}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#10b98115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -458,7 +458,7 @@ const DashboardCharts = () => {
         </Grid>
 
         {/* User Growth Trend */}
-        <Grid item xs={12} lg={12}>
+        <Grid item xs={12} lg={12} xl={12}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#6366f115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -527,7 +527,7 @@ const DashboardCharts = () => {
         </Grid>
 
         {/* Student Enrollment Trend */}
-        <Grid item xs={12} lg={8}>
+        <Grid item xs={12} lg={8} xl={8}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -558,7 +558,7 @@ const DashboardCharts = () => {
         </Grid>
 
         {/* Student Distribution by Class */}
-        <Grid item xs={12} lg={4}>
+        <Grid item xs={12} lg={4} xl={4}>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

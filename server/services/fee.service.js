@@ -280,10 +280,10 @@ class FeeService {
         _id: student._id,
         enrollmentNumber: student.enrollmentNumber,
         rollNumber: student.rollNumber,
-        admissionNumber: student.applicationNumber || '',
-        name: student.personalDetails?.name || '',
-        class: classDoc.name || '',
-        section: sectionDoc.name || student.section || '',
+        admissionNumber: student.applicationNumber || student.admissionNo || student.admissionNumber || '',
+        name: student.personalDetails?.name || student.name || student.firstName || '',
+        class: classDoc.name || (typeof student.class === 'string' ? student.class : student.className || ''),
+        section: sectionDoc.name || (typeof student.section === 'string' ? student.section : student.sectionName || ''),
         academicYear: student.academicYear,
         hasAssignedFee: hasAssignedFee
       };
@@ -715,7 +715,7 @@ class FeeService {
     const studentFees = await StudentFee.find(query)
       .populate({
         path: 'student',
-        select: 'enrollmentNumber rollNumber status academicYear applicationNumber personalDetails guardianInfo class section admissionEffectiveDate admissionDate createdAt statusHistory',
+        select: 'enrollmentNumber rollNumber status academicYear applicationNumber admissionNo admissionNumber name firstName lastName personalDetails guardianInfo class className section sectionName admissionEffectiveDate admissionDate createdAt statusHistory',
         populate: [
           { path: 'class', select: 'name code' },
           { path: 'section', select: 'name code' }

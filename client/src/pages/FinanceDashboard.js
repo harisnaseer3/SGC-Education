@@ -58,6 +58,8 @@ const StatCard = ({ title, value, icon, color, subtitle, compact = false }) => (
       borderRadius: 4,
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       height: '100%',
+      display: 'flex',
+      flexDirection: 'column',
       boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
       '&:hover': {
         transform: 'translateY(-6px)',
@@ -66,9 +68,16 @@ const StatCard = ({ title, value, icon, color, subtitle, compact = false }) => (
       }
     }}
   >
-    <CardContent sx={{ p: compact ? 2.5 : 3.5, '&:last-child': { pb: compact ? 2.5 : 3.5 } }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box sx={{ flex: 1 }}>
+    <CardContent sx={{ 
+      p: compact ? 2.5 : 3.5, 
+      '&:last-child': { pb: compact ? 2.5 : 3.5 },
+      flexGrow: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      justifyContent: 'center'
+    }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%', gap: 2 }}>
+        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem', opacity: 0.8 }}>
             {title}
           </Typography>
@@ -82,16 +91,16 @@ const StatCard = ({ title, value, icon, color, subtitle, compact = false }) => (
           )}
         </Box>
         <Box sx={{ 
-          p: compact ? 1.2 : 1.8, 
-          borderRadius: 2.5, 
+          p: compact ? 1.5 : 2, 
+          borderRadius: 3, 
           background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
           boxShadow: `0 8px 16px ${color}40`,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          ml: 2.5
+          flexShrink: 0
         }}>
-          {React.cloneElement(icon, { sx: { fontSize: compact ? 24 : 32, color: '#fff' } })}
+          {React.cloneElement(icon, { sx: { fontSize: compact ? 28 : 36, color: '#fff' } })}
         </Box>
       </Box>
     </CardContent>
@@ -347,7 +356,7 @@ const FinanceDashboard = () => {
                 subtitle: 'Newly enrolled in period' 
               }
             ].map((stat, i) => (
-              <Grid item xs={12} sm={6} md={4} lg={3} key={i}>
+              <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={i}>
                 <StatCard compact {...stat} />
               </Grid>
             ))}

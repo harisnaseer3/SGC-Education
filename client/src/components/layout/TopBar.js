@@ -77,7 +77,7 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
   };
 
   return (
-    <AppBar position="fixed" sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: 1300 }}>
+    <AppBar position="fixed" sx={{ width: '100%', right: 0, left: 0, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: 1300 }}>
       <Toolbar sx={{ px: { xs: 2, sm: 3 }, flexWrap: 'wrap', gap: 2 }}>
         {/* Logo Image - Falls back to School icon if logo.png doesn't exist */}
         {showLogo ? (
