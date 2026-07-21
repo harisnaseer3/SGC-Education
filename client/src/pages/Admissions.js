@@ -2296,9 +2296,10 @@ const Admissions = () => {
                         const isItemSelected = isSelected(admission._id);
                         const labelId = `enhanced-table-checkbox-${idx}`;
                         const actualIndex = page * rowsPerPage + idx;
-                        const studentName = admission.personalInfo?.name || '';
-                        const dateOfBirth = admission.personalInfo?.dateOfBirth 
-                          ? new Date(admission.personalInfo.dateOfBirth).toLocaleDateString('en-GB', {
+                        const studentName = admission.personalInfo?.name || admission.name || admission.studentName || admission.firstName || '';
+                        const rawDob = admission.personalInfo?.dateOfBirth || admission.dateOfBirth || admission.dob;
+                        const dateOfBirth = rawDob 
+                          ? new Date(rawDob).toLocaleDateString('en-GB', {
                               day: 'numeric',
                               month: 'long',
                               year: 'numeric'
@@ -2307,10 +2308,14 @@ const Admissions = () => {
                         const admissionDate = admission.createdAt 
                           ? new Date(admission.createdAt).toLocaleDateString('en-GB')
                           : 'N/A';
-                        const residence = admission.contactInfo?.currentAddress 
+                        const residence = admission.contactInfo?.currentAddress?.street || admission.contactInfo?.currentAddress?.city
                           ? `${admission.contactInfo.currentAddress.street || ''}, ${admission.contactInfo.currentAddress.city || ''}`.trim()
-                          : 'N/A';
-                        const className = admission.class?.name || admission.program || 'N/A';
+                          : (admission.address || admission.residence || 'N/A');
+                        const className = admission.class?.name || admission.className || admission.program || 'N/A';
+                        const appNumber = admission.applicationNumber || admission.admissionNo || admission.admissionNumber || 'N/A';
+                        const phone = admission.contactInfo?.phone || admission.phone || admission.mobileNumber || 'N/A';
+                        const category = admission.personalInfo?.category || admission.category || 'General';
+                        const religion = admission.personalInfo?.religion || admission.religion || 'Islam';
                         
                         return (
                           <TableRow 
@@ -2331,7 +2336,7 @@ const Admissions = () => {
                             <TableCell>{admissionDate}</TableCell>
                             <TableCell>
                               <Box sx={{ textDecoration: admission.isActive === false ? 'line-through' : 'none' }}>
-                                {admission.applicationNumber || 'N/A'}
+                                {appNumber}
                               </Box>
                             </TableCell>
                             <TableCell>
@@ -2339,11 +2344,11 @@ const Admissions = () => {
                                 {studentName || 'N/A'}
                               </Box>
                             </TableCell>
-                            <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
+                            <TableCell>{admission.guardianInfo?.fatherName || admission.fatherName || 'N/A'}</TableCell>
                             <TableCell>{dateOfBirth}</TableCell>
-                            <TableCell>{admission.contactInfo?.phone || 'N/A'}</TableCell>
-                            <TableCell>{admission.personalInfo?.category || ''}</TableCell>
-                            <TableCell>{admission.personalInfo?.religion || 'N/A'}</TableCell>
+                            <TableCell>{phone}</TableCell>
+                            <TableCell>{category}</TableCell>
+                            <TableCell>{religion}</TableCell>
                             <TableCell>
                               <Chip
                                 label={admission.status || 'pending'}
