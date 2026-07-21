@@ -51,11 +51,7 @@ const feeVoucherSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    admission: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Admission',
-      default: null,
-    },
+
     month: {
       type: Number,
       required: true,

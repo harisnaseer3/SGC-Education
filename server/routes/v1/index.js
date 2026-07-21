@@ -70,7 +70,7 @@ router.get('/test-route', (req, res) => res.json({ message: 'API v1 test route i
 
 router.get('/db-test-counts', async (req, res) => {
   try {
-    const Admission = require('../../models/Admission');
+    const Admission = require('../../models/Student');
     const Student = require('../../models/Student');
     const admissionService = require('../../services/admission.service');
     
@@ -129,7 +129,7 @@ router.get('/db-test-counts', async (req, res) => {
 
 router.get('/test-student-creation', async (req, res) => {
   try {
-    const Admission = require('../../models/Admission');
+    const Admission = require('../../models/Student');
     const admissionService = require('../../services/admission.service');
     
     // Find an enrolled admission that has no studentId

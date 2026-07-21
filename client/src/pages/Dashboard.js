@@ -49,6 +49,7 @@ import { getApiUrl } from '../config/api';
 import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import FinanceDashboard from './FinanceDashboard';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -299,6 +300,35 @@ const Dashboard = () => {
     return <FinanceDashboard />;
   }
 
+  const getActiveVoucherData = () => {
+    if (!dashboardData?.vouchers) return null;
+    if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+      return dashboardData.vouchers[voucherFilter];
+    }
+    const [month, year] = voucherFilter.split('-');
+    const found = dashboardData.vouchers.monthlyBreakdown?.find(
+      (m) => m._id.month === parseInt(month) && m._id.year === parseInt(year)
+    );
+    return found || { total: 0, paid: 0, pending: 0, overdue: 0 };
+  };
+  const activeVoucherData = getActiveVoucherData();
+
+  const getVoucherChartData = () => {
+    if (!dashboardData?.vouchers?.monthlyBreakdown) return [];
+    const reversed = [...dashboardData.vouchers.monthlyBreakdown].reverse();
+    return reversed.map((m) => {
+      const date = new Date(m._id.year, m._id.month - 1, 1);
+      return {
+        name: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        Total: m.total,
+        Paid: m.paid,
+        Pending: m.pending,
+        Overdue: m.overdue
+      };
+    });
+  };
+  const voucherChartData = getVoucherChartData();
+
   if (loading) {
     return (
       <Box sx={{ minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -404,13 +434,13 @@ const Dashboard = () => {
               )}
 
               {/* Row 3: Voucher Overview */}
-              {dashboardData?.vouchers && dashboardData.vouchers[voucherFilter] && (
+              {activeVoucherData && (
                 <Box sx={{ mb: 4 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h5" fontWeight="bold">
                       Voucher Overview
                     </Typography>
-                    <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <FormControl size="small" sx={{ minWidth: 160 }}>
                       <Select
                         value={voucherFilter}
                         onChange={(e) => setVoucherFilter(e.target.value)}
@@ -419,6 +449,11 @@ const Dashboard = () => {
                         <MenuItem value="allTime">All Time</MenuItem>
                         <MenuItem value="currentMonth">Current Month</MenuItem>
                         <MenuItem value="prevMonth">Previous Month</MenuItem>
+                        {dashboardData?.vouchers?.monthlyBreakdown?.map((m) => {
+                           const date = new Date(m._id.year, m._id.month - 1, 1);
+                           const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                           return <MenuItem key={`${m._id.month}-${m._id.year}`} value={`${m._id.month}-${m._id.year}`}>{label}</MenuItem>
+                        })}
                       </Select>
                     </FormControl>
                   </Box>
@@ -426,7 +461,7 @@ const Dashboard = () => {
                   {[
                     { 
                       title: 'Total Vouchers', 
-                      value: dashboardData.vouchers[voucherFilter].total || 0, 
+                      value: activeVoucherData.total || 0, 
                       icon: <Receipt />, 
                       color: '#6366f1', 
                       subtitle: 'Generated',
@@ -434,7 +469,7 @@ const Dashboard = () => {
                     },
                     { 
                       title: 'Paid Vouchers', 
-                      value: dashboardData.vouchers[voucherFilter].paid || 0, 
+                      value: activeVoucherData.paid || 0, 
                       icon: <CheckCircle />, 
                       color: '#34d399', 
                       subtitle: 'Fully paid',
@@ -442,7 +477,7 @@ const Dashboard = () => {
                     },
                     { 
                       title: 'Pending Vouchers', 
-                      value: dashboardData.vouchers[voucherFilter].pending || 0, 
+                      value: activeVoucherData.pending || 0, 
                       icon: <PendingActions />, 
                       color: '#f59e0b', 
                       subtitle: 'Unpaid / Partial',
@@ -450,7 +485,7 @@ const Dashboard = () => {
                     },
                     { 
                       title: 'Overdue Vouchers', 
-                      value: dashboardData.vouchers[voucherFilter].overdue || 0, 
+                      value: activeVoucherData.overdue || 0, 
                       icon: <Warning />, 
                       color: '#ef4444', 
                       subtitle: 'Past due date',
@@ -462,6 +497,26 @@ const Dashboard = () => {
                     </Grid>
                   ))}
                   </Grid>
+
+                  {/* Voucher Trend Chart */}
+                  {voucherChartData.length > 0 && (
+                    <Paper elevation={0} sx={{ mt: 3, p: 3, borderRadius: 4, border: '1px solid #edf2f7' }}>
+                      <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 2 }}>Monthly Voucher Trend</Typography>
+                      <ResponsiveContainer width="100%" height={300}>
+                        <BarChart data={voucherChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                          <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                          <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
+                          <Bar dataKey="Total" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Paid" fill="#34d399" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Overdue" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </Paper>
+                  )}
                 </Box>
               )}
 

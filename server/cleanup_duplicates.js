@@ -13,7 +13,7 @@ const Institution = require('./models/Institution');
 const FeeStructure = require('./models/FeeStructure');
 const Class = require('./models/Class');
 const Section = require('./models/Section');
-const Admission = require('./models/Admission');
+const Admission = require('./models/Student');
 
 const connectDB = async () => {
   try {

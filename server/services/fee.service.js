@@ -4,7 +4,7 @@ const FeeHead = require('../models/FeeHead');
 const Class = require('../models/Class');
 const Student = require('../models/Student');
 const StudentFee = require('../models/StudentFee');
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const FeePayment = require('../models/FeePayment');
 const SuspenseEntry = require('../models/SuspenseEntry');
 const User = require('../models/User');
@@ -257,15 +257,8 @@ class FeeService {
       institution: institutionId,
       isActive: true
     })
-      .populate('user', 'name email')
-      .populate({
-        path: 'admission',
-        select: 'applicationNumber class section academicYear',
-        populate: [
-          { path: 'class', select: 'name code' },
-          { path: 'section', select: 'name code' }
-        ]
-      })
+      .populate('class', 'name code')
+      .populate('section', 'name code')
       .sort({ enrollmentNumber: 1 });
 
     // Get all student IDs that have fee structures
@@ -279,17 +272,16 @@ class FeeService {
 
     // Format response for frontend with hasAssignedFee flag
     const formattedStudents = students.map(student => {
-      const admission = student.admission || {};
-      const classDoc = admission.class || {};
-      const sectionDoc = admission.section || {};
+      const classDoc = student.class || {};
+      const sectionDoc = student.section || {};
       const hasAssignedFee = studentsWithFeesSet.has(student._id.toString());
       
       return {
         _id: student._id,
         enrollmentNumber: student.enrollmentNumber,
         rollNumber: student.rollNumber,
-        admissionNumber: admission.applicationNumber || '',
-        name: student.user?.name || '',
+        admissionNumber: student.applicationNumber || '',
+        name: student.personalDetails?.name || '',
         class: classDoc.name || '',
         section: sectionDoc.name || student.section || '',
         academicYear: student.academicYear,
@@ -327,8 +319,8 @@ class FeeService {
       throw new ApiError(404, 'Student not found');
     }
 
-    if (!student.isActive || student.status !== 'active') {
-      throw new ApiError(400, 'Student is not active');
+    if (!student.isActive || student.status !== 'enrolled') {
+      throw new ApiError(400, 'Student is not enrolled');
     }
 
     const institutionId = student.institution._id || student.institution;
@@ -723,26 +715,10 @@ class FeeService {
     const studentFees = await StudentFee.find(query)
       .populate({
         path: 'student',
-        select: 'enrollmentNumber rollNumber status academicYear user admission',
+        select: 'enrollmentNumber rollNumber status academicYear applicationNumber personalDetails guardianInfo class section admissionEffectiveDate admissionDate createdAt statusHistory',
         populate: [
-          {
-            path: 'user',
-            select: 'name email'
-          },
-          {
-            path: 'admission',
-            select: 'applicationNumber personalInfo guardianInfo class section admissionEffectiveDate admissionDate createdAt statusHistory',
-            populate: [
-              {
-                path: 'class',
-                select: 'name code'
-              },
-              {
-                path: 'section',
-                select: 'name code'
-              }
-            ]
-          }
+          { path: 'class', select: 'name code' },
+          { path: 'section', select: 'name code' }
         ]
       })
       .populate({
@@ -794,36 +770,10 @@ class FeeService {
       dueDateObj = new Date(year, month - 1, dueDay);
     }
 
-    // First, try to find students by ID directly
     let students = await Student.find({
       _id: { $in: studentIds },
       isActive: true
-    })
-      .populate('institution')
-      .populate('admission');
-
-    // If not found, try to find by admission ID
-    if (students.length === 0) {
-      const Admission = require('../models/Admission');
-      const admissions = await Admission.find({
-        _id: { $in: studentIds },
-        isActive: true
-      })
-        .populate('studentId');
-
-      const actualStudentIds = admissions
-        .filter(adm => adm.studentId)
-        .map(adm => adm.studentId._id || adm.studentId);
-
-      if (actualStudentIds.length > 0) {
-        students = await Student.find({
-          _id: { $in: actualStudentIds },
-          isActive: true
-        })
-          .populate('institution')
-          .populate('admission');
-      }
-    }
+    }).populate('institution');
 
     if (students.length === 0) {
       throw new ApiError(404, 'No active students found');
@@ -833,38 +783,25 @@ class FeeService {
     // (e.g., struck_off, rejected, cancelled, suspended, etc.) BEFORE the voucher month ends
     const voucherEndDate = new Date(year, month, 0, 23, 59, 59, 999);
     students = students.filter(student => {
-      // If student does not have an admission record, they are not eligible
-      if (!student.admission) {
-        return false;
-      }
-
       // Struck-off students can NEVER have new vouchers generated
-      if (student.status === 'struck_off' || student.admission.status === 'struck_off') {
+      if (student.status === 'struckoff') {
         return false;
       }
 
-      // If the student's admission status is NOT 'enrolled', find when it changed
-      if (student.admission.status !== 'enrolled') {
-        const currentStatus = student.admission.status;
+      // If the student's status is NOT 'enrolled', find when it changed
+      if (student.status !== 'enrolled') {
+        const currentStatus = student.status;
         
         // Find the latest history entry for this non-enrolled status
-        const history = student.admission.statusHistory ? [...student.admission.statusHistory].sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt)) : [];
+        const history = student.statusHistory ? [...student.statusHistory].sort((a, b) => new Date(b.changedAt) - new Date(a.changedAt)) : [];
         const statusChangeRecord = history.find(h => h.status === currentStatus);
         
         const changeDate = statusChangeRecord && statusChangeRecord.changedAt 
           ? new Date(statusChangeRecord.changedAt) 
-          : new Date(student.admission.updatedAt || new Date());
+          : new Date(student.updatedAt || new Date());
         
         // If changed to a non-enrolled status before or during the voucher month, exclude
         if (changeDate <= voucherEndDate) {
-          return false;
-        }
-      }
-
-      // Also check student model level status for safety (e.g. expelled)
-      if (student.status && student.status !== 'active') {
-        const studentChangeDate = new Date(student.updatedAt || new Date());
-        if (studentChangeDate <= voucherEndDate) {
           return false;
         }
       }
@@ -1052,8 +989,9 @@ class FeeService {
         // Increment counter for unique voucher number (once per student)
         voucherCounter++;
         
-        // Generate unique voucher number: SEQ (5 digits)
-        const voucherNumber = String(voucherCounter).padStart(5, '0');
+        // Generate unique voucher number: VCH-YYYY-MM-SEQ (5 digits)
+        const seqStr = String(voucherCounter).padStart(5, '0');
+        const voucherNumber = `VCH-${year}-${String(month).padStart(2, '0')}-${seqStr}`;
         studentVoucherNumbers.set(studentIdStr, voucherNumber);
 
         // Process each Fee Head Group
@@ -1433,7 +1371,7 @@ class FeeService {
 
     // Get outstanding fees
     const outstandingFees = await StudentFee.find(query)
-      .populate('student', 'enrollmentNumber rollNumber user')
+      .populate('student', 'enrollmentNumber rollNumber')
       .populate('feeHead', 'name priority')
       .populate('class', 'name code')
       .sort({ dueDate: 1, createdAt: 1 });
@@ -1550,7 +1488,7 @@ class FeeService {
           admissionQuery.applicationNumber = { $regex: filters.studentId, $options: 'i' };
         }
         if (filters.studentName) {
-          admissionQuery['personalInfo.name'] = { $regex: filters.studentName, $options: 'i' };
+          admissionQuery['personalDetails.name'] = { $regex: filters.studentName, $options: 'i' };
         }
         if (filters.rollNumber) {
           admissionQuery.rollNumber = { $regex: filters.rollNumber, $options: 'i' };
@@ -1603,21 +1541,12 @@ class FeeService {
         path: 'student',
         populate: [
           {
-            path: 'user',
-            select: 'name email'
+            path: 'class',
+            select: 'name code'
           },
           {
-            path: 'admission',
-            populate: [
-              {
-                path: 'class',
-                select: 'name code'
-              },
-              {
-                path: 'section',
-                select: 'name code'
-              }
-            ]
+            path: 'section',
+            select: 'name code'
           }
         ]
       })
@@ -1699,7 +1628,7 @@ class FeeService {
       if (student) {
         // Ensure name exists (from user or admission)
         if (!student.name) {
-          student.name = student.user?.name || student.admission?.personalInfo?.name || '';
+          student.name = student.personalDetails?.name || '';
         }
         studentName = student.name;
         
@@ -1710,8 +1639,8 @@ class FeeService {
 
         possibleFatherName = 
           student.guardianInfo?.fatherName || 
-          student.admission?.guardianInfo?.fatherName || 
-          student.admission?.personalInfo?.fatherName ||
+          student.guardianInfo?.fatherName ||
+          student.personalDetails?.fatherName ||
           student.guardianInfo?.father ||
           '';
 
@@ -1771,7 +1700,7 @@ class FeeService {
     let totalReversedPayments = 0;
     let totalReversedAmount = 0;
 
-    const Admission = require('../models/Admission');
+    const Admission = require('../models/Student');
     const FeePayment = require('../models/FeePayment');
 
     for (const currentId of idsToProcess) {
@@ -1780,7 +1709,7 @@ class FeeService {
       
       // If not found by student ID, try to find by admission ID
       if (!student) {
-        const admission = await Admission.findById(currentId).populate('studentId');
+        const admission = await Admission.findById(currentId);
         if (admission && admission.studentId) {
           student = admission.studentId;
         }
@@ -2002,9 +1931,7 @@ class FeeService {
       throw new ApiError(404, 'Unidentified payment entry not found or already reconciled');
     }
 
-    const student = await Student.findOne({ _id: studentId, institution: institutionId })
-      .populate('user', 'name')
-      .populate('admission', 'personalInfo');
+    const student = await Student.findOne({ _id: studentId, institution: institutionId });
     if (!student) {
       throw new ApiError(404, 'Student not found');
     }
@@ -2027,7 +1954,7 @@ class FeeService {
 
         // 1. Update the original entry to have the balance amount (it stays Unidentified)
         originalSuspenseEntry.amount = balanceAmount;
-        const studentName = student?.admission?.personalInfo?.name || student?.user?.name || studentId;
+        const studentName = student?.personalDetails?.name || studentId;
         originalSuspenseEntry.remarks = `Balance after reconciling ${paymentAmount} to ${studentName}`;
         await originalSuspenseEntry.save();
 

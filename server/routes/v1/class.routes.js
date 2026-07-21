@@ -25,7 +25,7 @@ const validateObjectId = (req, res, next) => {
 // Temporary test route
 router.get('/test-counts', async (req, res) => {
   try {
-    const Admission = require('../../models/Admission');
+    const Admission = require('../../models/Student');
     const Student = require('../../models/Student');
     
     const allAdmissions = await Admission.countDocuments();

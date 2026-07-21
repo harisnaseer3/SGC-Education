@@ -1,6 +1,6 @@
 const StudentPromotion = require('../models/StudentPromotion');
 const Student = require('../models/Student');
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const { ApiError } = require('../middleware/error.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 const feeService = require('./fee.service');

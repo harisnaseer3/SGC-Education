@@ -7,11 +7,7 @@ const studentPromotionSchema = new mongoose.Schema({
     ref: 'Student',
     required: [true, 'Please provide student reference']
   },
-  admission: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admission',
-    required: [true, 'Please provide admission reference']
-  },
+
 
   // Operation Type
   operationType: {
@@ -117,7 +113,7 @@ studentPromotionSchema.pre('save', function() {
 
 // Indexes for better query performance
 studentPromotionSchema.index({ student: 1, operationDate: -1 });
-studentPromotionSchema.index({ admission: 1 });
+
 studentPromotionSchema.index({ operationType: 1 });
 studentPromotionSchema.index({ 'from.institution': 1 });
 studentPromotionSchema.index({ 'to.institution': 1 });

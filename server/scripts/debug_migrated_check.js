@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const Student = require('../models/Student');
 
 const MONGODB_URI = 'mongodb://127.0.0.1:27017/sgceducation';

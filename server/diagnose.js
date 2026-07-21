@@ -20,7 +20,7 @@ async function diagnose() {
   console.log('Connected successfully!');
 
   // Require models and services
-  const Admission = require('./models/Admission');
+  const Admission = require('./models/Student');
   const Student = require('./models/Student');
   const admissionService = require('./services/admission.service');
 

@@ -1733,16 +1733,8 @@ const FeeManagement = () => {
         }
       }
 
-      // Use search parameter for general search (API supports searching by applicationNumber, firstName, lastName, email)
-      // We'll fetch all and filter client-side for specific fields
-      const searchTerms = [];
-      if (manualDepositSearch.studentName) {
-        searchTerms.push(manualDepositSearch.studentName);
-      }
-      
-      if (searchTerms.length > 0) {
-        params.search = searchTerms.join(' ');
-      }
+      // We'll fetch all and filter client-side for specific fields to ensure we can
+      // search across populated fields like studentId.user.name
 
       const response = await axios.get(`${API_URL}/admissions`, createAxiosConfig({
         params: params,
@@ -1760,6 +1752,15 @@ const FeeManagement = () => {
       }
       
       // Client-side filtering for specific fields
+      if (manualDepositSearch.studentName) {
+        const nameLower = manualDepositSearch.studentName.toLowerCase().trim();
+        admissions = admissions.filter(admission => {
+          const personalName = admission.personalInfo?.name?.toLowerCase() || '';
+          const userName = admission.studentId?.user?.name?.toLowerCase() || '';
+          return personalName.includes(nameLower) || userName.includes(nameLower);
+        });
+      }
+
       if (manualDepositSearch.rollNumber) {
         admissions = admissions.filter(admission => 
           admission.rollNumber?.toLowerCase().includes(manualDepositSearch.rollNumber.toLowerCase()) ||

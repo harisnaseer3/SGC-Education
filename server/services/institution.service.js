@@ -171,7 +171,7 @@ class InstitutionService {
     }
 
     // Import all required models for cascade deletion
-    const Admission = require('../models/Admission');
+    const Admission = require('../models/Student');
     const Class = require('../models/Class');
     const Section = require('../models/Section');
     const Group = require('../models/Group');

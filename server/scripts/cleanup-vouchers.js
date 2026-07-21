@@ -10,7 +10,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 
 // Models
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const Student = require('../models/Student');
 const FeeVoucher = require('../models/FeeVoucher');
 const StudentFee = require('../models/StudentFee');

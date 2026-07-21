@@ -5,7 +5,7 @@ const ActivityLog = require('../models/ActivityLog');
 const FeePayment = require('../models/FeePayment');
 const StudentFee = require('../models/StudentFee');
 const AcademicCalendar = require('../models/AcademicCalendar');
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const Group = require('../models/Group');
 const Student = require('../models/Student');
 const { asyncHandler } = require('../middleware/error.middleware');
@@ -342,7 +342,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     Institution.countDocuments({ ...institutionQuery, type: 'school' }),
     Institution.countDocuments({ ...institutionQuery, type: 'college' }),
     User.countDocuments(userQuery),
-    User.countDocuments({ ...userQuery, role: 'student' }),
+    Student.countDocuments(referenceQuery),
     User.countDocuments({ ...userQuery, role: 'teacher' }),
     User.countDocuments({ ...userQuery, role: 'admin' }),
     Institution.find(institutionQuery)
@@ -402,7 +402,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   //   OVERDUE = totalPaid = 0 AND the due date has already passed
   //   PENDING = totalPaid = 0 AND the due date has NOT yet passed
   const _now = new Date();
-  const buildUniqueVoucherPipeline = (matchQuery, extraMonthFilter) => {
+  const buildUniqueVoucherPipeline = (matchQuery, extraMonthFilter, groupByMonth = false) => {
     const stages = [
       { $match: matchQuery },
       ...activeStudentLookupStages,
@@ -446,7 +446,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       },
       {
         $group: {
-          _id: null,
+          _id: groupByMonth ? { month: '$_id.month', year: '$_id.year' } : null,
           total:   { $sum: 1 },
           paid:    { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] },    1, 0] } },
           pending: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'pending'] }, 1, 0] } },
@@ -454,6 +454,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         }
       }
     );
+    if (groupByMonth) {
+      stages.push({ $sort: { '_id.year': -1, '_id.month': -1 } });
+    }
     return stages;
   };
 
@@ -469,7 +472,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     struckOffStudentsCount,
     allTimeVouchersAgg,
     currentMonthVouchersAgg,
-    prevMonthVouchersAgg
+    prevMonthVouchersAgg,
+    monthlyBreakdownAgg
   ] = await Promise.all([
     // Total Collected, Total Billed, and Total Outstanding
     Promise.all([
@@ -510,7 +514,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       startDate: { $gte: new Date() } 
     }).sort({ startDate: 1 }).limit(5),
     // New Content: Struck Off Students
-    Student.countDocuments({ ...referenceQuery, status: 'struck_off' }),
+    Student.countDocuments({ ...referenceQuery, status: 'struckoff' }),
 
     // Voucher Stats (All Time) — all StudentFee records with at least one voucher
     StudentFee.aggregate(buildUniqueVoucherPipeline(
@@ -525,6 +529,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     StudentFee.aggregate(buildUniqueVoucherPipeline(
       { ...referenceQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } },
       { 'vouchers.month': prevMonth, 'vouchers.year': prevYear }
+    )),
+    // Voucher Stats (Monthly Breakdown)
+    StudentFee.aggregate(buildUniqueVoucherPipeline(
+      { ...referenceQuery, 'vouchers.0': { $exists: true } },
+      null,
+      true
     ))
   ]);
 
@@ -539,7 +549,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     campusBreakdown = await Promise.all(req.financeInstitutions.map(async (inst) => {
       const instQuery = { institution: inst._id };
       const [students, received, receivable] = await Promise.all([
-        User.countDocuments({ ...instQuery, role: 'student' }),
+        Student.countDocuments(instQuery),
         FeePayment.aggregate([
           { $match: { ...instQuery, status: 'completed' } },
           ...activeStudentLookupStages,
@@ -604,7 +614,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       vouchers: {
         allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
         currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
-        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 }
+        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
+        monthlyBreakdown: monthlyBreakdownAgg || []
       },
       upcomingEvents,
       recentInstitutions,

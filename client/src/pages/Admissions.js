@@ -189,11 +189,7 @@ const Admissions = () => {
   const allStudentStatusOptions = [
     'Enrolled',
     'Struck Off',
-    'Soft Admission',
-    'Passout',
-    'Expelled',
-    'Freeze',
-    'School Leaving',
+    'Passout'
   ];
   const [allDataStatusFilter, setAllDataStatusFilter] = useState(allStudentStatusOptions);
 
@@ -388,18 +384,15 @@ const Admissions = () => {
       let studentsData = allAdmissions.filter(admission => admission.studentId && admission.isActive !== false);
       
       // If status filter is applied, filter by selected statuses
-      const statusMapping = {
+      const frontendToBackendMap = {
+        'Pending': 'pending',
         'Enrolled': 'enrolled',
-        'Struck Off': 'struck_off',
-        'Soft Admission': 'soft_admission',
-        'Passout': 'passout',
-        'Expelled': 'expelled',
-        'Freeze': 'freeze',
-        'School Leaving': 'school_leaving'
+        'Struck Off': 'struckoff',
+        'Passout': 'passout'
       };
       
       if (allDataStatusFilter && allDataStatusFilter.length > 0 && allDataStatusFilter.length < allStudentStatusOptions.length) {
-        const mappedStatuses = allDataStatusFilter.map(s => statusMapping[s] || s.toLowerCase());
+        const mappedStatuses = allDataStatusFilter.map(s => frontendToBackendMap[s] || s.toLowerCase());
         studentsData = studentsData.filter(admission => {
           const currentStatus = admission.status;
           const studentStatus = admission.studentId?.status || currentStatus;
@@ -549,15 +542,11 @@ const Admissions = () => {
 
     // Fetch data only if institution is set
     if (selectedInstitution) {
-      console.log('Fetching data with institution:', selectedInstitution);
       fetchData();
-    } else {
-      console.log('Skipping fetch: selectedInstitution is empty', { isSuperAdmin, selectedInstitution });
     }
   }, [selectedInstitution, selectedDepartment, selectedStatus]);
 
   const fetchData = async () => {
-    console.log('fetchData called. State:', { selectedInstitution, isSuperAdmin });
     try {
       setLoading(true);
       setError('');
@@ -585,9 +574,6 @@ const Admissions = () => {
       if (selectedStatus) filters.status = selectedStatus;
       if (searchTerm) filters.search = searchTerm;
 
-      // DEBUG: Explicitly check what we are sending
-      console.log('Calling getAllAdmissions with filters:', filters);
-      
       const admissionsData = await getAllAdmissions(filters);
       setAdmissions(admissionsData.data || []);
 
@@ -1039,7 +1025,7 @@ const Admissions = () => {
         <>
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4, px: 3 }}>
-        <Grid item xs={12} sm={4} md={2.4}>
+        <Grid item xs={12} sm={4} md={3}>
           <Card
             elevation={0}
             sx={{
@@ -1059,7 +1045,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={2.4}>
+        <Grid item xs={12} sm={4} md={3}>
           <Card
             elevation={0}
             sx={{
@@ -1079,27 +1065,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={2.4}>
-          <Card
-            elevation={0}
-            sx={{
-              background: 'linear-gradient(135deg, #4caf5015 0%, #4caf5005 100%)',
-              border: '1px solid #4caf5030',
-              borderRadius: 2,
-            }}
-          >
-            <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography color="text.secondary" variant="body2">Approved</Typography>
-                  <Typography variant="h4" fontWeight="bold" color="#4caf50">{stats.approvedApplications || 0}</Typography>
-                </Box>
-                <AssignmentTurnedIn sx={{ fontSize: 40, color: '#4caf50', opacity: 0.7 }} />
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        <Grid item xs={12} sm={4} md={2.4}>
+        <Grid item xs={12} sm={4} md={3}>
           <Card
             elevation={0}
             sx={{
@@ -1119,7 +1085,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={2.4}>
+        <Grid item xs={12} sm={4} md={3}>
           <Card
             elevation={0}
             sx={{
@@ -1224,10 +1190,9 @@ const Admissions = () => {
             >
               <MenuItem value="">All Status</MenuItem>
               <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="struck_off">Struck Off</MenuItem>
-              <MenuItem value="approved">Approved</MenuItem>
-              <MenuItem value="rejected">Rejected</MenuItem>
               <MenuItem value="enrolled">Enrolled</MenuItem>
+              <MenuItem value="struckoff">Struck Off</MenuItem>
+              <MenuItem value="passout">Passout</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -1304,37 +1269,7 @@ const Admissions = () => {
                       >
                         <Visibility fontSize="small" />
                       </IconButton>
-                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && admission.status === 'pending' && (
-                        <IconButton
-                          size="small"
-                          color="info"
-                          onClick={() => openActionDialog(admission, 'struck_off')}
-                          title="Mark Struck Off"
-                        >
-                          <Cancel fontSize="small" />
-                        </IconButton>
-                      )}
-                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && (admission.status === 'pending' || admission.status === 'struck_off') && (
-                        <>
-                          <IconButton
-                            size="small"
-                            color="success"
-                            onClick={() => openActionDialog(admission, 'approve')}
-                            title="Approve"
-                          >
-                            <CheckCircle fontSize="small" />
-                          </IconButton>
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => openActionDialog(admission, 'reject')}
-                            title="Reject"
-                          >
-                            <Cancel fontSize="small" />
-                          </IconButton>
-                        </>
-                      )}
-                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && admission.status === 'approved' && (
+                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && (admission.status === 'pending' || admission.status === 'struckoff') && (
                         <IconButton
                           size="small"
                           color="primary"
@@ -1342,6 +1277,16 @@ const Admissions = () => {
                           title="Enroll Student"
                         >
                           <PersonAdd fontSize="small" />
+                        </IconButton>
+                      )}
+                      {hasPermission(PERMISSIONS.ADMISSIONS.EDIT) && admission.status === 'pending' && (
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => openActionDialog(admission, 'struck_off')}
+                          title="Mark Struck Off"
+                        >
+                          <Cancel fontSize="small" />
                         </IconButton>
                       )}
                     </TableCell>
@@ -1839,8 +1784,8 @@ const Admissions = () => {
                           <TableCell><strong>Total Admissions</strong></TableCell>
                           <TableCell><strong>Enrolled</strong></TableCell>
                           <TableCell><strong>Pending</strong></TableCell>
-                          <TableCell><strong>Approved</strong></TableCell>
-                          <TableCell><strong>Rejected</strong></TableCell>
+                          <TableCell><strong>Struck Off</strong></TableCell>
+                          <TableCell><strong>Pass Out</strong></TableCell>
                         </TableRow>
                       </TableHead>
                       <TableBody>
@@ -1861,8 +1806,8 @@ const Admissions = () => {
                                 <Chip label={row.enrolled || 0} color="primary" size="small" />
                               </TableCell>
                               <TableCell>{row.pending || 0}</TableCell>
-                              <TableCell>{row.approved || 0}</TableCell>
-                              <TableCell>{row.rejected || 0}</TableCell>
+                              <TableCell>{row.struckoff || 0}</TableCell>
+                              <TableCell>{row.passout || 0}</TableCell>
                             </TableRow>
                           ))
                         )}
@@ -2281,11 +2226,9 @@ const Admissions = () => {
                     >
                       <MenuItem value="">All Status</MenuItem>
                       <MenuItem value="pending">Pending</MenuItem>
-                      <MenuItem value="struck_off">Struck Off</MenuItem>
-                      <MenuItem value="approved">Approved</MenuItem>
-                      <MenuItem value="rejected">Rejected</MenuItem>
                       <MenuItem value="enrolled">Enrolled</MenuItem>
-                      <MenuItem value="cancelled">Cancelled</MenuItem>
+                      <MenuItem value="struckoff">Struck Off</MenuItem>
+                      <MenuItem value="passout">Passout</MenuItem>
                     </Select>
                   </FormControl>
                 </Grid>
@@ -2488,13 +2431,10 @@ const Admissions = () => {
                     return `${selected.length} selected`;
                   }}
                 >
+                  <MenuItem value="Pending">Pending</MenuItem>
                   <MenuItem value="Enrolled">Enrolled</MenuItem>
                   <MenuItem value="Struck Off">Struck Off</MenuItem>
-                  <MenuItem value="Soft Admission">Soft Admission</MenuItem>
                   <MenuItem value="Passout">Passout</MenuItem>
-                  <MenuItem value="Expelled">Expelled</MenuItem>
-                  <MenuItem value="Freeze">Freeze</MenuItem>
-                  <MenuItem value="School Leaving">School Leaving</MenuItem>
                 </Select>
               </FormControl>
 
@@ -2570,19 +2510,16 @@ const Admissions = () => {
                           if (admission.isActive === false) return false;
                           if (!admission.studentId) return false;
 
-                          const statusMapping = {
+                          const frontendToBackendMap = {
+                            'Pending': 'pending',
                             'Enrolled': 'enrolled',
-                            'Struck Off': 'struck_off',
-                            'Soft Admission': 'soft_admission',
-                            'Passout': 'passout',
-                            'Expelled': 'expelled',
-                            'Freeze': 'freeze',
-                            'School Leaving': 'school_leaving'
+                            'Struck Off': 'struckoff',
+                            'Passout': 'passout'
                           };
 
                           // Apply status filter if studentStatusFilter is set
                           if (studentStatusFilter.length > 0) {
-                            const mappedFilters = studentStatusFilter.map(s => statusMapping[s] || s.toLowerCase());
+                            const mappedFilters = studentStatusFilter.map(s => frontendToBackendMap[s] || s.toLowerCase());
                             const currentStatus = admission.status;
                             const studentStatus = admission.studentId?.status || currentStatus;
                             return mappedFilters.includes(currentStatus) || mappedFilters.includes(studentStatus);
@@ -2861,11 +2798,9 @@ const Admissions = () => {
                 label="New Status"
               >
                 <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="struck_off">Struck Off</MenuItem>
-                <MenuItem value="approved">Approved</MenuItem>
-                <MenuItem value="rejected">Rejected</MenuItem>
                 <MenuItem value="enrolled">Enrolled</MenuItem>
-                <MenuItem value="cancelled">Cancelled</MenuItem>
+                <MenuItem value="struckoff">Struck Off</MenuItem>
+                <MenuItem value="passout">Passout</MenuItem>
               </Select>
             </FormControl>
             <TextField

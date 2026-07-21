@@ -2,13 +2,6 @@ const mongoose = require('mongoose');
 const SequenceCounter = require('./SequenceCounter');
 
 const studentSchema = new mongoose.Schema({
-  // Reference to User account
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Please provide user reference']
-  },
-
   // Institution
   institution: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,6 +10,10 @@ const studentSchema = new mongoose.Schema({
   },
 
   // Student Identification
+  applicationNumber: {
+    type: String,
+    uppercase: true
+  },
   enrollmentNumber: {
     type: String,
     uppercase: true,
@@ -28,16 +25,7 @@ const studentSchema = new mongoose.Schema({
     trim: true
   },
 
-  // Admission Details
-  admission: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admission'
-  },
-  admissionDate: {
-    type: Date,
-    required: [true, 'Please provide admission date'],
-    default: Date.now
-  },
+  // Admission & Academic Details
   academicYear: {
     type: String,
     required: [true, 'Please provide academic year'],
@@ -48,21 +36,43 @@ const studentSchema = new mongoose.Schema({
     required: [true, 'Please provide program'],
     trim: true
   },
+  class: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Class'
+  },
+  section: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Section'
+  },
   batch: {
     type: String,
     trim: true
   },
-  section: {
-    type: String,
-    uppercase: true,
-    trim: true
+  admissionDate: {
+    type: Date,
+    default: Date.now
+  },
+  admissionEffectiveDate: {
+    type: Date
   },
 
   // Personal Details
   personalDetails: {
+    name: {
+      type: String,
+      required: [true, 'Please provide name'],
+      trim: true
+    },
     middleName: {
       type: String,
       trim: true
+    },
+    dateOfBirth: {
+      type: Date
+    },
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other']
     },
     bloodGroup: {
       type: String,
@@ -71,6 +81,7 @@ const studentSchema = new mongoose.Schema({
     },
     nationality: {
       type: String,
+      required: [true, 'Please provide nationality'],
       default: 'Pakistani',
       trim: true
     },
@@ -93,11 +104,15 @@ const studentSchema = new mongoose.Schema({
     }
   },
 
-  // Contact Details (copied from User, but kept here for quick access)
+  // Contact Details
   contactDetails: {
-    alternateEmail: {
+    email: {
       type: String,
       lowercase: true,
+      trim: true
+    },
+    phone: {
+      type: String,
       trim: true
     },
     alternatePhone: {
@@ -117,12 +132,20 @@ const studentSchema = new mongoose.Schema({
       state: String,
       country: String,
       pincode: String
+    },
+    sameAsCurrent: {
+      type: Boolean,
+      default: false
     }
   },
 
-  // Guardian/Parent Information
+  // Guardian Information
   guardianInfo: {
     fatherName: {
+      type: String,
+      trim: true
+    },
+    fatherCnic: {
       type: String,
       trim: true
     },
@@ -134,12 +157,11 @@ const studentSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
-    fatherEmail: {
+    motherName: {
       type: String,
-      lowercase: true,
       trim: true
     },
-    motherName: {
+    motherCnic: {
       type: String,
       trim: true
     },
@@ -151,16 +173,15 @@ const studentSchema = new mongoose.Schema({
       type: String,
       trim: true
     },
-    motherEmail: {
-      type: String,
-      lowercase: true,
-      trim: true
-    },
     guardianName: {
       type: String,
       trim: true
     },
     guardianRelation: {
+      type: String,
+      trim: true
+    },
+    guardianCnic: {
       type: String,
       trim: true
     },
@@ -178,13 +199,17 @@ const studentSchema = new mongoose.Schema({
     }
   },
 
-  // Academic Information
-  academicInfo: {
+  // Academic Background
+  academicBackground: {
     previousSchool: {
       type: String,
       trim: true
     },
     previousBoard: {
+      type: String,
+      trim: true
+    },
+    previousClass: {
       type: String,
       trim: true
     },
@@ -202,7 +227,7 @@ const studentSchema = new mongoose.Schema({
   documents: [{
     type: {
       type: String,
-      enum: ['photo', 'birth_certificate', 'marksheet', 'transfer_certificate', 'caste_certificate', 'income_certificate', 'aadhar', 'other'],
+      enum: ['photo', 'birth_certificate', 'marksheet', 'previous_marksheet', 'transfer_certificate', 'caste_certificate', 'income_certificate', 'aadhar', 'other'],
       required: true
     },
     name: {
@@ -219,12 +244,61 @@ const studentSchema = new mongoose.Schema({
     }
   }],
 
-  // Status & Tracking
+  // Unified Status
   status: {
     type: String,
-    enum: ['active', 'inactive', 'transferred', 'graduated', 'expelled', 'on_leave', 'struck_off'],
-    default: 'active'
+    enum: ['pending', 'enrolled', 'struckoff', 'passout', 'approved', 'rejected', 'cancelled', 'soft_admission', 'expelled', 'freeze', 'school_leaving', 'struck_off'],
+    default: 'pending'
   },
+  statusHistory: [{
+    status: {
+      type: String,
+      enum: ['pending', 'enrolled', 'struckoff', 'passout', 'approved', 'rejected', 'cancelled', 'soft_admission', 'expelled', 'freeze', 'school_leaving', 'struck_off']
+    },
+    remarks: String,
+    changedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    changedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+
+  // Application Review Information
+  reviewedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  reviewedAt: {
+    type: Date
+  },
+  reviewRemarks: {
+    type: String,
+    trim: true
+  },
+
+  // Application Fee
+  applicationFee: {
+    amount: {
+      type: Number,
+      default: 0
+    },
+    paid: {
+      type: Boolean,
+      default: false
+    },
+    paidAt: {
+      type: Date
+    },
+    transactionId: {
+      type: String,
+      trim: true
+    }
+  },
+
+  // Tracking / Performance Stats
   currentSemester: {
     type: Number,
     min: 1
@@ -233,8 +307,6 @@ const studentSchema = new mongoose.Schema({
     type: Number,
     min: 1
   },
-
-  // Performance Stats
   stats: {
     totalAttendance: {
       type: Number,
@@ -263,8 +335,7 @@ const studentSchema = new mongoose.Schema({
   },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
+    ref: 'User'
   },
   createdAt: {
     type: Date,
@@ -276,27 +347,48 @@ const studentSchema = new mongoose.Schema({
   }
 });
 
-// Pre-save hook: Update timestamp and generate enrollment number
+// Pre-save hook
 studentSchema.pre('save', async function() {
-  // Update timestamp
   this.updatedAt = Date.now();
 
-  // Generate unique enrollment number if not exists
-  if (!this.enrollmentNumber || this.isNew) {
-    if (!this.enrollmentNumber) {
-      const counter = await SequenceCounter.findOneAndUpdate(
-        { institution: this.institution, type: 'enrollment' },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-      );
-      this.enrollmentNumber = String(counter.seq);
+  // Generate unique application number if missing and status is pending
+  if (!this.applicationNumber && this.isNew) {
+    const counter = await SequenceCounter.findOneAndUpdate(
+      { institution: this.institution, type: 'admission' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.applicationNumber = String(counter.seq);
+  }
+
+  // Generate unique enrollment number if status is enrolled and missing
+  if (this.status === 'enrolled' && !this.enrollmentNumber) {
+    const counter = await SequenceCounter.findOneAndUpdate(
+      { institution: this.institution, type: 'enrollment' },
+      { $inc: { seq: 1 } },
+      { new: true, upsert: true }
+    );
+    this.enrollmentNumber = String(counter.seq);
+  }
+  
+  // Generate roll number if missing and enrolled
+  if (this.status === 'enrolled' && !this.rollNumber) {
+    const latestStudent = await mongoose.model('Student').findOne({ institution: this.institution })
+      .sort({ rollNumber: -1 })
+      .select('rollNumber');
+
+    let maxRoll = 99;
+    if (latestStudent && latestStudent.rollNumber) {
+      const rollNum = parseInt(latestStudent.rollNumber);
+      if (!isNaN(rollNum)) maxRoll = Math.max(maxRoll, rollNum);
     }
+    this.rollNumber = String(maxRoll + 1);
   }
 });
 
 // Indexes for better query performance
-studentSchema.index({ user: 1 }, { unique: true });
-studentSchema.index({ enrollmentNumber: 1, institution: 1 }, { unique: true });
+studentSchema.index({ enrollmentNumber: 1, institution: 1 }, { unique: true, sparse: true });
+studentSchema.index({ applicationNumber: 1, institution: 1 }, { unique: true, sparse: true });
 studentSchema.index({ institution: 1 });
 studentSchema.index({ rollNumber: 1 });
 studentSchema.index({ status: 1 });
@@ -304,5 +396,40 @@ studentSchema.index({ academicYear: 1 });
 studentSchema.index({ batch: 1 });
 studentSchema.index({ isActive: 1 });
 studentSchema.index({ createdAt: -1 });
+
+// Virtual for full name
+studentSchema.virtual('fullName').get(function() {
+  let name = this.personalDetails?.name || '';
+  if (this.personalDetails?.middleName) {
+    name += ' ' + this.personalDetails.middleName;
+  }
+  return name.trim();
+});
+
+// Virtual for backward compatibility with frontend expecting personalInfo
+studentSchema.virtual('personalInfo').get(function() {
+  return this.personalDetails;
+});
+
+// Virtual for backward compatibility with frontend expecting admission object
+studentSchema.virtual('admission').get(function() {
+  return {
+    _id: this._id,
+    personalInfo: this.personalDetails,
+    guardianInfo: this.guardianInfo,
+    contactInfo: this.contactInfo,
+    status: this.status,
+    applicationNumber: this.applicationNumber,
+    admissionEffectiveDate: this.admissionEffectiveDate,
+    admissionDate: this.admissionDate,
+    statusHistory: this.statusHistory,
+    class: this.class,
+    section: this.section
+  };
+});
+
+// Enable virtuals in JSON
+studentSchema.set('toJSON', { virtuals: true });
+studentSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Student', studentSchema);

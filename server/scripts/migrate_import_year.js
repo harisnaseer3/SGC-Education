@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const Institution = require('../models/Institution');
 const User = require('../models/User');
 const Student = require('../models/Student');

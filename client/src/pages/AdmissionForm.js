@@ -698,17 +698,12 @@ const AdmissionForm = () => {
       // If "Mark as Enrolled" is checked, enroll the student
       if (formData.markAsEnrolled && admissionId) {
         try {
-          // First, update status to 'approved' if not already approved
+          // Enroll the student directly
           const currentAdmission = await getAdmissionById(admissionId);
-          if (currentAdmission.data.status !== 'approved' && currentAdmission.data.status !== 'enrolled') {
-            await updateAdmissionStatus(admissionId, 'approved', 'Auto-approved during enrollment');
-          }
-          
-          // Then enroll the student
           if (currentAdmission.data.status !== 'enrolled') {
-            await approveAndEnroll(admissionId);
-            setSuccess('Admission created and student enrolled successfully');
-            notifySuccess('Admission created and student enrolled successfully');
+            await updateAdmissionStatus(admissionId, 'enrolled', 'Auto-enrolled from admission form');
+            setSuccess('Admission updated and student enrolled successfully');
+            notifySuccess('Admission updated and student enrolled successfully');
           }
         } catch (enrollError) {
           // If enrollment fails, still show success for admission creation
@@ -1024,11 +1019,9 @@ const AdmissionForm = () => {
                         }}
                       >
                         <MenuItem value="pending">Pending</MenuItem>
-                        <MenuItem value="struck_off">Struck Off</MenuItem>
-                        <MenuItem value="approved">Approved</MenuItem>
-                        <MenuItem value="rejected">Rejected</MenuItem>
                         <MenuItem value="enrolled">Enrolled</MenuItem>
-                        <MenuItem value="cancelled">Cancelled</MenuItem>
+                        <MenuItem value="struckoff">Struck Off</MenuItem>
+                        <MenuItem value="passout">Passout</MenuItem>
                       </Select>
                     </FormControl>
                   </Grid>

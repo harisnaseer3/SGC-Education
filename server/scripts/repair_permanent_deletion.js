@@ -5,7 +5,7 @@ const path = require('path');
 // Load env vars
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const Student = require('../models/Student');
 const StudentFee = require('../models/StudentFee');
 const FeeVoucher = require('../models/FeeVoucher');

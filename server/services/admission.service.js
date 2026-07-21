@@ -1,4 +1,4 @@
-const Admission = require('../models/Admission');
+const Admission = require('../models/Student');
 const Student = require('../models/Student');
 const User = require('../models/User');
 const Institution = require('../models/Institution');
@@ -97,14 +97,6 @@ class AdmissionService {
       .populate('institution', 'name type code')
       .populate('reviewedBy', 'name email')
       .populate('createdBy', 'name email')
-      .populate({
-        path: 'studentId',
-        select: 'enrollmentNumber rollNumber status currentClass currentSection academicYear',
-        populate: {
-          path: 'user',
-          select: 'name email'
-        }
-      })
       .populate('class', 'name code')
       .populate('section', 'name')
       .sort({ createdAt: -1 });
@@ -120,14 +112,6 @@ class AdmissionService {
       .populate('institution', 'name type code')
       .populate('reviewedBy', 'name email')
       .populate('createdBy', 'name email')
-      .populate({
-        path: 'studentId',
-        select: 'enrollmentNumber rollNumber guardianInfo section program batch',
-        populate: {
-          path: 'user',
-          select: 'name email'
-        }
-      })
       .populate({
         path: 'class',
         select: 'name code group',
@@ -319,43 +303,27 @@ class AdmissionService {
     admission.reviewedAt = Date.now();
     admission.reviewRemarks = remarks;
     // Add to status history
-    admission.statusHistory.push({
+    const historyEntry = {
       status,
       remarks,
       changedBy: currentUser.id,
       changedAt: Date.now()
-    });
+    };
 
-    await admission.save();
+    await Admission.findByIdAndUpdate(admissionId, {
+      $set: { 
+        status: status,
+        reviewedBy: currentUser.id,
+        reviewedAt: Date.now(),
+        reviewRemarks: remarks
+      },
+      $push: { statusHistory: historyEntry }
+    }, { runValidators: false });
   
     // Handle status-specific actions
-    if (status === 'enrolled') {
-      try {
-        await admission.populate('institution');
-        const student = await this._createStudentFromAdmission(admission, currentUser);
-        
-        // If student was previously struck_off or inactive, reactivate them
-        if (student.status !== 'active') {
-          await Student.findByIdAndUpdate(student._id, {
-            status: 'active',
-            isActive: true,
-            remarks: remarks || 'Re-enrolled from admission register'
-          });
-        }
-        
-        admission.studentId = student._id;
-        await admission.save();
-      } catch (err) {
-        console.error('Error creating student during manual status update:', err);
-      }
-    } else if (status === 'struck_off' && admission.studentId) {
-      await Student.findByIdAndUpdate(admission.studentId, {
-        status: 'struck_off',
-        remarks: remarks || 'Struck off from admission register'
-      });
-    } else if (status === 'cancelled') {
+    if (status === 'cancelled') {
         // Automatically delete vouchers and fees if cancelled
-        await this._cleanupFeesForCancelledAdmission(admission._id, admission.studentId);
+        await this._cleanupFeesForCancelledAdmission(admission._id, admission._id);
     }
   
     return await Admission.findById(admission._id)
@@ -398,72 +366,9 @@ class AdmissionService {
    * @private
    */
   async _createStudentFromAdmission(admission, currentUser) {
-    // Check if student already exists for this admission
-    const existingStudent = await Student.findOne({ admission: admission._id });
-    if (existingStudent) {
-      return existingStudent; // Return existing student instead of throwing error
-    }
-
-    // Determine the email to check/use (generate unique placeholder if missing)
-    const studentEmail = admission.contactInfo?.email || `${admission.applicationNumber.toLowerCase().replace(/[^a-z0-9]/g, '')}.${admission._id.toString()}@no-email.system`;
-
-    // Check if user already exists with this email
-    let user = await User.findOne({ email: studentEmail });
-
-    if (user) {
-      // Check if student already exists for this user
-      const existingStudentWithUser = await Student.findOne({ user: user._id });
-      
-      if (existingStudentWithUser) {
-        throw new ApiError(400, `A student with email "${studentEmail}" already exists. Please use a different email address.`);
-      }
-    }
-
-    if (!user) {
-      // Create user account
-      const tempPassword = Math.random().toString(36).slice(-8);
-
-      user = await User.create({
-        name: admission.personalInfo.name || 'Student',
-        email: studentEmail,
-        password: tempPassword,
-        role: 'student',
-        institution: admission.institution._id || admission.institution,
-        phone: admission.contactInfo?.phone || '',
-        dateOfBirth: admission.personalInfo?.dateOfBirth,
-        gender: admission.personalInfo?.gender,
-        address: admission.contactInfo?.currentAddress?.street || ''
-      });
-    }
-
-    // Create new student record
-    const student = await Student.create({
-      user: user._id,
-      institution: admission.institution._id || admission.institution,
-      admission: admission._id,
-      enrollmentNumber: admission.applicationNumber,
-      admissionDate: admission.admissionDate || Date.now(),
-      academicYear: admission.academicYear,
-      program: admission.program,
-      rollNumber: admission.rollNumber,
-      personalDetails: {
-        bloodGroup: admission.personalInfo.bloodGroup,
-        nationality: admission.personalInfo.nationality,
-        religion: admission.personalInfo.religion,
-        category: admission.personalInfo.category
-      },
-      contactDetails: {
-        alternatePhone: admission.contactInfo.alternatePhone,
-        currentAddress: admission.contactInfo.currentAddress,
-        permanentAddress: admission.contactInfo.permanentAddress
-      },
-      guardianInfo: admission.guardianInfo,
-      academicInfo: admission.academicBackground,
-      documents: admission.documents,
-      createdBy: currentUser.id || currentUser._id
-    });
-
-    return student;
+    // In the unified model, the admission IS the student.
+    // No separate student or user creation needed.
+    return admission;
   }
 
   /**
@@ -757,7 +662,7 @@ class AdmissionService {
     startDate.setDate(startDate.getDate() - days);
 
     // Status breakdown
-    const statusBreakdown = await Admission.aggregate([
+    const statusBreakdown = await Student.aggregate([
       { $match: query },
       {
         $group: {
@@ -768,18 +673,18 @@ class AdmissionService {
     ]);
 
     // Gender breakdown
-    const genderBreakdown = await Admission.aggregate([
+    const genderBreakdown = await Student.aggregate([
       { $match: query },
       {
         $group: {
-          _id: '$personalInfo.gender',
+          _id: '$personalDetails.gender',
           count: { $sum: 1 }
         }
       }
     ]);
 
     // Program breakdown
-    const programBreakdown = await Admission.aggregate([
+    const programBreakdown = await Student.aggregate([
       { $match: query },
       {
         $group: {
@@ -792,7 +697,7 @@ class AdmissionService {
     ]);
 
     // Application trends over time (last N days)
-    const applicationTrends = await Admission.aggregate([
+    const applicationTrends = await Student.aggregate([
       {
         $match: {
           ...query,
@@ -815,7 +720,7 @@ class AdmissionService {
     const timeZone = filters.timezone || 'UTC';
 
     // Status trends over time (Moved up to use in loop)
-    const statusTrends = await Admission.aggregate([
+    const statusTrends = await Student.aggregate([
       {
         $match: {
           ...query,
@@ -845,7 +750,7 @@ class AdmissionService {
     // Generate dates and fill trends
     const filledApplicationTrends = [];
     const filledStatusTrends = [];
-    const trackedStatuses = ['pending', 'approved', 'enrolled', 'rejected', 'struck_off'];
+    const trackedStatuses = ['pending', 'enrolled', 'struckoff', 'passout'];
     const endDate = new Date(); // Define endDate as today
 
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
@@ -883,7 +788,7 @@ class AdmissionService {
 
 
     // Monthly application count
-    const monthlyTrends = await Admission.aggregate([
+    const monthlyTrends = await Student.aggregate([
       {
         $match: {
           ...query,
@@ -902,21 +807,21 @@ class AdmissionService {
     ]);
 
     // Category breakdown
-    const categoryBreakdown = await Admission.aggregate([
+    const categoryBreakdown = await Student.aggregate([
       { $match: query },
       {
         $group: {
-          _id: '$personalInfo.category',
+          _id: '$personalDetails.category',
           count: { $sum: 1 }
         }
       }
     ]);
 
-    // Conversion rate (approved + enrolled / total)
-    const totalCount = await Admission.countDocuments(query);
-    const convertedCount = await Admission.countDocuments({
+    // Conversion rate (enrolled + passout / total)
+    const totalCount = await Student.countDocuments(query);
+    const convertedCount = await Student.countDocuments({
       ...query,
-      status: { $in: ['approved', 'enrolled'] }
+      status: { $in: ['enrolled', 'passout'] }
     });
     const conversionRate = totalCount > 0 ? ((convertedCount / totalCount) * 100).toFixed(2) : 0;
 
@@ -952,20 +857,11 @@ class AdmissionService {
     // Student Strength Class Wise - Current School
     // Since Student doesn't have a direct class field, we get it from the admission record
     const classWiseStrength = await Student.aggregate([
-      { $match: { ...institutionFilter, isActive: true } },
-      {
-        $lookup: {
-          from: 'admissions',
-          localField: 'admission',
-          foreignField: '_id',
-          as: 'admissionInfo'
-        }
-      },
-      { $unwind: { path: '$admissionInfo', preserveNullAndEmptyArrays: true } },
+      { $match: { ...institutionFilter, isActive: true, status: 'enrolled' } },
       {
         $lookup: {
           from: 'classes',
-          localField: 'admissionInfo.class',
+          localField: 'class',
           foreignField: '_id',
           as: 'classInfo'
         }
@@ -973,7 +869,7 @@ class AdmissionService {
       { $unwind: { path: '$classInfo', preserveNullAndEmptyArrays: true } },
       {
         $group: {
-          _id: '$admissionInfo.class',
+          _id: '$class',
           className: { $first: '$classInfo.name' },
           count: { $sum: 1 }
         }
@@ -990,9 +886,6 @@ class AdmissionService {
           from: 'students',
           let: { 
             sectionId: '$_id',
-            sectionCode: '$code',
-            sectionName: '$name',
-            sectionClass: '$class',
             sectionInstitution: '$institution'
           },
           pipeline: [
@@ -1000,34 +893,10 @@ class AdmissionService {
               $match: {
                 $expr: {
                   $and: [
-                    // Match institution
                     { $eq: ['$institution', '$$sectionInstitution'] },
-                    // Only active students
-                    { $eq: ['$isActive', true] }
-                  ]
-                }
-              }
-            },
-            // Lookup admission to get class and section
-            {
-              $lookup: {
-                from: 'admissions',
-                localField: 'admission',
-                foreignField: '_id',
-                as: 'admissionInfo'
-              }
-            },
-            { $unwind: { path: '$admissionInfo', preserveNullAndEmptyArrays: false } },
-            // Match section by admission.section (ObjectId) matching Section._id
-            // This is more reliable than matching by Student.section (String)
-            {
-              $match: {
-                $expr: {
-                  $and: [
-                    // Match section ObjectId from admission
-                    { $eq: ['$admissionInfo.section', '$$sectionId'] },
-                    // Match class from admission
-                    { $eq: ['$admissionInfo.class', '$$sectionClass'] }
+                    { $eq: ['$isActive', true] },
+                    { $eq: ['$status', 'enrolled'] },
+                    { $eq: ['$section', '$$sectionId'] }
                   ]
                 }
               }
@@ -1495,11 +1364,11 @@ class AdmissionService {
           pending: {
             $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] }
           },
-          approved: {
-            $sum: { $cond: [{ $eq: ['$status', 'approved'] }, 1, 0] }
+          struckoff: {
+            $sum: { $cond: [{ $eq: ['$status', 'struckoff'] }, 1, 0] }
           },
-          rejected: {
-            $sum: { $cond: [{ $eq: ['$status', 'rejected'] }, 1, 0] }
+          passout: {
+            $sum: { $cond: [{ $eq: ['$status', 'passout'] }, 1, 0] }
           },
           enrolled: {
             $sum: { $cond: [{ $eq: ['$status', 'enrolled'] }, 1, 0] }
@@ -1512,8 +1381,8 @@ class AdmissionService {
           className: { $ifNull: ['$className', 'Not Assigned'] },
           total: 1,
           pending: 1,
-          approved: 1,
-          rejected: 1,
+          struckoff: 1,
+          passout: 1,
           enrolled: 1,
           _id: 0
         }
@@ -1599,7 +1468,6 @@ class AdmissionService {
       .populate('institution', 'name code address')
       .populate('class', 'name code')
       .populate('section', 'name code')
-      .populate('studentId', 'enrollmentNumber rollNumber program section batch')
       .sort({ createdAt: 1 })
       .lean();
 
@@ -1610,13 +1478,13 @@ class AdmissionService {
 
       // Get program and section info
       const className = admission.class?.name || admission.program || 'N/A';
-      const sectionName = admission.section?.name || admission.studentId?.section || 'N/A';
+      const sectionName = admission.section?.name || admission.section || 'N/A';
       const classSection = `School ${admission.institution?.name || 'N/A'}, Class ${className}, Section ${sectionName}`;
 
       return {
         date: admission.createdAt.toISOString().split('T')[0],
-        studentId: admission.studentId?.enrollmentNumber || index + 1,
-        rollNumber: admission.studentId?.rollNumber || index + 1,
+        studentId: admission.enrollmentNumber || index + 1,
+        rollNumber: admission.rollNumber || index + 1,
         admissionNumber: admission.applicationNumber || `ADM${index + 1}`,
         admissionDate: admission.createdAt,
         studentName: fullName,
@@ -1659,7 +1527,6 @@ class AdmissionService {
       .populate('institution', 'name code address')
       .populate('class', 'name code')
       .populate('section', 'name code')
-      .populate('studentId', 'enrollmentNumber rollNumber program section batch personalDetails guardianInfo')
       .sort({ createdAt: 1 })
       .lean();
 
@@ -1691,21 +1558,21 @@ class AdmissionService {
       }
 
       return {
-        studentId: admission.studentId?.enrollmentNumber || index + 1,
-        rollNumber: admission.studentId?.rollNumber || '',
+        studentId: admission.enrollmentNumber || index + 1,
+        rollNumber: admission.rollNumber || '',
         admissionNumber: admission.applicationNumber || `ADM${index + 1}`,
         studentName: fullName,
         schoolName: admission.institution?.name || 'N/A',
         fatherName: admission.guardianInfo?.fatherName || 'N/A',
         className: admission.class?.name || admission.program || 'N/A',
-        sectionName: admission.section?.name || admission.studentId?.section || 'N/A',
+        sectionName: admission.section?.name || admission.section || 'N/A',
         status: admission.status || 'pending',
         dateOfBirth: admission.personalInfo?.dateOfBirth 
           ? new Date(admission.personalInfo.dateOfBirth).toLocaleDateString('en-GB')
           : '',
         mobileNumber: admission.contactInfo?.phone || '',
         age: calculateAge(admission.personalInfo?.dateOfBirth),
-        bloodGroup: admission.personalInfo?.bloodGroup || admission.studentId?.personalDetails?.bloodGroup || '',
+        bloodGroup: admission.personalInfo?.bloodGroup || '',
         hobbies: '', // Not in current schema, add if needed
         categoryName: admission.personalInfo?.category || '',
         familyNumber: '', // Not in current schema, add if needed
@@ -2141,10 +2008,15 @@ class AdmissionService {
             guardianRelation: 'Father'
           },
           
-          studentId: undefined, // Will be set if we enroll them
-          status: (row['Student Status'] || row['Status']) ? 'approved' : 'pending', // If status provided, assume approved/migrated
-          
-          // Additional custom fields storage if needed (maybe in remarks or a generic field?)
+          // Determine status based on input
+          status: (() => {
+            const rawStatus = (row['Student Status'] || row['Status'] || '').toString().toLowerCase().trim();
+            if (rawStatus === 'enrolled' || rawStatus === 'active') return 'enrolled';
+            if (rawStatus === 'struckoff' || rawStatus === 'struck off' || rawStatus === 'struck_off') return 'struckoff';
+            if (rawStatus === 'passout' || rawStatus === 'passed out' || rawStatus === 'school_leaving') return 'passout';
+            if (rawStatus === 'pending') return 'pending';
+            return rawStatus ? 'enrolled' : 'pending'; // If some status provided, assume enrolled by default
+          })(),
           // For now, we only map standard fields.
         };
 
@@ -2408,57 +2280,22 @@ class AdmissionService {
         admission.status = status;
         
         // Add to history
-        admission.statusHistory.push({
+        const historyEntry = {
           status,
           remarks: remarks || `Bulk update from ${oldStatus}`,
           changedBy: currentUser._id,
           changedAt: new Date()
-        });
+        };
 
-        await admission.save();
+        await Admission.findByIdAndUpdate(admissionId, {
+          $set: { status: status },
+          $push: { statusHistory: historyEntry }
+        }, { runValidators: false });
         
         // Handle status-specific actions
-        if (status === 'struck_off' && admission.studentId) {
-          await Student.findByIdAndUpdate(admission.studentId, {
-            status: 'struck_off',
-            remarks: remarks || 'Struck off from admissions bulk register'
-          });
-        } else if (status === 'cancelled') {
+        if (status === 'cancelled') {
             // Automatically delete vouchers and fees if cancelled
-            await this._cleanupFeesForCancelledAdmission(admission._id, admission.studentId);
-        }
-        
-        // If enrolling (status changed to 'enrolled'), create Student record
-        // Also create it if it was already marked as enrolled but is missing a studentId
-        if (status === 'enrolled') {
-          try {
-            // Populate institution for student creation
-            await admission.populate('institution');
-            
-            // Create student record using shared helper
-            const student = await this._createStudentFromAdmission(admission, currentUser);
-            
-            // If student was previously struck_off or inactive, reactivate them
-            if (student.status !== 'active') {
-              await Student.findByIdAndUpdate(student._id, {
-                status: 'active',
-                isActive: true,
-                remarks: remarks || 'Re-enrolled from admissions bulk register'
-              });
-            }
-            
-            // Link student to admission
-            admission.studentId = student._id;
-            await admission.save();
-            
-            results.enrolledStudents = (results.enrolledStudents || 0) + 1;
-          } catch (studentErr) {
-            // If student creation fails, record error but keep status updated
-            results.errors.push({
-              admissionId,
-              error: `Status updated but student creation failed: ${studentErr.message}`
-            });
-          }
+            await this._cleanupFeesForCancelledAdmission(admission._id, admission._id);
         }
         
         results.updatedAdmissions++;

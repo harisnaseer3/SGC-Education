@@ -1,6 +1,6 @@
 const admissionService = require('../services/admission.service');
 const { asyncHandler } = require('../middleware/error.middleware');
-const Admission = require('../models/Admission');
+const Student = require('../models/Student');
 
 /**
  * Admission Controller - Handles HTTP requests for admission management
@@ -19,10 +19,21 @@ const getAdmissions = asyncHandler(async (req, res) => {
     req.user
   );
 
+  // Map unified fields to legacy fields for backward compatibility
+  const mappedAdmissions = admissions.map(adm => {
+    const doc = adm._doc || adm;
+    return {
+      ...doc,
+      personalInfo: doc.personalDetails || doc.personalInfo,
+      contactInfo: doc.contactDetails || doc.contactInfo,
+      studentId: doc // For anything that might look up admission.studentId
+    };
+  });
+
   res.json({
     success: true,
-    count: admissions.length,
-    data: admissions
+    count: mappedAdmissions.length,
+    data: mappedAdmissions
   });
 });
 
@@ -37,9 +48,17 @@ const getAdmissionById = asyncHandler(async (req, res) => {
     req.user
   );
 
+  const doc = admission._doc || admission;
+  const mappedAdmission = {
+    ...doc,
+    personalInfo: doc.personalDetails || doc.personalInfo,
+    contactInfo: doc.contactDetails || doc.contactInfo,
+    studentId: doc
+  };
+
   res.json({
     success: true,
-    data: admission
+    data: mappedAdmission
   });
 });
 
@@ -282,8 +301,8 @@ const getAdmissionByMonthDetailedReport = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getAdmissionStatuses = asyncHandler(async (req, res) => {
-  // Get the status enum values from the Admission schema
-  const statusEnum = Admission.schema.path('status').enumValues || [];
+  // Get the status enum values from the Student schema
+  const statusEnum = Student.schema.path('status').enumValues || [];
   
   res.json({
     success: true,
