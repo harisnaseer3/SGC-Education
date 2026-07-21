@@ -319,7 +319,7 @@ class FeeService {
       throw new ApiError(404, 'Student not found');
     }
 
-    if (!student.isActive || student.status !== 'enrolled') {
+    if (!student.isActive || (student.status !== 'enrolled' && student.status !== 'active')) {
       throw new ApiError(400, 'Student is not enrolled');
     }
 
@@ -459,7 +459,7 @@ class FeeService {
       throw new ApiError(404, 'Student not found');
     }
 
-    if (!student.isActive || student.status !== 'active') {
+    if (!student.isActive || (student.status !== 'active' && student.status !== 'enrolled')) {
       throw new ApiError(400, 'Student is not active');
     }
 
@@ -789,7 +789,7 @@ class FeeService {
       }
 
       // If the student's status is NOT 'enrolled', find when it changed
-      if (student.status !== 'enrolled') {
+      if (student.status !== 'enrolled' && student.status !== 'active') {
         const currentStatus = student.status;
         
         // Find the latest history entry for this non-enrolled status
