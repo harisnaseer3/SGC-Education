@@ -426,20 +426,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           voucherStatus: {
             $switch: {
               branches: [
-                // Any payment made => Paid
-                { case: { $gt: ['$totalPaid', 0] }, then: 'paid' },
-                // No payment + due date has passed => Overdue
-                {
-                  case: {
-                    $and: [
-                      { $eq: ['$totalPaid', 0] },
-                      { $and: [{ $ne: ['$minDueDate', null] }, { $lt: ['$minDueDate', _now] }] }
-                    ]
-                  },
-                  then: 'overdue'
-                }
+                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $lte: ['$totalRemaining', 0] }] }, then: 'paid' },
+                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $gt: ['$totalRemaining', 0] }] }, then: 'partial' }
               ],
-              default: 'pending'
+              default: 'unpaid'
             }
           }
         }
@@ -449,8 +439,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           _id: groupByMonth ? { month: '$_id.month', year: '$_id.year' } : null,
           total:   { $sum: 1 },
           paid:    { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] },    1, 0] } },
-          pending: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'pending'] }, 1, 0] } },
-          overdue: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'overdue'] }, 1, 0] } }
+          unpaid:  { $sum: { $cond: [{ $eq: ['$voucherStatus', 'unpaid'] },  1, 0] } },
+          partial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, 1, 0] } }
         }
       }
     );
@@ -612,9 +602,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         struckOffStudents: struckOffStudentsCount
       },
       vouchers: {
-        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
-        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
-        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, pending: 0, overdue: 0 },
+        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0 },
+        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0 },
+        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0 },
         monthlyBreakdown: monthlyBreakdownAgg || []
       },
       upcomingEvents,
