@@ -185,12 +185,14 @@ const FeeManagement = () => {
     
     if (tabFromURL === 4) {
       const statusParam = searchParams.get('status');
-      if (statusParam !== null) {
-        setPrintVoucherFilters(prev => ({
-          ...prev,
-          voucherStatus: statusParam
-        }));
-      }
+      const monthParam = searchParams.get('month');
+      
+      setPrintVoucherFilters(prev => {
+        const newFilters = { ...prev };
+        if (statusParam !== null) newFilters.voucherStatus = statusParam;
+        if (monthParam !== null) newFilters.monthYear = monthParam;
+        return newFilters;
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);

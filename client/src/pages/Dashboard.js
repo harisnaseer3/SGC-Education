@@ -445,7 +445,15 @@ const Dashboard = () => {
                       icon: <AccountBalance />, 
                       color: '#6366f1', 
                       subtitle: 'Accounts receivable',
-                      path: '/fee-management?tab=print-voucher'
+                      path: `/fee-management?tab=print-voucher&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     },
                     { 
                       title: 'Total Collected', 
@@ -453,7 +461,7 @@ const Dashboard = () => {
                       icon: <Payment />, 
                       color: '#10b981', 
                       subtitle: 'Received payments',
-                      path: '/fee-management?tab=receipt'
+                      path: `/fee-management?tab=receipt`
                     },
                     { 
                       title: 'Total Outstanding', 
@@ -461,7 +469,7 @@ const Dashboard = () => {
                       icon: <Assessment />, 
                       color: '#f59e0b', 
                       subtitle: 'Unpaid arrears',
-                      path: '/fee-management?tab=fee-deposit'
+                      path: `/fee-management?tab=fee-deposit`
                     },
                     { 
                       title: 'Collection Rate', 
@@ -469,7 +477,7 @@ const Dashboard = () => {
                       icon: <EventAvailable />, 
                       color: '#4facfe', 
                       subtitle: 'Collected / Billed',
-                      path: '/fee-management'
+                      path: `/fee-management`
                     },
                     { 
                       title: 'Total Vouchers', 
@@ -477,7 +485,15 @@ const Dashboard = () => {
                       icon: <Receipt />, 
                       color: '#6366f1', 
                       subtitle: 'Generated',
-                      path: '/fee-management?tab=print-voucher'
+                      path: `/fee-management?tab=print-voucher&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     },
                     { 
                       title: 'Paid Vouchers', 
@@ -485,7 +501,15 @@ const Dashboard = () => {
                       icon: <CheckCircle />, 
                       color: '#34d399', 
                       subtitle: 'Fully paid',
-                      path: '/fee-management?tab=print-voucher&status=Paid'
+                      path: `/fee-management?tab=print-voucher&status=Paid&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     },
                     { 
                       title: 'Unpaid Vouchers', 
@@ -493,7 +517,15 @@ const Dashboard = () => {
                       icon: <Warning />, 
                       color: '#ef4444', 
                       subtitle: 'No payment made',
-                      path: '/fee-management?tab=print-voucher&status=Unpaid'
+                      path: `/fee-management?tab=print-voucher&status=Unpaid&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     },
                     { 
                       title: 'Partially Paid', 
@@ -501,7 +533,15 @@ const Dashboard = () => {
                       icon: <PendingActions />, 
                       color: '#f59e0b', 
                       subtitle: 'Some payment made',
-                      path: '/fee-management?tab=print-voucher&status=Partial'
+                      path: `/fee-management?tab=print-voucher&status=Partial&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     }
                   ].map((stat, i) => (
                     <Grid item xs={12} sm={6} lg={3} key={i}>
