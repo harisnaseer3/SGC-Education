@@ -17,6 +17,7 @@ import {
   Select,
   MenuItem,
   FormControl,
+  TextField,
 } from '@mui/material';
 import { getAllModules } from '../config/modules';
 import {
@@ -61,7 +62,11 @@ const Dashboard = () => {
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [breakdownTab, setBreakdownTab] = useState(0);
   const [showLogo, setShowLogo] = useState(true); // For logo fallback
-  const [voucherFilter, setVoucherFilter] = useState('allTime');
+  const [voucherFilter, setVoucherFilter] = useState(() => {
+    const d = new Date();
+    return `${d.getMonth() + 1}-${d.getFullYear()}`;
+  });
+  const [chartYearFilter, setChartYearFilter] = useState(() => new Date().getFullYear());
   
   // Generate cache-busting parameter once on mount to ensure fresh logo
   const [logoCacheBuster] = useState(() => `?t=${Date.now()}`);
@@ -309,21 +314,26 @@ const Dashboard = () => {
     const found = dashboardData.vouchers.monthlyBreakdown?.find(
       (m) => m._id.month === parseInt(month) && m._id.year === parseInt(year)
     );
-    return found || { total: 0, paid: 0, pending: 0, overdue: 0 };
+    return found || { total: 0, paid: 0, unpaid: 0, partial: 0 };
   };
   const activeVoucherData = getActiveVoucherData();
 
   const getVoucherChartData = () => {
     if (!dashboardData?.vouchers?.monthlyBreakdown) return [];
-    const reversed = [...dashboardData.vouchers.monthlyBreakdown].reverse();
-    return reversed.map((m) => {
-      const date = new Date(m._id.year, m._id.month - 1, 1);
+    
+    const months = Array.from({ length: 12 }, (_, i) => i + 1);
+    
+    return months.map(month => {
+      const found = dashboardData.vouchers.monthlyBreakdown.find(
+        m => m._id.year === chartYearFilter && m._id.month === month
+      );
+      const date = new Date(chartYearFilter, month - 1, 1);
       return {
-        name: date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        Total: m.total,
-        Paid: m.paid,
-        Pending: m.pending,
-        Overdue: m.overdue
+        name: date.toLocaleDateString('en-US', { month: 'short' }),
+        Total: found ? found.total : 0,
+        Paid: found ? found.paid : 0,
+        Partial: found ? found.partial : 0,
+        Unpaid: found ? found.unpaid : 0
       };
     });
   };
@@ -440,22 +450,36 @@ const Dashboard = () => {
                     <Typography variant="h5" fontWeight="bold">
                       Voucher Overview
                     </Typography>
-                    <FormControl size="small" sx={{ minWidth: 160 }}>
-                      <Select
-                        value={voucherFilter}
-                        onChange={(e) => setVoucherFilter(e.target.value)}
-                        sx={{ bgcolor: 'white', borderRadius: 2 }}
-                      >
-                        <MenuItem value="allTime">All Time</MenuItem>
-                        <MenuItem value="currentMonth">Current Month</MenuItem>
-                        <MenuItem value="prevMonth">Previous Month</MenuItem>
-                        {dashboardData?.vouchers?.monthlyBreakdown?.map((m) => {
-                           const date = new Date(m._id.year, m._id.month - 1, 1);
-                           const label = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                           return <MenuItem key={`${m._id.month}-${m._id.year}`} value={`${m._id.month}-${m._id.year}`}>{label}</MenuItem>
-                        })}
-                      </Select>
-                    </FormControl>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                      <Typography variant="button" color="text.secondary" fontWeight="bold">
+                        BILLING MONTH
+                      </Typography>
+                      <TextField
+                        type="month"
+                        size="small"
+                        value={(() => {
+                          if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                            const d = new Date();
+                            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                          }
+                          const [m, y] = voucherFilter.split('-');
+                          return `${y}-${String(m).padStart(2, '0')}`;
+                        })()}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val) {
+                            const [y, m] = val.split('-');
+                            setVoucherFilter(`${parseInt(m, 10)}-${parseInt(y, 10)}`);
+                          }
+                        }}
+                        sx={{ 
+                          bgcolor: 'white', 
+                          borderRadius: 2, 
+                          width: 180,
+                          '& .MuiOutlinedInput-root': { borderRadius: 2 } 
+                        }}
+                      />
+                    </Box>
                   </Box>
                   <Grid container spacing={3}>
                   {[
@@ -465,7 +489,7 @@ const Dashboard = () => {
                       icon: <Receipt />, 
                       color: '#6366f1', 
                       subtitle: 'Generated',
-                      path: '/fee-management'
+                      path: '/fee-management?tab=print-voucher'
                     },
                     { 
                       title: 'Paid Vouchers', 
@@ -473,23 +497,23 @@ const Dashboard = () => {
                       icon: <CheckCircle />, 
                       color: '#34d399', 
                       subtitle: 'Fully paid',
-                      path: '/fee-management'
+                      path: '/fee-management?tab=print-voucher&status=Paid'
                     },
                     { 
-                      title: 'Pending Vouchers', 
-                      value: activeVoucherData.pending || 0, 
-                      icon: <PendingActions />, 
-                      color: '#f59e0b', 
-                      subtitle: 'Unpaid / Partial',
-                      path: '/fee-management'
-                    },
-                    { 
-                      title: 'Overdue Vouchers', 
-                      value: activeVoucherData.overdue || 0, 
+                      title: 'Unpaid Vouchers', 
+                      value: activeVoucherData.unpaid || 0, 
                       icon: <Warning />, 
                       color: '#ef4444', 
-                      subtitle: 'Past due date',
-                      path: '/fee-management'
+                      subtitle: 'No payment made',
+                      path: '/fee-management?tab=print-voucher&status=Unpaid'
+                    },
+                    { 
+                      title: 'Partially Paid', 
+                      value: activeVoucherData.partial || 0, 
+                      icon: <PendingActions />, 
+                      color: '#f59e0b', 
+                      subtitle: 'Some payment made',
+                      path: '/fee-management?tab=print-voucher&status=Partial'
                     }
                   ].map((stat, i) => (
                     <Grid item xs={12} sm={6} lg={3} key={i}>
@@ -501,7 +525,20 @@ const Dashboard = () => {
                   {/* Voucher Trend Chart */}
                   {voucherChartData.length > 0 && (
                     <Paper elevation={0} sx={{ mt: 3, p: 3, borderRadius: 4, border: '1px solid #edf2f7' }}>
-                      <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 2 }}>Monthly Voucher Trend</Typography>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                        <Typography variant="subtitle1" fontWeight="800">Monthly Voucher Trend</Typography>
+                        <FormControl size="small" sx={{ minWidth: 100 }}>
+                          <Select
+                            value={chartYearFilter}
+                            onChange={(e) => setChartYearFilter(e.target.value)}
+                            sx={{ bgcolor: '#f8fafc', borderRadius: 2 }}
+                          >
+                            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                              <MenuItem key={year} value={year}>{year}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Box>
                       <ResponsiveContainer width="100%" height={300}>
                         <BarChart data={voucherChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -511,8 +548,8 @@ const Dashboard = () => {
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
                           <Bar dataKey="Total" fill="#6366f1" radius={[4, 4, 0, 0]} />
                           <Bar dataKey="Paid" fill="#34d399" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Pending" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Overdue" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Partial" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Unpaid" fill="#ef4444" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </Paper>

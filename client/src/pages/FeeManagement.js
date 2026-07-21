@@ -182,6 +182,16 @@ const FeeManagement = () => {
     if (tabFromURL === 7 && subtabFromURL !== suspenseSubTab) {
       setSuspenseSubTab(subtabFromURL);
     }
+    
+    if (tabFromURL === 4) {
+      const statusParam = searchParams.get('status');
+      if (statusParam !== null) {
+        setPrintVoucherFilters(prev => ({
+          ...prev,
+          voucherStatus: statusParam
+        }));
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -263,7 +273,8 @@ const FeeManagement = () => {
     name: '',
     id: '',
     rollNumber: '',
-    class: ''
+    class: '',
+    voucherStatus: searchParams.get('status') || ''
   });
   const [printVoucherStudents, setPrintVoucherStudents] = useState([]);
   const [voucherDialogOpen, setVoucherDialogOpen] = useState(false);
@@ -3095,6 +3106,11 @@ const FeeManagement = () => {
         return false;
       }
 
+      // Voucher Status filter
+      if (printVoucherFilters.voucherStatus && student.voucherStatus !== printVoucherFilters.voucherStatus) {
+        return false;
+      }
+
       // ID filter (checks both enrollment number and admission number)
       if (printVoucherFilters.id) {
         const searchId = printVoucherFilters.id.toLowerCase();  
@@ -4869,6 +4885,22 @@ const FeeManagement = () => {
                       </Select>
                     </FormControl>
                   </Grid>
+                  <Grid item xs={12} sm={6} md={3}>
+                    <FormControl fullWidth variant="outlined" size="small">
+                      <InputLabel>Status</InputLabel>
+                      <Select
+                        value={printVoucherFilters.voucherStatus}
+                        onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, voucherStatus: e.target.value })}
+                        label="Status"
+                      >
+                        <MenuItem value="">All Statuses</MenuItem>
+                        <MenuItem value="Paid">Paid</MenuItem>
+                        <MenuItem value="Unpaid">Unpaid</MenuItem>
+                        <MenuItem value="Partial">Partial</MenuItem>
+                        <MenuItem value="Generated">Generated</MenuItem>
+                      </Select>
+                    </FormControl>
+                  </Grid>
                   <Grid item xs={12} md={4}>
                     <Button
                       variant="outlined"
@@ -4879,7 +4911,8 @@ const FeeManagement = () => {
                         name: '',
                         id: '',
                         rollNumber: '',
-                        class: ''
+                        class: '',
+                        voucherStatus: ''
                       })}
                     >
                       Clear Filters
