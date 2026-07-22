@@ -858,25 +858,42 @@ class FeeService {
       },
       {
         $match: {
-          'vouchers.voucherNumber': { $exists: true, $ne: null }
+          'vouchers.voucherNumber': { $exists: true, $ne: null, $type: "string" }
+        }
+      },
+      {
+        $addFields: {
+          voucherParts: { $split: ['$vouchers.voucherNumber', '-'] }
+        }
+      },
+      {
+        $addFields: {
+          seqNumStr: { $arrayElemAt: ['$voucherParts', -1] }
+        }
+      },
+      {
+        $addFields: {
+          seqNum: { 
+            $convert: { 
+              input: '$seqNumStr', 
+              to: 'int', 
+              onError: 0, 
+              onNull: 0 
+            } 
+          }
         }
       },
       {
         $group: {
           _id: null,
-          maxVoucherNumber: { $max: '$vouchers.voucherNumber' }
+          maxVoucherNumber: { $max: '$seqNum' }
         }
       }
     ]);
 
     let voucherCounter = 0;
     if (maxVoucherResult.length > 0 && maxVoucherResult[0].maxVoucherNumber) {
-      const maxVN = maxVoucherResult[0].maxVoucherNumber;
-      const parts = maxVN.split('-');
-      const seqNum = parseInt(parts[parts.length - 1], 10);
-      if (!isNaN(seqNum)) {
-        voucherCounter = seqNum;
-      }
+      voucherCounter = maxVoucherResult[0].maxVoucherNumber;
     }
     console.log(`[generateVouchers] Max existing voucher seq = ${voucherCounter}, next will be ${voucherCounter + 1}`);
 

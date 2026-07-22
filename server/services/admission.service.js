@@ -149,14 +149,15 @@ class AdmissionService {
 
     // Check permissions for non-super admins
     if (createdBy && createdBy.role !== 'super_admin' &&
-        institution.toString() !== createdBy.institution?.toString()) {
+        institution.toString() !== getInstitutionId(createdBy)) {
       throw new ApiError(403, 'You can only create admissions for your institution');
     }
 
     // Check if email already has a pending/approved application (only if email is provided)
-    if (admissionData.contactInfo.email) {
+    const emailToCheck = admissionData.contactInfo?.email || admissionData.contactDetails?.email;
+    if (emailToCheck) {
       const existingAdmission = await Admission.findOne({
-        'contactInfo.email': admissionData.contactInfo.email,
+        'contactDetails.email': emailToCheck,
         institution,
         status: { $in: ['pending', 'struck_off', 'approved'] }
       });
@@ -164,6 +165,14 @@ class AdmissionService {
       if (existingAdmission) {
         throw new ApiError(400, 'An active application already exists with this email');
       }
+    }
+
+    // Map frontend fields (personalInfo, contactInfo) to backend schema fields (personalDetails, contactDetails)
+    if (admissionData.personalInfo && !admissionData.personalDetails) {
+      admissionData.personalDetails = admissionData.personalInfo;
+    }
+    if (admissionData.contactInfo && !admissionData.contactDetails) {
+      admissionData.contactDetails = admissionData.contactInfo;
     }
 
     // Create admission

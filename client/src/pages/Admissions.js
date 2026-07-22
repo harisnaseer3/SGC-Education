@@ -192,6 +192,7 @@ const Admissions = () => {
     'Passout'
   ];
   const [allDataStatusFilter, setAllDataStatusFilter] = useState(allStudentStatusOptions);
+  const [allDataSearchTerm, setAllDataSearchTerm] = useState('');
 
   const allDataFieldOptions = [
     { id: 'studentId', label: 'Id' },
@@ -233,6 +234,7 @@ const Admissions = () => {
   }, [searchTerm]);
 
   const [studentAllDataRows, setStudentAllDataRows] = useState([]);
+  const [rawStudentAllData, setRawStudentAllData] = useState([]);
 
   // Report ref
 
@@ -371,47 +373,69 @@ const Admissions = () => {
       setLoading(true);
       setError('');
       
-      // Fetch all admissions with student data populated
       const token = localStorage.getItem('token');
       const filters = {};
       if (selectedInstitution) filters.institution = selectedInstitution;
       
-      // Get all admissions (we'll filter for enrolled ones that have students)
       const admissionsData = await getAllAdmissions(filters);
       let allAdmissions = admissionsData.data || [];
       
-      // Filter for admissions that have studentId (students)
+      // Filter for enrolled ones that have students
       let studentsData = allAdmissions.filter(admission => admission.studentId && admission.isActive !== false);
       
-      // If status filter is applied, filter by selected statuses
-      const frontendToBackendMap = {
-        'Pending': 'pending',
-        'Enrolled': 'enrolled',
-        'Struck Off': 'struckoff',
-        'Passout': 'passout'
-      };
-      
-      if (allDataStatusFilter && allDataStatusFilter.length > 0 && allDataStatusFilter.length < allStudentStatusOptions.length) {
-        const mappedStatuses = allDataStatusFilter.map(s => frontendToBackendMap[s] || s.toLowerCase());
-        studentsData = studentsData.filter(admission => {
-          const currentStatus = admission.status;
-          const studentStatus = admission.studentId?.status || currentStatus;
-          return mappedStatuses.includes(currentStatus) || mappedStatuses.includes(studentStatus);
-        });
-      }
-      
-      const rows = studentsData.map((admission, index) =>
-        buildStudentAllDataRow(admission, index)
-      );
-      setStudentAllDataRows(rows);
+      setRawStudentAllData(studentsData);
     } catch (err) {
-      console.error('Error searching student data:', err);
-      setError(err.response?.data?.message || 'Failed to search student data');
-      setStudentAllDataRows([]);
+      console.error('Error fetching student data:', err);
+      setError(err.response?.data?.message || 'Failed to fetch student data');
+      setRawStudentAllData([]);
     } finally {
       setLoading(false);
     }
   };
+
+  // Live filter effect for Search All Data
+  useEffect(() => {
+    if (!rawStudentAllData || rawStudentAllData.length === 0) {
+      setStudentAllDataRows([]);
+      return;
+    }
+
+    let filteredData = [...rawStudentAllData];
+
+    const frontendToBackendMap = {
+      'Pending': 'pending',
+      'Enrolled': 'enrolled',
+      'Struck Off': 'struckoff',
+      'Passout': 'passout'
+    };
+    
+    if (allDataStatusFilter && allDataStatusFilter.length > 0 && allDataStatusFilter.length < allStudentStatusOptions.length) {
+      const mappedStatuses = allDataStatusFilter.map(s => frontendToBackendMap[s] || s.toLowerCase());
+      filteredData = filteredData.filter(admission => {
+        const currentStatus = admission.status;
+        const studentStatus = admission.studentId?.status || currentStatus;
+        return mappedStatuses.includes(currentStatus) || mappedStatuses.includes(studentStatus);
+      });
+    }
+    
+    if (allDataSearchTerm) {
+      const lowerTerm = allDataSearchTerm.toLowerCase();
+      filteredData = filteredData.filter(admission => {
+        const studentName = admission.personalInfo?.name || admission.studentId?.user?.name || '';
+        const rollNum = admission.studentId?.rollNumber || admission.rollNumber || '';
+        const appNum = admission.applicationNumber || '';
+        return studentName.toLowerCase().includes(lowerTerm) || 
+               String(rollNum).toLowerCase().includes(lowerTerm) ||
+               String(appNum).toLowerCase().includes(lowerTerm);
+      });
+    }
+    
+    const rows = filteredData.map((admission, index) =>
+      buildStudentAllDataRow(admission, index)
+    );
+    setStudentAllDataRows(rows);
+  }, [rawStudentAllData, allDataSearchTerm, allDataStatusFilter]);
+
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
@@ -511,7 +535,7 @@ const Admissions = () => {
       
       // Auto-search when section is active and we have admissions data
       // Only if no rows are currently displayed, and we came with a specific query
-      if (studentAllDataRows.length === 0 && hasStatusQuery) {
+      if (rawStudentAllData.length === 0) {
         handleSearchStudentAllData();
       }
     }
@@ -1332,6 +1356,18 @@ const Admissions = () => {
             <Grid container spacing={2} sx={{ mb: 3, mt: 1 }}>
               <Grid item xs={12} md={4}>
                 <Typography variant="subtitle2" gutterBottom>
+                  Search
+                </Typography>
+                <TextField
+                  fullWidth
+                  variant="outlined"
+                  placeholder="Name, Roll No..."
+                  value={allDataSearchTerm}
+                  onChange={(e) => setAllDataSearchTerm(e.target.value)}
+                />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <Typography variant="subtitle2" gutterBottom>
                   Student Status
                 </Typography>
                 <FormControl fullWidth>
@@ -1386,22 +1422,6 @@ const Admissions = () => {
                   </Select>
                 </FormControl>
               </Grid>
-
-              <Grid item xs={12} md={4} sx={{ display: 'flex', alignItems: 'flex-end' }}>
-                <Button
-                  variant="contained"
-                  onClick={handleSearchStudentAllData}
-                  sx={{
-                    bgcolor: '#667eea',
-                    '&:hover': { bgcolor: '#5568d3' },
-                    textTransform: 'none',
-                    px: 4,
-                    py: 1.25,
-                  }}
-                >
-                  Search
-                </Button>
-              </Grid>
             </Grid>
 
             {/* Results Table */}
@@ -1411,7 +1431,7 @@ const Admissions = () => {
               </Box>
             ) : studentAllDataRows.length === 0 ? (
               <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-                No data to display. Please click on Search button to get all students.
+                No students match the current filters.
               </Typography>
             ) : (
               <TableContainer>
