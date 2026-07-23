@@ -728,17 +728,8 @@ const getAnalytics = asyncHandler(async (req, res) => {
       { $match: classDistributionMatch },
       {
         $lookup: {
-          from: 'admissions',
-          localField: 'admission',
-          foreignField: '_id',
-          as: 'admissionDetails'
-        }
-      },
-      { $unwind: { path: '$admissionDetails', preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
           from: 'classes',
-          localField: 'admissionDetails.class',
+          localField: 'class',
           foreignField: '_id',
           as: 'classDetails'
         }

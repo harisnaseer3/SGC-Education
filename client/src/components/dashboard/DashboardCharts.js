@@ -263,7 +263,7 @@ const DashboardCharts = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" fontWeight="bold">
           Analytics & Insights
@@ -321,7 +321,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No financial data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="100%" height={250}>
+              <ResponsiveContainer width="99%" height={250}>
                 <BarChart 
                   data={chartData?.revenue || []} 
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
@@ -376,7 +376,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No payment data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="99%" height={300}>
                 <PieChart>
                   <Pie
                     data={chartData?.paymentStatus || []}
@@ -419,7 +419,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No collection data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="99%" height={300}>
                 <AreaChart data={chartData?.monthlyCollection || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCollection" x1="0" y1="0" x2="0" y2="1">
@@ -476,7 +476,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No growth data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="99%" height={300}>
                 <LineChart data={chartData?.userGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -545,7 +545,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No enrollment data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="99%" height={300}>
                 <LineChart data={chartData?.studentGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
@@ -576,7 +576,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No class data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="99%" height={300}>
                 <BarChart 
                   data={chartData?.classDistribution || []} 
                   layout="vertical"

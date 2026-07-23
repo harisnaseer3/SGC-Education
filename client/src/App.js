@@ -142,9 +142,10 @@ const ProtectedRoute = ({ children, title, permission }) => {
         component="main"
         sx={{
           flexGrow: 1,
-          mt: '64px',
+          minWidth: 0, // Crucial for Recharts responsive containers inside Flexbox
           width: { xs: '100%', sm: `calc(100% - ${sidebarWidth}px)` },
           maxWidth: { xs: '100%', sm: `calc(100% - ${sidebarWidth}px)` },
+          mt: '64px',
           transition: (theme) => theme.transitions.create(['margin', 'width'], {
             easing: theme.transitions.easing.sharp,
             duration: theme.transitions.duration.enteringScreen,

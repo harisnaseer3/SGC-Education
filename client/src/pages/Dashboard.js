@@ -357,7 +357,7 @@ const Dashboard = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
@@ -604,7 +604,7 @@ const Dashboard = () => {
                           </Select>
                         </FormControl>
                       </Box>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer width="99%" height={300}>
                         <BarChart data={voucherChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
@@ -625,10 +625,20 @@ const Dashboard = () => {
               {/* Row 4: Quick Actions (Horizontal) */}
               <Grid container spacing={3} sx={{ mb: 4 }}>
                 {/* Quick Actions */}
-                <Grid item xs={12} lg={12}>
+                <Grid item xs={12}>
                   <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
                     <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
-                    <Grid container spacing={2}>
+                    <Box sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: 'repeat(2, 1fr)',
+                        sm: 'repeat(4, 1fr)',
+                        md: 'repeat(4, 1fr)',
+                        lg: 'repeat(7, 1fr)',
+                      },
+                      gap: 2,
+                      width: '100%'
+                    }}>
                       {[
                         { label: 'Register Student', icon: <PersonAdd />, color: '#667eea', path: '/admissions/new' },
                         { label: 'Generate Voucher', icon: <Receipt />, color: '#8b5cf6', path: '/fee-management?tab=voucher-generation' },
@@ -638,45 +648,45 @@ const Dashboard = () => {
                         { label: 'Manage Classes', icon: <School />, color: '#8b5cf6', path: '/classes' },
                         { label: 'View Results', icon: <Assessment />, color: '#f59e0b', path: '/results' }
                       ].map((action, i) => (
-                        <Grid item xs={6} sm={4} md={3} lg={12/7} xl={12/7} key={i}>
-                          <Button
-                            fullWidth
-                            onClick={() => navigate(action.path)}
-                            variant="outlined"
-                            sx={{
-                              flexDirection: 'column',
-                              py: 3,
-                              borderRadius: 4,
-                              borderColor: `${action.color}20`,
-                              bgcolor: `${action.color}08`,
-                              color: 'text.primary',
-                              gap: 1.5,
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
-                              transition: 'all 0.3s ease',
-                              '&:hover': { 
-                                bgcolor: `${action.color}15`, 
-                                borderColor: action.color,
-                                transform: 'translateY(-4px)',
-                                boxShadow: `0 8px 24px ${action.color}25`
-                              }
-                            }}
-                          >
-                            {React.cloneElement(action.icon, { sx: { color: action.color, fontSize: 24 } })}
-                            <Typography variant="caption" fontWeight="700">{action.label}</Typography>
-                          </Button>
-                        </Grid>
+                        <Button
+                          key={i}
+                          fullWidth
+                          onClick={() => navigate(action.path)}
+                          variant="outlined"
+                          sx={{
+                            flexDirection: 'column',
+                            py: 3,
+                            borderRadius: 4,
+                            borderColor: `${action.color}20`,
+                            bgcolor: `${action.color}08`,
+                            color: 'text.primary',
+                            gap: 1.5,
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+                            transition: 'all 0.3s ease',
+                            width: '100%',
+                            '&:hover': { 
+                              bgcolor: `${action.color}15`, 
+                              borderColor: action.color,
+                              transform: 'translateY(-4px)',
+                              boxShadow: `0 8px 24px ${action.color}25`
+                            }
+                          }}
+                        >
+                          {React.cloneElement(action.icon, { sx: { color: action.color, fontSize: 24 } })}
+                          <Typography variant="caption" fontWeight="700" sx={{ textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                            {action.label}
+                          </Typography>
+                        </Button>
                       ))}
-                    </Grid>
+                    </Box>
                   </Paper>
                 </Grid>
               </Grid>
 
               {/* Row 6: Comprehensive Analytics Charts */}
-              <Grid container spacing={3} sx={{ mb: 2 }}>
-                <Grid item xs={12}>
-                  <DashboardCharts />
-                </Grid>
-              </Grid>
+              <Box sx={{ mt: 4, mb: 2, width: '100%' }}>
+                <DashboardCharts />
+              </Box>
             </>
           )}
         </Box>
