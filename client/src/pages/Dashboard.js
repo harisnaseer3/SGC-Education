@@ -611,10 +611,10 @@ const Dashboard = () => {
                           <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
                           <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
-                          <Bar dataKey="Total" fill="#6366f1" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Paid" fill="#34d399" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Partial" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="Unpaid" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="Total" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="Paid" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="Partial" fill="#f59e0b" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                          <Bar dataKey="Unpaid" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
                         </BarChart>
                       </ResponsiveContainer>
                     </Paper>
@@ -647,10 +647,18 @@ const Dashboard = () => {
                               flexDirection: 'column',
                               py: 3,
                               borderRadius: 4,
-                              borderColor: '#edf2f7',
+                              borderColor: `${action.color}20`,
+                              bgcolor: `${action.color}08`,
                               color: 'text.primary',
                               gap: 1.5,
-                              '&:hover': { bgcolor: `${action.color}08`, borderColor: action.color }
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+                              transition: 'all 0.3s ease',
+                              '&:hover': { 
+                                bgcolor: `${action.color}15`, 
+                                borderColor: action.color,
+                                transform: 'translateY(-4px)',
+                                boxShadow: `0 8px 24px ${action.color}25`
+                              }
                             }}
                           >
                             {React.cloneElement(action.icon, { sx: { color: action.color, fontSize: 24 } })}

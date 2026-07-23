@@ -11,6 +11,8 @@ import {
   Typography,
   Collapse,
   IconButton,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -26,7 +28,9 @@ const Sidebar = ({ collapsed, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const availableModules = getAvailableModules();
-  const sidebarWidth = collapsed ? 80 : 280;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const sidebarWidth = collapsed && !isMobile ? 80 : 280;
 
   // State to track which parent modules are expanded
   const [openMenus, setOpenMenus] = useState({});
@@ -154,9 +158,15 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
   return (
     <Drawer
-      variant="permanent"
+      variant={isMobile ? "temporary" : "permanent"}
+      open={isMobile ? !collapsed : true}
+      onClose={onToggle}
+      ModalProps={{
+        keepMounted: true, // Better open performance on mobile.
+      }}
       sx={{
         width: sidebarWidth,
+        display: { xs: collapsed ? 'none' : 'block', sm: 'block' },
         flexShrink: 0,
         whiteSpace: 'nowrap',
         boxSizing: 'border-box',
@@ -178,9 +188,9 @@ const Sidebar = ({ collapsed, onToggle }) => {
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: collapsed ? 'center' : 'flex-end', px: 1, py: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: (collapsed && !isMobile) ? 'center' : 'flex-end', px: 1, py: 1 }}>
         <IconButton onClick={onToggle}>
-          {collapsed ? <MenuIcon /> : <ChevronLeftIcon />}
+          {(collapsed && !isMobile) ? <MenuIcon /> : <ChevronLeftIcon />}
         </IconButton>
       </Box>
 

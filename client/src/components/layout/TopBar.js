@@ -17,6 +17,7 @@ import {
   Settings,
   ExitToApp,
   Apps,
+  Menu as MenuIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import InstitutionSwitcher from '../InstitutionSwitcher';
@@ -29,7 +30,7 @@ import { getAvailableModules } from '../../config/modules';
 // 3. If logo.png doesn't exist, it will fallback to the School icon
 // 4. Cache-busting is added to ensure the latest logo is always displayed on navigation
 
-const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actions = null }) => {
+const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actions = null, onToggleSidebar }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [anchorEl, setAnchorEl] = useState(null);
@@ -78,7 +79,16 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
 
   return (
     <AppBar position="fixed" sx={{ width: '100%', right: 0, left: 0, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: 1300 }}>
-      <Toolbar sx={{ px: { xs: 2, sm: 3 }, flexWrap: 'wrap', gap: 2 }}>
+      <Toolbar sx={{ px: { xs: 1, sm: 3 }, flexWrap: 'nowrap', gap: { xs: 1, sm: 2 } }}>
+        <IconButton
+          color="inherit"
+          aria-label="open drawer"
+          edge="start"
+          onClick={onToggleSidebar}
+          sx={{ mr: 1, display: { sm: 'none' } }}
+        >
+          <MenuIcon />
+        </IconButton>
         {/* Logo Image - Falls back to School icon if logo.png doesn't exist */}
         {showLogo ? (
           <Box
@@ -111,8 +121,11 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
           component="div" 
           sx={{ 
             flexGrow: 1, 
-            fontSize: { xs: '0.9rem', sm: '1.25rem' },
-            cursor: 'pointer'
+            fontSize: { xs: '1rem', sm: '1.25rem' },
+            cursor: 'pointer',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis'
           }}
           onClick={() => navigate('/dashboard')}
         >
@@ -132,6 +145,7 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
           startIcon={<Apps />}
           onClick={handleModulesMenu}
           sx={{
+            display: { xs: 'none', sm: 'flex' },
             borderColor: 'rgba(255, 255, 255, 0.5)',
             color: 'white',
             '&:hover': {
@@ -141,7 +155,6 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
           }}
         >
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Modules</Box>
-          <Box sx={{ display: { xs: 'block', sm: 'none' } }}>Apps</Box>
         </Button>
         <Menu
           anchorEl={modulesAnchorEl}
@@ -192,6 +205,7 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
           startIcon={<Home />}
           onClick={() => navigate('/dashboard')}
           sx={{
+            display: { xs: 'none', sm: 'flex' },
             borderColor: 'rgba(255, 255, 255, 0.5)',
             color: 'white',
             '&:hover': {
@@ -201,7 +215,6 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
           }}
         >
           <Box sx={{ display: { xs: 'none', sm: 'block' } }}>Back to Home</Box>
-          <Box sx={{ display: { xs: 'block', sm: 'none' } }}>Home</Box>
         </Button>
 
         {/* User Info and Menu */}

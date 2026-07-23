@@ -136,7 +136,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
   
   return (
     <Box sx={{ display: 'flex', width: '100%', minHeight: '100vh', maxWidth: '100vw', overflowX: 'hidden' }}>
-      <TopBar title={getPageTitle()} />
+      <TopBar title={getPageTitle()} onToggleSidebar={toggleSidebar} />
       <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
       <Box
         component="main"
