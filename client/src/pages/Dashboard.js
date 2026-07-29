@@ -44,7 +44,7 @@ import {
   Warning,
   School,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
 import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
@@ -62,17 +62,29 @@ const Dashboard = () => {
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [breakdownTab, setBreakdownTab] = useState(0);
   const [showLogo, setShowLogo] = useState(true); // For logo fallback
+  const location = useLocation();
+  const preserveFilters = location.state?.preserveFilters;
+
   const [voucherFilter, setVoucherFilter] = useState(() => {
+    if (preserveFilters) {
+      const saved = sessionStorage.getItem('dashboard_voucherFilter');
+      if (saved) return saved;
+    } else {
+      sessionStorage.removeItem('dashboard_voucherFilter');
+    }
     const d = new Date();
     return `${d.getMonth() + 1}-${d.getFullYear()}`;
   });
   const [chartYearFilter, setChartYearFilter] = useState(() => new Date().getFullYear());
+  const [classes, setClasses] = useState([]);
+  const [selectedClass, setSelectedClass] = useState('all');
   
   // Generate cache-busting parameter once on mount to ensure fresh logo
   const [logoCacheBuster] = useState(() => `?t=${Date.now()}`);
 
   useEffect(() => {
     fetchDashboardStats();
+    fetchClasses();
 
     // Load selected institution
     const institutionData = localStorage.getItem('selectedInstitution');
@@ -85,7 +97,39 @@ const Dashboard = () => {
     }
   }, []);
 
-  const fetchDashboardStats = async () => {
+  const fetchClasses = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const institutionData = localStorage.getItem('selectedInstitution');
+      let url = getApiUrl('classes');
+      const params = {};
+      if (institutionData) {
+        try {
+          const inst = JSON.parse(institutionData);
+          params.institution = inst._id;
+        } catch (e) {
+          console.error('Failed to parse institution data', e);
+        }
+      }
+      const response = await axios.get(url, {
+        headers: { Authorization: `Bearer ${token}` },
+        params
+      });
+      if (response.data?.success) {
+        setClasses(response.data.data || []);
+      }
+    } catch (e) {
+      console.error('Failed to fetch classes', e);
+    }
+  };
+
+  const handleClassChange = (e) => {
+    const val = e.target.value;
+    setSelectedClass(val);
+    fetchDashboardStats(val);
+  };
+
+  const fetchDashboardStats = async (classId = selectedClass) => {
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -93,13 +137,20 @@ const Dashboard = () => {
 
       // Build URL with institution parameter if available
       let url = getApiUrl('dashboard/stats');
+      const queryParams = [];
       if (institutionData) {
         try {
           const institution = JSON.parse(institutionData);
-          url += `?institution=${institution._id}`;
+          queryParams.push(`institution=${institution._id}`);
         } catch (e) {
           console.error('Failed to parse institution data', e);
         }
+      }
+      if (classId && classId !== 'all') {
+        queryParams.push(`class=${classId}`);
+      }
+      if (queryParams.length > 0) {
+        url += `?${queryParams.join('&')}`;
       }
 
       const response = await axios.get(url, {
@@ -323,7 +374,20 @@ const Dashboard = () => {
     const found = dashboardData.vouchers.monthlyBreakdown?.find(
       (m) => m._id.month === parseInt(month) && m._id.year === parseInt(year)
     );
-    return found || { total: 0, paid: 0, unpaid: 0, partial: 0, outstandingRegular: 0, outstandingArrears: 0 };
+    return found || { 
+      total: 0, 
+      paid: 0, 
+      unpaid: 0, 
+      partial: 0, 
+      totalBilled: 0, 
+      totalCollected: 0, 
+      totalOutstanding: 0, 
+      totalArrears: 0,
+      collectedPaid: 0, 
+      collectedPartial: 0, 
+      outstandingRegular: 0, 
+      outstandingArrears: 0 
+    };
   };
   const activeVoucherData = getActiveVoucherData();
 
@@ -434,7 +498,9 @@ const Dashboard = () => {
                           const val = e.target.value;
                           if (val) {
                             const [y, m] = val.split('-');
-                            setVoucherFilter(`${parseInt(m, 10)}-${parseInt(y, 10)}`);
+                            const newFilter = `${parseInt(m, 10)}-${parseInt(y, 10)}`;
+                            setVoucherFilter(newFilter);
+                            sessionStorage.setItem('dashboard_voucherFilter', newFilter);
                           }
                         }}
                         sx={{ 
@@ -453,7 +519,18 @@ const Dashboard = () => {
                       value: `Rs. ${(activeVoucherData.totalBilled || 0).toLocaleString()}`, 
                       icon: <AccountBalance />, 
                       color: '#6366f1', 
-                      subtitle: 'Accounts receivable',
+                      subtitle: (
+                        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, flexWrap: 'wrap', width: '100%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#6366f1' }} />
+                            <span>Vouchers: Rs. {((activeVoucherData.totalBilled || 0) - (activeVoucherData.totalArrears || 0)).toLocaleString()}</span>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#f59e0b' }} />
+                            <span>Arrears: Rs. {(activeVoucherData.totalArrears || 0).toLocaleString()}</span>
+                          </Box>
+                        </Box>
+                      ),
                       path: `/fee-management?tab=print-voucher&month=${(() => {
                         if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
                           const d = new Date();
@@ -622,24 +699,45 @@ const Dashboard = () => {
                     <Paper elevation={0} sx={{ mt: 3, p: 3, borderRadius: 4, border: '1px solid #edf2f7' }}>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="subtitle1" fontWeight="800">Monthly Voucher Trend</Typography>
-                        <FormControl size="small" sx={{ minWidth: 100 }}>
-                          <Select
-                            value={chartYearFilter}
-                            onChange={(e) => setChartYearFilter(e.target.value)}
-                            sx={{ bgcolor: '#f8fafc', borderRadius: 2 }}
-                          >
-                            {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
-                              <MenuItem key={year} value={year}>{year}</MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <FormControl size="small" sx={{ minWidth: 150 }}>
+                            <Select
+                              value={selectedClass}
+                              onChange={handleClassChange}
+                              displayEmpty
+                              sx={{ bgcolor: '#f8fafc', borderRadius: 2 }}
+                            >
+                              <MenuItem value="all">All Classes</MenuItem>
+                              {classes.map((cls) => (
+                                <MenuItem key={cls._id} value={cls._id}>{cls.name}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                          <FormControl size="small" sx={{ minWidth: 100 }}>
+                            <Select
+                              value={chartYearFilter}
+                              onChange={(e) => setChartYearFilter(e.target.value)}
+                              sx={{ bgcolor: '#f8fafc', borderRadius: 2 }}
+                            >
+                              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i).map(year => (
+                                <MenuItem key={year} value={year}>{year}</MenuItem>
+                              ))}
+                            </Select>
+                          </FormControl>
+                        </Stack>
                       </Box>
                       <ResponsiveContainer width="99%" height={300}>
                         <BarChart data={voucherChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                           <XAxis dataKey="name" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
                           <YAxis axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                            itemSorter={(item) => {
+                              const order = { Total: 1, Paid: 2, Partial: 3, Unpaid: 4 };
+                              return order[item.name] || 99;
+                            }}
+                          />
                           <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
                           <Bar dataKey="Total" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
                           <Bar dataKey="Paid" fill="#34d399" radius={[4, 4, 0, 0]} maxBarSize={40} />

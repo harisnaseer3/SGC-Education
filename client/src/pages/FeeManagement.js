@@ -55,6 +55,7 @@ import {
   Receipt,
   AccountBalanceWallet,
   Update,
+  ArrowBack,
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -3819,9 +3820,29 @@ const FeeManagement = () => {
       <Box sx={{ mt: 3, mb: 3, flex: 1, px: 3, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
         <Paper sx={{ p: 3, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-            <Typography variant="h4" fontWeight="bold" color="#667eea">
-              Fee Management
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<ArrowBack />}
+                onClick={() => navigate('/dashboard', { state: { preserveFilters: true } })}
+                sx={{
+                  borderColor: '#667eea',
+                  color: '#667eea',
+                  textTransform: 'none',
+                  fontWeight: 600,
+                  '&:hover': {
+                    borderColor: '#5568d3',
+                    bgcolor: '#667eea15'
+                  }
+                }}
+              >
+                Back to Dashboard
+              </Button>
+              <Typography variant="h4" fontWeight="bold" color="#667eea">
+                Fee Management
+              </Typography>
+            </Box>
           </Box>
 
 

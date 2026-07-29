@@ -1011,6 +1011,26 @@ const Admissions = () => {
 
   return (
     <Box sx={{ flexGrow: 1, bgcolor: '#f5f5f5', minHeight: '100vh' }}>
+      <Box sx={{ px: 3, pt: 3, pb: 1 }}>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ArrowBack />}
+          onClick={() => navigate('/dashboard', { state: { preserveFilters: true } })}
+          sx={{
+            borderColor: '#667eea',
+            color: '#667eea',
+            textTransform: 'none',
+            fontWeight: 600,
+            '&:hover': {
+              borderColor: '#5568d3',
+              bgcolor: '#667eea15'
+            }
+          }}
+        >
+          Back to Dashboard
+        </Button>
+      </Box>
       {/* Quick Links for Academic Setup */}
       <Paper sx={{ p: 2, mb: 3, mx: 3, mt: 0, background: 'linear-gradient(135deg, #667eea15 0%, #764ba205 100%)', border: '1px solid #667eea30' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>

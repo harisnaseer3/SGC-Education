@@ -323,6 +323,14 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     throw new ApiError(403, 'Access denied. Admin access required.');
   }
 
+  const classId = req.query.class;
+  const classObjectId = (classId && mongoose.Types.ObjectId.isValid(classId)) 
+    ? new mongoose.Types.ObjectId(classId) 
+    : null;
+
+  const studentMatchQuery = classObjectId ? { ...referenceQuery, class: classObjectId } : referenceQuery;
+  const studentFeeMatchQuery = classObjectId ? { ...referenceQuery, class: classObjectId } : referenceQuery;
+
   // Get counts
   const [
     totalInstitutions,
@@ -342,7 +350,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     Institution.countDocuments({ ...institutionQuery, type: 'school' }),
     Institution.countDocuments({ ...institutionQuery, type: 'college' }),
     User.countDocuments(userQuery),
-    Student.countDocuments(referenceQuery),
+    Student.countDocuments(studentMatchQuery),
     User.countDocuments({ ...userQuery, role: 'teacher' }),
     User.countDocuments({ ...userQuery, role: 'admin' }),
     Institution.find(institutionQuery)
@@ -490,10 +498,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       FeePayment.aggregate([
         { $match: { ...referenceQuery, status: 'completed' } },
         ...activeStudentLookupStages,
+        ...(classObjectId ? [{ $match: { 'studentDoc.class': classObjectId } }] : []),
         { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
       ]),
       StudentFee.aggregate([
-        { $match: { ...referenceQuery, 'vouchers.0': { $exists: true } } },
+        { $match: { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } } },
         ...activeStudentLookupStages,
         { $group: { _id: null, totalBilled: { $sum: '$finalAmount' }, totalOutstanding: { $sum: '$remainingAmount' } } }
       ])
@@ -508,41 +517,42 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         } 
       },
       ...activeStudentLookupStages,
+      ...(classObjectId ? [{ $match: { 'studentDoc.class': classObjectId } }] : []),
       { $group: { _id: null, total: { $sum: '$amount' } } }
     ]),
     Institution.countDocuments({ ...institutionQuery, createdAt: { $gte: thirtyDaysAgo } }),
     User.countDocuments({ ...userQuery, createdAt: { $gte: thirtyDaysAgo } }),
     // New Content: Enrolled Students
-    Admission.countDocuments({ ...referenceQuery, status: 'enrolled' }),
+    Admission.countDocuments({ ...studentMatchQuery, status: 'enrolled' }),
     // New Content: New Admissions (last 30 days)
-    Admission.countDocuments({ ...referenceQuery, admissionDate: { $gte: thirtyDaysAgo } }),
+    Admission.countDocuments({ ...studentMatchQuery, admissionDate: { $gte: thirtyDaysAgo } }),
     // New Content: Overdue Fees
-    StudentFee.countDocuments({ ...referenceQuery, status: 'overdue', isActive: true }),
+    StudentFee.countDocuments({ ...studentFeeMatchQuery, status: 'overdue', isActive: true }),
     // New Content: Upcoming Events
     AcademicCalendar.find({ 
       ...referenceQuery, 
       startDate: { $gte: new Date() } 
     }).sort({ startDate: 1 }).limit(5),
     // New Content: Struck Off Students
-    Student.countDocuments({ ...referenceQuery, status: 'struckoff' }),
+    Student.countDocuments({ ...studentMatchQuery, status: 'struckoff' }),
 
     // Voucher Stats (All Time) — all StudentFee records with at least one voucher
     StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...referenceQuery, 'vouchers.0': { $exists: true } }
+      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } }
     )),
     // Voucher Stats (Current Month) — only entries whose voucher matches this month/year
     StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...referenceQuery, vouchers: { $elemMatch: { month: currentMonth, year: currentYear } } },
+      { ...studentFeeMatchQuery, vouchers: { $elemMatch: { month: currentMonth, year: currentYear } } },
       { 'vouchers.month': currentMonth, 'vouchers.year': currentYear }
     )),
     // Voucher Stats (Previous Month)
     StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...referenceQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } },
+      { ...studentFeeMatchQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } },
       { 'vouchers.month': prevMonth, 'vouchers.year': prevYear }
     )),
     // Voucher Stats (Monthly Breakdown)
     StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...referenceQuery, 'vouchers.0': { $exists: true } },
+      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } },
       null,
       true
     ))

@@ -37,6 +37,19 @@ import BankAccounts from './pages/BankAccounts';
 import usePermissions from './hooks/usePermissions';
 import { PERMISSIONS } from './utils/constants';
 
+// Clear dashboard filters from sessionStorage if the page is reloaded
+try {
+  const navigationEntry = performance.getEntriesByType('navigation')[0];
+  if (navigationEntry && navigationEntry.type === 'reload') {
+    sessionStorage.removeItem('dashboard_voucherFilter');
+    sessionStorage.removeItem('finance_selectedCampus');
+    sessionStorage.removeItem('finance_startDate');
+    sessionStorage.removeItem('finance_endDate');
+  }
+} catch (e) {
+  console.error('Failed to clear reload filters', e);
+}
+
 const theme = createTheme({
   palette: {
     primary: {

@@ -46,6 +46,7 @@ import {
 } from 'recharts';
 import axios from 'axios';
 import { getApiUrl } from '../config/api';
+import { useLocation } from 'react-router-dom';
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899', '#8b5cf6'];
 
@@ -111,14 +112,41 @@ const FinanceDashboard = () => {
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  const location = useLocation();
+  const preserveFilters = location.state?.preserveFilters;
   
   // Filters State
-  const [selectedCampus, setSelectedCampus] = useState('all');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [selectedCampus, setSelectedCampus] = useState(() => {
+    if (preserveFilters) {
+      return sessionStorage.getItem('finance_selectedCampus') || 'all';
+    }
+    sessionStorage.removeItem('finance_selectedCampus');
+    return 'all';
+  });
+
+  const [startDate, setStartDate] = useState(() => {
+    if (preserveFilters) {
+      return sessionStorage.getItem('finance_startDate') || '';
+    }
+    sessionStorage.removeItem('finance_startDate');
+    return '';
+  });
+
+  const [endDate, setEndDate] = useState(() => {
+    if (preserveFilters) {
+      return sessionStorage.getItem('finance_endDate') || '';
+    }
+    sessionStorage.removeItem('finance_endDate');
+    return '';
+  });
+
   const [campusList, setCampusList] = useState([]);
 
   useEffect(() => {
+    sessionStorage.setItem('finance_selectedCampus', selectedCampus);
+    sessionStorage.setItem('finance_startDate', startDate);
+    sessionStorage.setItem('finance_endDate', endDate);
     fetchDashboardStats();
   }, [selectedCampus, startDate, endDate]);
 
