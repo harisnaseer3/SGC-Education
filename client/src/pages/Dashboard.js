@@ -431,7 +431,7 @@ const Dashboard = () => {
           {dashboardData && (
             <>
               {/* Row 1: Key Performance Indicators (Compact) */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
                 {[
                   { 
                     title: 'Total Students', 
@@ -466,15 +466,13 @@ const Dashboard = () => {
                     path: '/admissions/register?status=struck_off'
                   }
                 ].map((stat, i) => (
-                  <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={i}>
-                    <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
-                  </Grid>
+                  <StatCard key={i} compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                 ))}
-              </Grid>
+              </Box>
 
               {/* Row 2: Financial & Voucher Overview */}
               {activeVoucherData && (
-                <Box sx={{ mb: 4 }}>
+                <Box sx={{ mb: 4, width: '100%' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
                     <Typography variant="h5" fontWeight="bold">
                       Financial & Voucher Overview
@@ -512,7 +510,9 @@ const Dashboard = () => {
                       />
                     </Box>
                   </Box>
-                  <Grid container spacing={3} sx={{ mb: 4 }}>
+                  
+                  {/* Financial KPI Cards */}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
                   {[
                     { 
                       title: 'Total Billed', 
@@ -612,16 +612,16 @@ const Dashboard = () => {
                       })()}`
                     }
                   ].map((stat, i) => (
-                    <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={`fin-${i}`}>
-                      <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
-                    </Grid>
+                    <StatCard key={`fin-${i}`} compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                   ))}
-                  </Grid>
+                  </Box>
 
                   <Typography variant="subtitle1" fontWeight="bold" sx={{ mb: 2, color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1 }}>
                     Voucher Overview
                   </Typography>
-                  <Grid container spacing={3} sx={{ mb: 3 }}>
+
+                  {/* Voucher KPI Cards */}
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 3 }}>
                   {[
                     { 
                       title: 'Total Vouchers', 
@@ -688,11 +688,9 @@ const Dashboard = () => {
                       })()}`
                     }
                   ].map((stat, i) => (
-                    <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={`vouch-${i}`}>
-                      <StatCard compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
-                    </Grid>
+                    <StatCard key={`vouch-${i}`} compact {...stat} onClick={() => stat.path && navigate(stat.path)} />
                   ))}
-                  </Grid>
+                  </Box>
 
                   {/* Voucher Trend Chart */}
                   {voucherChartData.length > 0 && (
@@ -750,66 +748,58 @@ const Dashboard = () => {
                 </Box>
               )}
 
-              {/* Row 4: Quick Actions (Horizontal) */}
-              <Grid container spacing={3} sx={{ mb: 4 }}>
-                {/* Quick Actions */}
-                <Grid item xs={12}>
-                  <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2 }}>
-                    <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
-                    <Box sx={{
-                      display: 'grid',
-                      gridTemplateColumns: {
-                        xs: 'repeat(2, 1fr)',
-                        sm: 'repeat(4, 1fr)',
-                        md: 'repeat(4, 1fr)',
-                        lg: 'repeat(7, 1fr)',
-                      },
-                      gap: 2,
-                      width: '100%'
-                    }}>
-                      {[
-                        { label: 'Register Student', icon: <PersonAdd />, color: '#667eea', path: '/admissions/new' },
-                        { label: 'Generate Voucher', icon: <Receipt />, color: '#8b5cf6', path: '/fee-management?tab=voucher-generation' },
-                        { label: 'Collect Fee', icon: <Payment />, color: '#10b981', path: '/fee-management?tab=fee-deposit' },
-                        { label: 'Add Event', icon: <Event />, color: '#f093fb', path: '/calendar' },
-                        { label: 'Manage Users', icon: <People />, color: '#4facfe', path: '/users' },
-                        { label: 'Manage Classes', icon: <School />, color: '#8b5cf6', path: '/classes' },
-                        { label: 'View Results', icon: <Assessment />, color: '#f59e0b', path: '/results' }
-                      ].map((action, i) => (
-                        <Button
-                          key={i}
-                          fullWidth
-                          onClick={() => navigate(action.path)}
-                          variant="outlined"
-                          sx={{
-                            flexDirection: 'column',
-                            py: 3,
-                            borderRadius: 4,
-                            borderColor: `${action.color}20`,
-                            bgcolor: `${action.color}08`,
-                            color: 'text.primary',
-                            gap: 1.5,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
-                            transition: 'all 0.3s ease',
-                            width: '100%',
-                            '&:hover': { 
-                              bgcolor: `${action.color}15`, 
-                              borderColor: action.color,
-                              transform: 'translateY(-4px)',
-                              boxShadow: `0 8px 24px ${action.color}25`
-                            }
-                          }}
-                        >
-                          {React.cloneElement(action.icon, { sx: { color: action.color, fontSize: 24 } })}
-                          <Typography variant="caption" fontWeight="700" sx={{ textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
-                            {action.label}
-                          </Typography>
-                        </Button>
-                      ))}
-                    </Box>
-                  </Paper>
-                </Grid>
-              </Grid>
+              {/* Row 4: Quick Actions (Full-Width Responsive Grid) */}
+              <Box sx={{ mb: 4, width: '100%' }}>
+                <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 3, width: '100%', boxSizing: 'border-box' }}>
+                  <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
+                  <Box sx={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: 2,
+                    width: '100%'
+                  }}>
+                    {[
+                      { label: 'Register Student', icon: <PersonAdd />, color: '#667eea', path: '/admissions/new' },
+                      { label: 'Generate Voucher', icon: <Receipt />, color: '#8b5cf6', path: '/fee-management?tab=voucher-generation' },
+                      { label: 'Collect Fee', icon: <Payment />, color: '#10b981', path: '/fee-management?tab=fee-deposit' },
+                      { label: 'Add Event', icon: <Event />, color: '#f093fb', path: '/calendar' },
+                      { label: 'Manage Users', icon: <People />, color: '#4facfe', path: '/users' },
+                      { label: 'Manage Classes', icon: <School />, color: '#8b5cf6', path: '/classes' },
+                      { label: 'View Results', icon: <Assessment />, color: '#f59e0b', path: '/results' }
+                    ].map((action, i) => (
+                      <Button
+                        key={i}
+                        fullWidth
+                        onClick={() => navigate(action.path)}
+                        variant="outlined"
+                        sx={{
+                          flexDirection: 'column',
+                          py: 2.5,
+                          borderRadius: 3,
+                          borderColor: `${action.color}20`,
+                          bgcolor: `${action.color}08`,
+                          color: 'text.primary',
+                          gap: 1.5,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.02)',
+                          transition: 'all 0.3s ease',
+                          width: '100%',
+                          '&:hover': { 
+                            bgcolor: `${action.color}15`, 
+                            borderColor: action.color,
+                            transform: 'translateY(-3px)',
+                            boxShadow: `0 8px 24px ${action.color}20`
+                          }
+                        }}
+                      >
+                        {React.cloneElement(action.icon, { sx: { color: action.color, fontSize: 24 } })}
+                        <Typography variant="caption" fontWeight="700" sx={{ textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%' }}>
+                          {action.label}
+                        </Typography>
+                      </Button>
+                    ))}
+                  </Box>
+                </Paper>
+              </Box>
 
               {/* Row 6: Comprehensive Analytics Charts */}
               <Box sx={{ mt: 4, mb: 2, width: '100%' }}>

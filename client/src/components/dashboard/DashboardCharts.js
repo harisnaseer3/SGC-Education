@@ -282,10 +282,10 @@ const DashboardCharts = () => {
         </FormControl>
       </Box>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ width: '100%', m: 0 }}>
         {/* Financial Overview (Revenue vs Outstanding) */}
         <Grid item xs={12} md={6} lg={4} xl={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#f59e0b15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <AccountBalance sx={{ color: '#f59e0b', fontSize: 28 }} />
@@ -321,7 +321,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No financial data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="99%" height={250}>
+              <ResponsiveContainer width="100%" height={250}>
                 <BarChart 
                   data={chartData?.revenue || []} 
                   margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
@@ -360,7 +360,7 @@ const DashboardCharts = () => {
 
         {/* Payment Status Distribution */}
         <Grid item xs={12} md={6} lg={4} xl={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#ec489915', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Payment sx={{ color: '#ec4899', fontSize: 28 }} />
@@ -376,7 +376,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No payment data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="99%" height={300}>
+              <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
                     data={chartData?.paymentStatus || []}
@@ -403,7 +403,7 @@ const DashboardCharts = () => {
 
         {/* Monthly Fee Collection */}
         <Grid item xs={12} md={6} lg={4} xl={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#10b98115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <TrendingUp sx={{ color: '#10b981', fontSize: 28 }} />
@@ -419,7 +419,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No collection data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="99%" height={300}>
+              <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={chartData?.monthlyCollection || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <defs>
                     <linearGradient id="colorCollection" x1="0" y1="0" x2="0" y2="1">
@@ -460,7 +460,7 @@ const DashboardCharts = () => {
 
         {/* User Growth Trend */}
         <Grid item xs={12} md={6} lg={4} xl={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#6366f115', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <People sx={{ color: '#6366f1', fontSize: 28 }} />
@@ -476,7 +476,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No growth data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="99%" height={300}>
+              <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData?.userGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis 
@@ -529,7 +529,7 @@ const DashboardCharts = () => {
 
         {/* Student Enrollment Trend */}
         <Grid item xs={12} md={6} lg={4} xl={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Assessment sx={{ color: '#4facfe', fontSize: 28 }} />
@@ -545,7 +545,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No enrollment data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="99%" height={300}>
+              <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={chartData?.studentGrowth || []} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="month" axisLine={false} tickLine={false} style={{ fontSize: '11px', fontWeight: 500, fill: '#64748b' }} />
@@ -560,7 +560,7 @@ const DashboardCharts = () => {
 
         {/* Student Distribution by Class */}
         <Grid item xs={12} md={6} lg={4} xl={4}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450 }}>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: '#4facfe15', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Assessment sx={{ color: '#4facfe', fontSize: 28 }} />
@@ -576,7 +576,7 @@ const DashboardCharts = () => {
                 <Typography variant="body2" color="text.secondary">No class data available</Typography>
               </Box>
             ) : (
-              <ResponsiveContainer width="99%" height={300}>
+              <ResponsiveContainer width="100%" height={300}>
                 <BarChart 
                   data={chartData?.classDistribution || []} 
                   layout="vertical"
