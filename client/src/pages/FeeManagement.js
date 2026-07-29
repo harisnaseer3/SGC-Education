@@ -227,9 +227,7 @@ const FeeManagement = () => {
   // Generate Voucher
   const [generateVoucherFilters, setGenerateVoucherFilters] = useState({
     monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // Format: YYYY-MM for month input
-    name: '',
-    id: '',
-    rollNumber: '',
+    searchTerm: '',
     class: '',
     voucherStatus: ''
   });
@@ -273,9 +271,7 @@ const FeeManagement = () => {
   const [printVoucherFilters, setPrintVoucherFilters] = useState({
     monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // Format: YYYY-MM for month input
     voucherNumber: '',
-    name: '',
-    id: '',
-    rollNumber: '',
+    searchTerm: '',
     class: '',
     voucherStatus: searchParams.get('status') || ''
   });
@@ -320,9 +316,7 @@ const FeeManagement = () => {
     feeHeadDiscounts: {} // { feeHeadId: { discount, discountType, discountReason } }
   });
   const [assignFeeStructureFilters, setAssignFeeStructureFilters] = useState({
-    name: '',
-    id: '',
-    rollNumber: '',
+    searchTerm: '',
     class: '',
     feeStatus: ''
   });
@@ -350,9 +344,7 @@ const FeeManagement = () => {
 
   // Fee Deposit
   const [manualDepositSearch, setManualDepositSearch] = useState({
-    id: '',
-    rollNumber: '',
-    studentName: '',
+    searchTerm: '',
     voucherNumber: ''
   });
   const [manualDepositStudents, setManualDepositStudents] = useState([]);
@@ -389,9 +381,7 @@ const FeeManagement = () => {
   const [receiptSearch, setReceiptSearch] = useState(() => {
     const defaultDates = getDefaultReceiptDates();
     return {
-      id: '',
-      rollNumber: '',
-      studentName: '',
+      searchTerm: '',
       receiptNumber: '',
       startDate: defaultDates.startDate,
       endDate: defaultDates.endDate
@@ -1641,26 +1631,17 @@ const FeeManagement = () => {
   // Filter voucher generation students based on search criteria
   const getFilteredGenerateVoucherStudents = () => {
     return generateVoucherStudents.filter(student => {
-      // Name filter
-      if (generateVoucherFilters.name && 
-          !student.name.toLowerCase().includes(generateVoucherFilters.name.toLowerCase())) {
-        return false;
-      }
-
-      // ID filter (checks both student ID and admission number)
-      if (generateVoucherFilters.id) {
-        const searchId = generateVoucherFilters.id.toLowerCase();
-        const matchesStudentId = student.studentId?.toString().toLowerCase().includes(searchId);
-        const matchesAdmissionNumber = student.admissionNumber?.toString().toLowerCase().includes(searchId);
-        if (!matchesStudentId && !matchesAdmissionNumber) {
+      // Search term filter (checks Name, Roll Number, ID, Admission Number, Father Name)
+      if (generateVoucherFilters.searchTerm) {
+        const query = generateVoucherFilters.searchTerm.toLowerCase();
+        const matchesName = student.name?.toLowerCase().includes(query);
+        const matchesId = student.id?.toString().toLowerCase().includes(query);
+        const matchesRoll = student.rollNumber?.toString().toLowerCase().includes(query);
+        const matchesAdmission = student.admissionNo?.toString().toLowerCase().includes(query);
+        const matchesFather = student.fatherName?.toLowerCase().includes(query);
+        if (!matchesName && !matchesId && !matchesRoll && !matchesAdmission && !matchesFather) {
           return false;
         }
-      }
-
-      // Roll number filter
-      if (generateVoucherFilters.rollNumber && 
-          !student.rollNumber?.toString().toLowerCase().includes(generateVoucherFilters.rollNumber.toLowerCase())) {
-        return false;
       }
 
       // Class filter
@@ -1771,36 +1752,27 @@ const FeeManagement = () => {
         });
       }
       
-      // Client-side filtering for specific fields
-      if (manualDepositSearch.studentName) {
-        const nameLower = manualDepositSearch.studentName.toLowerCase().trim();
+      // Client-side filtering for search term (checking name, roll, enrollmentNumber, applicationNumber, ids)
+      if (manualDepositSearch.searchTerm) {
+        const query = manualDepositSearch.searchTerm.toLowerCase().trim();
         admissions = admissions.filter(admission => {
           const personalName = admission.personalInfo?.name?.toLowerCase() || '';
           const userName = admission.studentId?.user?.name?.toLowerCase() || '';
-          return personalName.includes(nameLower) || userName.includes(nameLower);
-        });
-      }
-
-      if (manualDepositSearch.rollNumber) {
-        admissions = admissions.filter(admission => 
-          admission.rollNumber?.toLowerCase().includes(manualDepositSearch.rollNumber.toLowerCase()) ||
-          admission.studentId?.rollNumber?.toLowerCase().includes(manualDepositSearch.rollNumber.toLowerCase())
-        );
-      }
-      
-      // Filter by ID - check enrollment number, application number, student ID, and admission ID
-      if (manualDepositSearch.id) {
-        const idLower = manualDepositSearch.id.toLowerCase().trim();
-        admissions = admissions.filter(admission => {
           const enrollmentNumber = admission.studentId?.enrollmentNumber?.toLowerCase() || '';
           const applicationNumber = admission.applicationNumber?.toLowerCase() || '';
           const studentId = admission.studentId?._id?.toString() || '';
           const admissionId = admission._id?.toString() || '';
+          const rollNumber = admission.rollNumber?.toLowerCase() || '';
+          const studentIdRoll = admission.studentId?.rollNumber?.toLowerCase() || '';
           
-          return enrollmentNumber.includes(idLower) ||
-                 applicationNumber.includes(idLower) ||
-                 studentId.includes(idLower) ||
-                 admissionId.includes(idLower);
+          return personalName.includes(query) ||
+                 userName.includes(query) ||
+                 enrollmentNumber.includes(query) ||
+                 applicationNumber.includes(query) ||
+                 studentId.includes(query) ||
+                 admissionId.includes(query) ||
+                 rollNumber.includes(query) ||
+                 studentIdRoll.includes(query);
         });
       }
       
@@ -2434,14 +2406,11 @@ const FeeManagement = () => {
         }
       } else {
         // Use search filters - always include dates if provided
-        if (receiptSearch.id) {
-          params.studentId = receiptSearch.id.trim();
-        }
-        if (receiptSearch.rollNumber) {
-          params.rollNumber = receiptSearch.rollNumber.trim();
-        }
-        if (receiptSearch.studentName) {
-          params.studentName = receiptSearch.studentName.trim();
+        if (receiptSearch.searchTerm) {
+          const val = receiptSearch.searchTerm.trim();
+          params.studentId = val;
+          params.rollNumber = val;
+          params.studentName = val;
         }
         if (receiptSearch.receiptNumber) {
           params.receiptNumber = receiptSearch.receiptNumber.trim();
@@ -3069,26 +3038,16 @@ const FeeManagement = () => {
   // Filter students without fee structure based on search criteria
   const  getFilteredAssignFeeStructureStudents = () => {
     return studentsWithoutFeeStructure.filter(student => {
-      // Name filter
-      if (assignFeeStructureFilters.name && 
-          !student.name.toLowerCase().includes(assignFeeStructureFilters.name.toLowerCase())) {
-        return false;
-      }
-
-      // ID filter (checks both enrollment number and admission number)
-      if (assignFeeStructureFilters.id) {
-        const searchId = assignFeeStructureFilters.id.toLowerCase();
-        const matchesEnrollment = student.enrollmentNumber?.toString().toLowerCase().includes(searchId);
-        const matchesAdmission = student.admissionNumber?.toString().toLowerCase().includes(searchId);
-        if (!matchesEnrollment && !matchesAdmission) {
+      // Search term filter (name, roll, enrollment/admission no)
+      if (assignFeeStructureFilters.searchTerm) {
+        const query = assignFeeStructureFilters.searchTerm.toLowerCase();
+        const matchesName = student.name?.toLowerCase().includes(query);
+        const matchesEnrollment = student.enrollmentNumber?.toString().toLowerCase().includes(query);
+        const matchesAdmission = student.admissionNumber?.toString().toLowerCase().includes(query);
+        const matchesRoll = student.rollNumber?.toString().toLowerCase().includes(query);
+        if (!matchesName && !matchesEnrollment && !matchesAdmission && !matchesRoll) {
           return false;
         }
-      }
-
-      // Roll number filter
-      if (assignFeeStructureFilters.rollNumber && 
-          !student.rollNumber?.toString().toLowerCase().includes(assignFeeStructureFilters.rollNumber.toLowerCase())) {
-        return false;
       }
 
       // Class filter
@@ -3115,30 +3074,20 @@ const FeeManagement = () => {
   // Filter print voucher students based on search criteria
   const getFilteredPrintVoucherStudents = () => {
     return printVoucherStudents.filter(student => {
-      // Name filter
-      if (printVoucherFilters.name && 
-          !student.name?.toLowerCase().includes(printVoucherFilters.name.toLowerCase())) {
-        return false;
-      }
-
-      // Voucher Status filter
-      if (printVoucherFilters.voucherStatus && student.voucherStatus !== printVoucherFilters.voucherStatus) {
-        return false;
-      }
-
-      // ID filter (checks both enrollment number and admission number)
-      if (printVoucherFilters.id) {
-        const searchId = printVoucherFilters.id.toLowerCase();  
-        const matchesEnrollment = student.enrollmentNumber?.toString().toLowerCase().includes(searchId);
-        const matchesAdmission = student.admissionNumber?.toString().toLowerCase().includes(searchId);
-        if (!matchesEnrollment && !matchesAdmission) {
+      // Search term filter (name, id, rollNumber, fatherName)
+      if (printVoucherFilters.searchTerm) {
+        const query = printVoucherFilters.searchTerm.toLowerCase();
+        const matchesName = student.name?.toLowerCase().includes(query);
+        const matchesId = student.id?.toString().toLowerCase().includes(query);
+        const matchesRoll = student.rollNumber?.toString().toLowerCase().includes(query);
+        const matchesFather = student.fatherName?.toLowerCase().includes(query);
+        if (!matchesName && !matchesId && !matchesRoll && !matchesFather) {
           return false;
         }
       }
 
-      // Roll number filter
-      if (printVoucherFilters.rollNumber && 
-          !student.rollNumber?.toString().toLowerCase().includes(printVoucherFilters.rollNumber.toLowerCase())) {
+      // Voucher Status filter
+      if (printVoucherFilters.voucherStatus && student.voucherStatus !== printVoucherFilters.voucherStatus) {
         return false;
       }
 
@@ -4214,37 +4163,15 @@ const FeeManagement = () => {
             {/* Filter Section */}
             <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
               <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={6} md={2.5}>
+                <Grid item xs={12} sm={12} md={5.5}>
                   <TextField
-                    label="Student Name"
+                    label="Search Student"
                     variant="outlined"
                     size="small"
                     fullWidth
-                    value={assignFeeStructureFilters.name}
-                    onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Search by name..."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={1.5}>
-                  <TextField
-                    label="ID / Admission #"
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    value={assignFeeStructureFilters.id}
-                    onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, id: e.target.value }))}
-                    placeholder="Search by ID..."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={1.5}>
-                  <TextField
-                    label="Roll Number"
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    value={assignFeeStructureFilters.rollNumber}
-                    onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, rollNumber: e.target.value }))}
-                    placeholder="Search by roll..."
+                    value={assignFeeStructureFilters.searchTerm}
+                    onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                    placeholder="Search by name, roll no, ID, admission no..."
                   />
                 </Grid>
                 <Grid item xs={12} sm={6} md={2}>
@@ -4280,7 +4207,7 @@ const FeeManagement = () => {
                   <Button
                     variant="outlined"
                     fullWidth
-                    onClick={() => setAssignFeeStructureFilters({ name: '', id: '', rollNumber: '', class: '', feeStatus: '' })}
+                    onClick={() => setAssignFeeStructureFilters({ searchTerm: '', class: '', feeStatus: '' })}
                     sx={{ borderColor: '#667eea', color: '#667eea' }}
                   >
                     Clear Filters
@@ -4443,37 +4370,17 @@ const FeeManagement = () => {
                         />
                       </Grid>
                       {/* Search Filters */}
-                      <Grid item xs={12} sm={6} md={3}>
+                      <Grid item xs={12} sm={12} md={6}>
                         <TextField
                           fullWidth
                           size="small"
-                          label="Student Name"
-                          value={generateVoucherFilters.name}
-                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, name: e.target.value })}
-                          placeholder="Search by name..."
+                          label="Search Student"
+                          value={generateVoucherFilters.searchTerm}
+                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, searchTerm: e.target.value })}
+                          placeholder="Search by name, roll no, ID, admission no..."
                         />
                       </Grid>
-                      <Grid item xs={12} sm={6} md={3}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="ID / Admission #"
-                          value={generateVoucherFilters.id}
-                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, id: e.target.value })}
-                          placeholder="Search by ID..."
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={2}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Roll Number"
-                          value={generateVoucherFilters.rollNumber}
-                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, rollNumber: e.target.value })}
-                          placeholder="Search by roll..."
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={2}>
+                      <Grid item xs={12} sm={6} md={4}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Class</InputLabel>
                           <Select
@@ -4488,7 +4395,7 @@ const FeeManagement = () => {
                           </Select>
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12} sm={6} md={2}>
+                      <Grid item xs={12} sm={6} md={4}>
                         <FormControl fullWidth size="small">
                           <InputLabel>Voucher Status</InputLabel>
                           <Select
@@ -4502,11 +4409,11 @@ const FeeManagement = () => {
                           </Select>
                         </FormControl>
                       </Grid>
-                      <Grid item xs={12} sm={6} md={2}>
+                      <Grid item xs={12} sm={6} md={4}>
                         <Button
                           variant="outlined"
                           fullWidth
-                          onClick={() => setGenerateVoucherFilters(prev => ({ ...prev, name: '', id: '', rollNumber: '', class: '', voucherStatus: '' }))}
+                          onClick={() => setGenerateVoucherFilters(prev => ({ ...prev, searchTerm: '', class: '', voucherStatus: '' }))}
                           sx={{ borderColor: '#667eea', color: '#667eea' }}
                         >
                           Clear Filters
@@ -4873,37 +4780,18 @@ const FeeManagement = () => {
                       placeholder="Search by voucher #"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
+                  
+                  <Grid item xs={12} sm={12} md={9}>
                     <TextField
                       fullWidth
-                      label="Student Name"
-                      value={printVoucherFilters.name}
-                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, name: e.target.value })}
-                      placeholder="Search by name..."
+                      label="Search Student"
+                      value={printVoucherFilters.searchTerm}
+                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, searchTerm: e.target.value })}
+                      placeholder="Search by name, roll no, ID, admission no..."
                       size="small"
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label="ID / Admission #"
-                      value={printVoucherFilters.id}
-                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, id: e.target.value })}
-                      placeholder="Search by ID..."
-                      size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <TextField
-                      fullWidth
-                      label="Roll Number"
-                      value={printVoucherFilters.rollNumber}
-                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, rollNumber: e.target.value })}
-                      placeholder="Search by roll..."
-                      size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid item xs={12} md={4}>
                     <FormControl fullWidth variant="outlined" size="small">
                       <InputLabel>Class</InputLabel>
                       <Select
@@ -4920,7 +4808,7 @@ const FeeManagement = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} sm={6} md={3}>
+                  <Grid item xs={12} sm={12} md={3}>
                     <FormControl fullWidth variant="outlined" size="small">
                       <InputLabel>Status</InputLabel>
                       <Select
@@ -4943,9 +4831,7 @@ const FeeManagement = () => {
                       onClick={() => setPrintVoucherFilters({
                         monthYear: printVoucherFilters.monthYear,
                         voucherNumber: '',
-                        name: '',
-                        id: '',
-                        rollNumber: '',
+                        searchTerm: '',
                         class: '',
                         voucherStatus: ''
                       })}
@@ -5171,37 +5057,17 @@ const FeeManagement = () => {
                   Search Student
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                  <Grid item xs={12} sm={12} md={12} lg={6}>
                     <TextField
                       fullWidth
                       size="small"
-                      label="ID"
-                      value={manualDepositSearch.id}
-                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, id: e.target.value })}
-                      placeholder="Enter ID"
+                      label="Search Student"
+                      value={manualDepositSearch.searchTerm}
+                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, searchTerm: e.target.value })}
+                      placeholder="Search by name, roll no, ID, admission no..."
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Roll Number"
-                      value={manualDepositSearch.rollNumber}
-                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, rollNumber: e.target.value })}
-                      placeholder="Enter roll number"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Student Name"
-                      value={manualDepositSearch.studentName}
-                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, studentName: e.target.value })}
-                      placeholder="Enter student name"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                  <Grid item xs={12} sm={12} md={12} lg={6}>
                     <TextField
                       fullWidth
                       size="small"
@@ -5651,34 +5517,14 @@ const FeeManagement = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                  <Grid item xs={12} sm={12} md={12} lg={6}>
                     <TextField
                       fullWidth
                       size="small"
-                      label="ID"
-                      value={receiptSearch.id}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, id: e.target.value })}
-                      placeholder="Enter ID"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Roll Number"
-                      value={receiptSearch.rollNumber}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, rollNumber: e.target.value })}
-                      placeholder="Enter roll number"
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Student Name"
-                      value={receiptSearch.studentName}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, studentName: e.target.value })}
-                      placeholder="Enter student name"
+                      label="Search Student"
+                      value={receiptSearch.searchTerm}
+                      onChange={(e) => setReceiptSearch({ ...receiptSearch, searchTerm: e.target.value })}
+                      placeholder="Search by name, roll no, ID, admission no..."
                     />
                   </Grid>
                   <Grid item xs={12} sm={6} md={4} lg={2}>
