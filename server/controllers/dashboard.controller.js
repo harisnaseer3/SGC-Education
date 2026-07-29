@@ -413,11 +413,21 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }
     stages.push(
       {
+        $lookup: {
+          from: 'feeheads',
+          localField: 'feeHead',
+          foreignField: '_id',
+          as: 'feeHeadDoc'
+        }
+      },
+      { $unwind: { path: '$feeHeadDoc', preserveNullAndEmptyArrays: true } },
+      {
         $group: {
           _id: { student: '$student', month: '$vouchers.month', year: '$vouchers.year' },
           totalPaid:      { $sum: '$paidAmount' },
           totalFinal:     { $sum: '$finalAmount' },
           totalRemaining: { $sum: '$remainingAmount' },
+          totalArrears:   { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, '$finalAmount', 0 ] } },
           minDueDate:     { $min: '$dueDate' }
         }
       },
@@ -443,7 +453,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           partial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, 1, 0] } },
           totalBilled: { $sum: '$totalFinal' },
           totalCollected: { $sum: '$totalPaid' },
-          totalOutstanding: { $sum: '$totalRemaining' }
+          totalOutstanding: { $sum: '$totalRemaining' },
+          totalArrears: { $sum: '$totalArrears' }
         }
       }
     );
@@ -498,7 +509,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     // New Content: Enrolled Students
     Admission.countDocuments({ ...referenceQuery, status: 'enrolled' }),
     // New Content: New Admissions (last 30 days)
-    Admission.countDocuments({ ...referenceQuery, createdAt: { $gte: thirtyDaysAgo } }),
+    Admission.countDocuments({ ...referenceQuery, admissionDate: { $gte: thirtyDaysAgo } }),
     // New Content: Overdue Fees
     StudentFee.countDocuments({ ...referenceQuery, status: 'overdue', isActive: true }),
     // New Content: Upcoming Events

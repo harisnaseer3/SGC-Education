@@ -1008,7 +1008,11 @@ const FeeManagement = () => {
           }
         });
 
-        const calculatedArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+        const arrearsRecordOnVoucher = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
+
+        const calculatedArrears = arrearsRecordOnVoucher 
+          ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
+          : Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
         // Determine voucher status based on payments for this specific voucher
         // A voucher is "Paid" only if payments were made AFTER the voucher was generated
@@ -1045,10 +1049,12 @@ const FeeManagement = () => {
         }
 
         // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
-        const arrearsPaymentsOnVoucher = feesWithVoucher.reduce((sum, f) => {
-          if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
-          return sum + parseFloat(f.paidAmount || 0);
-        }, 0);
+        const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
+          ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
+          : feesWithVoucher.reduce((sum, f) => {
+              if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
+              return sum + parseFloat(f.paidAmount || 0);
+            }, 0);
 
         // Sum remaining amounts for current non-arrears items
         const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
@@ -2005,7 +2011,11 @@ const FeeManagement = () => {
                   }
                 });
 
-                const calculatedArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+                const arrearsRecordOnVoucher = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
+
+                const calculatedArrears = arrearsRecordOnVoucher 
+                  ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
+                  : Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
                 // For the "Remaining Amount" of the VOUCHER specifically, we sum its constituent fees
                 // But we exclude the Arrears head from totalRemainingForVoucher if we are adding calculatedArrears separately
@@ -2015,10 +2025,12 @@ const FeeManagement = () => {
                 }, 0);
 
                 // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
-                const arrearsPaymentsOnVoucher = feesWithVoucher.reduce((sum, f) => {
-                  if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
-                  return sum + parseFloat(f.paidAmount || 0);
-                }, 0);
+                const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
+                  ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
+                  : feesWithVoucher.reduce((sum, f) => {
+                      if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
+                      return sum + parseFloat(f.paidAmount || 0);
+                    }, 0);
 
                 // Determine voucher status using the SAME remaining amount shown to the user
                 // This uses the displayed remaining (excl arrears head + calculated arrears - arrears payments)
@@ -5076,12 +5088,51 @@ const FeeManagement = () => {
               )}
             </TableContainer>
 
-            {/* Total Count */}
-            <Box sx={{ mt: 2, textAlign: 'right' }}>
-              <Typography variant="body1" fontWeight="bold">
-                Total: {printVoucherStudents.length} student(s)
-              </Typography>
-            </Box>
+            {/* Summary Bar */}
+            {getFilteredPrintVoucherStudents().length > 0 && (() => {
+              const filtered = getFilteredPrintVoucherStudents();
+              const totalVoucherAmount = filtered.reduce((sum, s) => sum + (s.voucherAmount || 0), 0);
+              const totalArrears = filtered.reduce((sum, s) => sum + (s.arrears || 0), 0);
+              return (
+                <Paper 
+                  elevation={0}
+                  sx={{ 
+                    mt: 3, 
+                    p: 2, 
+                    bgcolor: '#f1f5f9', 
+                    border: '1px solid #e2e8f0', 
+                    borderRadius: 2,
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: 2
+                  }}
+                >
+                  <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
+                        Total Voucher Amount
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color="primary.main">
+                        Rs. {totalVoucherAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
+                        Total Arrears
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: totalArrears > 0 ? 'error.main' : 'text.primary' }}>
+                        Rs. {totalArrears.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Typography variant="subtitle1" fontWeight="bold" color="text.secondary">
+                    Total: {filtered.length} student(s)
+                  </Typography>
+                </Paper>
+              );
+            })()}
           </Box>
         )}
 

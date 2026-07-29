@@ -375,7 +375,7 @@ const Dashboard = () => {
                     icon: <People />, 
                     color: '#4facfe', 
                     subtitle: 'Active enrollments',
-                    path: '/users'
+                    path: '/admissions/register'
                   },
                   { 
                     title: 'New Admissions', 
@@ -383,7 +383,7 @@ const Dashboard = () => {
                     icon: <PersonAdd />, 
                     color: '#6366f1', 
                     subtitle: 'Last 30 days',
-                    path: '/admissions'
+                    path: '/admissions/register?days=30'
                   },
                   { 
                     title: 'Enrolled Students', 
@@ -391,7 +391,7 @@ const Dashboard = () => {
                     icon: <CheckCircle />, 
                     color: '#10b981', 
                     subtitle: 'Currently enrolled',
-                    path: '/admissions'
+                    path: '/admissions/register?status=enrolled'
                   },
                   { 
                     title: 'Struck Off Students', 
@@ -399,7 +399,7 @@ const Dashboard = () => {
                     icon: <PersonOff />, 
                     color: '#ff6b6b', 
                     subtitle: 'Total struck off',
-                    path: '/admissions/students/search-all?status=Struck%20Off'
+                    path: '/admissions/register?status=struck_off'
                   }
                 ].map((stat, i) => (
                   <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={i}>
@@ -470,7 +470,7 @@ const Dashboard = () => {
                       icon: <Payment />, 
                       color: '#10b981', 
                       subtitle: 'Received payments',
-                      path: `/fee-management?tab=receipt&month=${(() => {
+                      path: `/fee-management?tab=print-voucher&status=Paid&month=${(() => {
                         if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
                           const d = new Date();
                           if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
@@ -484,9 +484,9 @@ const Dashboard = () => {
                       title: 'Total Outstanding', 
                       value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalOutstanding || 0).toLocaleString()}`, 
                       icon: <Assessment />, 
-                      color: '#f59e0b', 
+                      color: '#ef4444', 
                       subtitle: 'Unpaid arrears',
-                      path: `/fee-management?tab=fee-deposit&month=${(() => {
+                      path: `/fee-management?tab=print-voucher&status=Unpaid&month=${(() => {
                         if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
                           const d = new Date();
                           if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
@@ -497,12 +497,20 @@ const Dashboard = () => {
                       })()}`
                     },
                     { 
-                      title: 'Collection Rate', 
-                      value: `${activeVoucherData.totalBilled ? ((activeVoucherData.totalCollected || 0) / activeVoucherData.totalBilled * 100).toFixed(1) : 0}%`, 
-                      icon: <EventAvailable />, 
-                      color: '#4facfe', 
-                      subtitle: 'Collected / Billed',
-                      path: `/fee-management`
+                      title: 'Arrears', 
+                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalArrears || 0).toLocaleString()}`, 
+                      icon: <Receipt />, 
+                      color: '#f59e0b', 
+                      subtitle: 'Outstanding arrears',
+                      path: `/fee-management?tab=print-voucher&month=${(() => {
+                        if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
+                          const d = new Date();
+                          if (voucherFilter === 'prevMonth') d.setMonth(d.getMonth() - 1);
+                          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                        }
+                        const [m, y] = voucherFilter.split('-');
+                        return `${y}-${String(m).padStart(2, '0')}`;
+                      })()}`
                     }
                   ].map((stat, i) => (
                     <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={`fin-${i}`}>

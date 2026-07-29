@@ -184,6 +184,7 @@ const Admissions = () => {
   const [filterRollNumber, setFilterRollNumber] = useState('');
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterNewAdmissions, setFilterNewAdmissions] = useState(false);
 
   // Search Student All Data state
   const allStudentStatusOptions = [
@@ -244,6 +245,18 @@ const Admissions = () => {
     return admissions.filter((admission) => {
       // Always filter out soft-deleted records since the UI toggle is removed
       if (admission.isActive === false) return false;
+
+      // Filter by last 30 days of admission
+      if (filterNewAdmissions) {
+        const dateStr = admission.admissionDate || admission.admissionEffectiveDate || admission.createdAt;
+        const admissionDate = dateStr ? new Date(dateStr) : null;
+        if (!admissionDate || isNaN(admissionDate.getTime())) return false;
+
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        if (admissionDate < thirtyDaysAgo) return false;
+      }
       
       // Filter by Student Name
       if (filterStudentName) {
@@ -272,7 +285,15 @@ const Admissions = () => {
       }
 
       // Filter by Status
-      if (filterStatus && admission.status !== filterStatus) return false;
+      if (filterStatus) {
+        const matchStatus = (status) => {
+          if (!status) return false;
+          return status.toLowerCase().replace(/_/, '') === filterStatus.toLowerCase().replace(/_/, '');
+        };
+        if (!matchStatus(admission.status) && !matchStatus(admission.studentId?.status)) {
+          return false;
+        }
+      }
 
       // Filter by Search Term (Global Search)
       if (searchTerm) {
@@ -519,10 +540,18 @@ const Admissions = () => {
       if (sectionFromPath === 'search-all-data') {
         setAllDataStatusFilter([statusParam]);
       } else if (sectionFromPath === 'register') {
-        setFilterStatus(statusParam.toLowerCase().replace(' ', '_'));
+        setFilterStatus(statusParam.toLowerCase().replace(' ', '_').replace('struck_off', 'struckoff'));
       } else if (sectionFromPath === 'list') {
         setSelectedStatus(statusParam.toLowerCase().replace(' ', '_'));
       }
+    }
+
+    // Process days query parameter for register section
+    const daysParam = params.get('days');
+    if (daysParam === '30' && sectionFromPath === 'register') {
+      setFilterNewAdmissions(true);
+    } else {
+      setFilterNewAdmissions(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, location.search]);
@@ -2180,9 +2209,22 @@ const Admissions = () => {
 
             {/* Advanced Filters */}
             <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa' }}>
-              <Typography variant="subtitle2" fontWeight="bold" gutterBottom sx={{ mb: 2 }}>
-                Search Filters
-              </Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1.5, flexWrap: 'wrap' }}>
+                <Typography variant="subtitle2" fontWeight="bold">
+                  Search Filters
+                </Typography>
+                {filterNewAdmissions && (
+                  <Chip
+                    label="Last 30 Days Admissions"
+                    onDelete={() => {
+                      setFilterNewAdmissions(false);
+                      navigate('/admissions/register');
+                    }}
+                    color="primary"
+                    size="small"
+                  />
+                )}
+              </Box>
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6} md={3}>
                   <TextField
@@ -2261,9 +2303,10 @@ const Admissions = () => {
                       setFilterStudentName('');
                       setFilterRollNumber('');
                       setFilterClass('');
-
                       setFilterStatus('');
                       setSearchTerm('');
+                      setFilterNewAdmissions(false);
+                      navigate('/admissions/register');
                     }}
                     sx={{ height: '40px' }}
                   >
