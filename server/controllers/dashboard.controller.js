@@ -428,6 +428,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           totalFinal:     { $sum: '$finalAmount' },
           totalRemaining: { $sum: '$remainingAmount' },
           totalArrears:   { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, '$finalAmount', 0 ] } },
+          remainingArrears: { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, '$remainingAmount', 0 ] } },
+          remainingRegular: { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, 0, '$remainingAmount' ] } },
           minDueDate:     { $min: '$dueDate' }
         }
       },
@@ -454,7 +456,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           totalBilled: { $sum: '$totalFinal' },
           totalCollected: { $sum: '$totalPaid' },
           totalOutstanding: { $sum: '$totalRemaining' },
-          totalArrears: { $sum: '$totalArrears' }
+          totalArrears: { $sum: '$totalArrears' },
+          collectedPaid: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] }, '$totalPaid', 0] } },
+          collectedPartial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, '$totalPaid', 0] } },
+          outstandingRegular: { $sum: '$remainingRegular' },
+          outstandingArrears: { $sum: '$remainingArrears' }
         }
       }
     );
@@ -616,9 +622,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         struckOffStudents: struckOffStudentsCount
       },
       vouchers: {
-        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0 },
-        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0 },
-        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0 },
+        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
+        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
+        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
         monthlyBreakdown: monthlyBreakdownAgg || []
       },
       upcomingEvents,
