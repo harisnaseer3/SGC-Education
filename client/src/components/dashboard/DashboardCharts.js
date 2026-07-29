@@ -300,19 +300,19 @@ const DashboardCharts = () => {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                 <Typography variant="body2" fontWeight="700" color="text.secondary">Total Billed</Typography>
                 <Typography variant="h6" fontWeight="800" color="#6366f1">
-                  PKR {chartData?.totalBilled?.toLocaleString() || 0}
+                  Rs. {chartData?.totalBilled?.toLocaleString() || 0}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
                 <Typography variant="body2" fontWeight="700" color="text.secondary">Total Collected</Typography>
                 <Typography variant="h6" fontWeight="800" color="#10b981">
-                  PKR {chartData?.totalCollected?.toLocaleString() || 0}
+                  Rs. {chartData?.totalCollected?.toLocaleString() || 0}
                 </Typography>
               </Box>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="body2" fontWeight="700" color="text.secondary">Total Outstanding</Typography>
                 <Typography variant="h6" fontWeight="800" color="#f59e0b">
-                  PKR {chartData?.totalOutstanding?.toLocaleString() || 0}
+                  Rs. {chartData?.totalOutstanding?.toLocaleString() || 0}
                 </Typography>
               </Box>
             </Box>
@@ -341,7 +341,7 @@ const DashboardCharts = () => {
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                    formatter={(value) => [`PKR ${value.toLocaleString()}`, 'Amount']}
+                    formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Amount']}
                   />
                   <Bar 
                     dataKey="amount" 
@@ -442,7 +442,7 @@ const DashboardCharts = () => {
                   />
                   <Tooltip 
                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                    formatter={(value) => [`PKR ${value.toLocaleString()}`, 'Collection']}
+                    formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Collection']}
                   />
                   <Area
                     type="monotone"

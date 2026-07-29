@@ -187,7 +187,7 @@ const Dashboard = () => {
             </Typography>
             {(subtitle || trend) && (
               <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-                {subtitle && <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>{subtitle}</Typography>}
+                {subtitle && <Typography component="div" variant="caption" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.75rem', width: '100%' }}>{subtitle}</Typography>}
                 {trend && (
                   <Chip 
                     label={`+${trend}`}
@@ -323,7 +323,7 @@ const Dashboard = () => {
     const found = dashboardData.vouchers.monthlyBreakdown?.find(
       (m) => m._id.month === parseInt(month) && m._id.year === parseInt(year)
     );
-    return found || { total: 0, paid: 0, unpaid: 0, partial: 0 };
+    return found || { total: 0, paid: 0, unpaid: 0, partial: 0, outstandingRegular: 0, outstandingArrears: 0 };
   };
   const activeVoucherData = getActiveVoucherData();
 
@@ -450,7 +450,7 @@ const Dashboard = () => {
                   {[
                     { 
                       title: 'Total Billed', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalBilled || 0).toLocaleString()}`, 
+                      value: `Rs. ${(activeVoucherData.totalBilled || 0).toLocaleString()}`, 
                       icon: <AccountBalance />, 
                       color: '#6366f1', 
                       subtitle: 'Accounts receivable',
@@ -466,10 +466,21 @@ const Dashboard = () => {
                     },
                     { 
                       title: 'Total Collected', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalCollected || 0).toLocaleString()}`, 
+                      value: `Rs. ${(activeVoucherData.totalCollected || 0).toLocaleString()}`, 
                       icon: <Payment />, 
                       color: '#10b981', 
-                      subtitle: 'Received payments',
+                      subtitle: (
+                        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, flexWrap: 'wrap', width: '100%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#34d399' }} />
+                            <span>Paid: Rs. {(activeVoucherData.collectedPaid || 0).toLocaleString()}</span>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#f59e0b' }} />
+                            <span>Partial: Rs. {(activeVoucherData.collectedPartial || 0).toLocaleString()}</span>
+                          </Box>
+                        </Box>
+                      ),
                       path: `/fee-management?tab=print-voucher&status=Paid&month=${(() => {
                         if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
                           const d = new Date();
@@ -482,10 +493,21 @@ const Dashboard = () => {
                     },
                     { 
                       title: 'Total Outstanding', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalOutstanding || 0).toLocaleString()}`, 
+                      value: `Rs. ${(activeVoucherData.totalOutstanding || 0).toLocaleString()}`, 
                       icon: <Assessment />, 
                       color: '#ef4444', 
-                      subtitle: 'Unpaid arrears',
+                      subtitle: (
+                        <Box sx={{ display: 'flex', gap: 1.5, mt: 0.5, flexWrap: 'wrap', width: '100%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#ef4444' }} />
+                            <span>Vouchers: Rs. {(activeVoucherData.outstandingRegular || 0).toLocaleString()}</span>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#f59e0b' }} />
+                            <span>Arrears: Rs. {(activeVoucherData.outstandingArrears || 0).toLocaleString()}</span>
+                          </Box>
+                        </Box>
+                      ),
                       path: `/fee-management?tab=print-voucher&status=Unpaid&month=${(() => {
                         if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
                           const d = new Date();
@@ -498,7 +520,7 @@ const Dashboard = () => {
                     },
                     { 
                       title: 'Arrears', 
-                      value: `${dashboardData?.finance?.currency || 'PKR'} ${(activeVoucherData.totalArrears || 0).toLocaleString()}`, 
+                      value: `Rs. ${(activeVoucherData.totalArrears || 0).toLocaleString()}`, 
                       icon: <Receipt />, 
                       color: '#f59e0b', 
                       subtitle: 'Outstanding arrears',

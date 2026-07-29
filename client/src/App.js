@@ -334,14 +334,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/admissions/students/search"
-            element={
-              <ProtectedRoute>
-                <Admissions />
-              </ProtectedRoute>
-            }
-          />
+
           <Route
             path="/admissions/students/search-all"
             element={

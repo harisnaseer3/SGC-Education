@@ -126,7 +126,6 @@ const Admissions = () => {
     if (path === '/admissions/reports') return 'reports';
     if (path === '/admissions/register') return 'register';
     if (path === '/admissions/analytics') return 'analytics';
-    if (path === '/admissions/students/search') return 'search-student';
     if (path === '/admissions/students/search-all') return 'search-all-data';
     if (path === '/admissions/students/bulk-signup') return 'bulk-signup';
     return 'list'; // Default
@@ -140,7 +139,6 @@ const Admissions = () => {
       'reports': '/admissions/reports',
       'register': '/admissions/register',
       'analytics': '/admissions/analytics',
-      'search-student': '/admissions/students/search',
       'search-all-data': '/admissions/students/search-all',
       'bulk-signup': '/admissions/students/bulk-signup',
     };
@@ -163,7 +161,6 @@ const Admissions = () => {
   const [selectedInstitution, setSelectedInstitution] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(''); // For list page - single status
-  const [studentStatusFilter, setStudentStatusFilter] = useState([]); // For search student page - multi-select
   const [selectedAdmission, setSelectedAdmission] = useState(null);
   const [actionDialog, setActionDialog] = useState({ open: false, type: '', remarks: '' });
   const [anchorEl, setAnchorEl] = useState(null);
@@ -213,7 +210,6 @@ const Admissions = () => {
 
   // Pagination hooks for all tables (default: 12 rows per page)
   const admissionsListPagination = useTablePagination(12);
-  const searchStudentPagination = useTablePagination(12);
   const searchAllDataPagination = useTablePagination(12);
   const registerPagination = useTablePagination(12);
 
@@ -222,9 +218,7 @@ const Admissions = () => {
     admissionsListPagination.resetPagination();
   }, [selectedStatus, selectedInstitution, searchTerm, searchType]);
 
-  useEffect(() => {
-    searchStudentPagination.resetPagination();
-  }, [searchTerm, studentStatusFilter]);
+
 
   useEffect(() => {
     searchAllDataPagination.resetPagination();
@@ -2473,342 +2467,7 @@ const Admissions = () => {
         </Box>
       )}
 
-      {/* Section: Search Student */}
-      {activeSection === 'search-student' && (
-        <Box sx={{ mx: 3 }}>
-          <Paper sx={{ p: 3, mt: 2 }}>
-            <Typography variant="h5" fontWeight="bold" gutterBottom>
-              SEARCH STUDENT
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              CLICK ON SEARCH BUTTON TO GET ALL STUDENTS
-            </Typography>
 
-            {/* Search and Filter Controls */}
-            <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Status Multi-Select Dropdown */}
-              <FormControl sx={{ minWidth: 200 }}>
-                <Select
-                  multiple
-                  value={studentStatusFilter}
-                  onChange={(e) => setStudentStatusFilter(e.target.value)}
-                  displayEmpty
-                  renderValue={(selected) => {
-                    if (selected.length === 0) return 'Select Status';
-                    if (selected.length === 1) return selected[0];
-                    return `${selected.length} selected`;
-                  }}
-                >
-                  <MenuItem value="Pending">Pending</MenuItem>
-                  <MenuItem value="Enrolled">Enrolled</MenuItem>
-                  <MenuItem value="Struck Off">Struck Off</MenuItem>
-                  <MenuItem value="Passout">Passout</MenuItem>
-                </Select>
-              </FormControl>
-
-              {/* Search Input */}
-              <TextField
-                placeholder="Search Student"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                sx={{ flex: 1, minWidth: 200 }}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-
-              {/* Search Button */}
-              <Button
-                variant="contained"
-                startIcon={<Search />}
-                onClick={fetchData}
-                sx={{
-                  bgcolor: '#0d6efd',
-                  '&:hover': { bgcolor: '#0b5ed7' },
-                  textTransform: 'none',
-                }}
-              >
-                Search
-              </Button>
-            </Box>
-
-            {/* Selected Student Info */}
-            {selectedAdmission && (
-              <Box sx={{ mb: 2, p: 1, bgcolor: '#ffebee', borderRadius: 1 }}>
-                <Typography variant="body2" sx={{ color: '#c62828' }}>
-                  ID: ({selectedAdmission._id?.slice(-3) || 'N/A'}) Name: ({selectedAdmission.personalInfo?.name || 'N/A'}) Father Name: ({selectedAdmission.guardianInfo?.fatherName || 'N/A'}) Class: ({selectedAdmission.class?.name || selectedAdmission.program || 'N/A'})
-                </Typography>
-              </Box>
-            )}
-
-            {/* Students Table */}
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : error ? (
-              <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-            ) : (
-              <TableContainer>
-                <Table>
-                  <TableHead>
-                    <TableRow sx={{ bgcolor: '#667eea' }}>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>ID</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Roll #</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Admission Number</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Name</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Father Name</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Section</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Age</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Gender</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Orphan</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {(() => {
-                      const filteredSearchStudents = admissions
-                        .filter(admission => {
-                          if (admission.isActive === false) return false;
-                          if (!admission.studentId) return false;
-
-                          const frontendToBackendMap = {
-                            'Pending': 'pending',
-                            'Enrolled': 'enrolled',
-                            'Struck Off': 'struckoff',
-                            'Passout': 'passout'
-                          };
-
-                          // Apply status filter if studentStatusFilter is set
-                          if (studentStatusFilter.length > 0) {
-                            const mappedFilters = studentStatusFilter.map(s => frontendToBackendMap[s] || s.toLowerCase());
-                            const currentStatus = admission.status;
-                            const studentStatus = admission.studentId?.status || currentStatus;
-                            return mappedFilters.includes(currentStatus) || mappedFilters.includes(studentStatus);
-                          }
-                          
-                          // Default when no status filter is selected: show all students (having studentId)
-                          return true;
-                        })
-                        .filter(admission => {
-                          if (searchTerm) {
-                            const search = searchTerm.toLowerCase();
-                            const name = (admission.personalInfo?.name || '').toLowerCase();
-                            const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                            const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                            return name.includes(search) || fatherName.includes(search) || admissionNo.includes(search);
-                          }
-                          return true;
-                        });
-
-                      if (filteredSearchStudents.length === 0) {
-                        return (
-                          <TableRow>
-                            <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                No students found
-                              </Typography>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      }
-
-                      return searchStudentPagination.getPaginatedData(filteredSearchStudents).map((admission, idx) => {
-                        const studentName = admission.personalInfo?.name || '';
-                        const isMenuOpen = studentMenuAnchor && selectedStudentForMenu?._id === admission._id;
-                        
-                        return (
-                          <TableRow key={admission._id} hover>
-                            <TableCell>{admission.studentId?.enrollmentNumber || admission.applicationNumber || 'N/A'}</TableCell>
-                            <TableCell>{admission.studentId?.rollNumber || 'N/A'}</TableCell>
-                            <TableCell>{admission.applicationNumber || 'N/A'}</TableCell>
-                            <TableCell>{studentName || 'N/A'}</TableCell>
-                            <TableCell>{admission.guardianInfo?.fatherName || 'N/A'}</TableCell>
-                            <TableCell>{admission.class?.name || admission.program || 'N/A'}</TableCell>
-                            <TableCell>{admission.section?.name || 'N/A'}</TableCell>
-                            <TableCell>
-                              {admission.personalInfo?.dateOfBirth 
-                                ? `${Math.floor((new Date() - new Date(admission.personalInfo.dateOfBirth)) / (365.25 * 24 * 60 * 60 * 1000))} Years`
-                                : 'N/A'}
-                            </TableCell>
-                            <TableCell>{admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'N/A'}</TableCell>
-                            <TableCell>{admission.orphan === 'YES' ? 'Yes' : 'No'}</TableCell>
-                            <TableCell>
-                              <Chip
-                                label={admission.status || 'pending'}
-                                size="small"
-                                color={getStatusColor(admission.status)}
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <IconButton
-                                size="small"
-                                onClick={(e) => {
-                                  setSelectedAdmission(admission);
-                                  setSelectedStudentForMenu(admission);
-                                  setStudentMenuAnchor(e.currentTarget);
-                                }}
-                              >
-                                <Settings />
-                              </IconButton>
-                              <Menu
-                                anchorEl={studentMenuAnchor}
-                                open={isMenuOpen}
-                                onClose={() => {
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                }}
-                              >
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Edit */ 
-                                }}>
-                                  Edit
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Change Student Status */ 
-                                }}>
-                                  Change Student Status
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Print Time Table */ 
-                                }}>
-                                  Print Time Table
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Voucher History */ 
-                                }}>
-                                  Voucher History
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Print Result Card */ 
-                                }}>
-                                  Print Result Card
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Student Documents */ 
-                                }}>
-                                  Student Documents
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Student Status History */ 
-                                }}>
-                                  Student Status History
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Dossier */ 
-                                }}>
-                                  Dossier
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Print Detail */ 
-                                }}>
-                                  Print Detail
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement SMS History */ 
-                                }}>
-                                  SMS History
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Attendance History */ 
-                                }}>
-                                  Attendance History
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Remove Picture */ 
-                                }}>
-                                  Remove Picture
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Fee Commitment */ 
-                                }}>
-                                  Fee Commitment
-                                </MenuItem>
-                                <MenuItem onClick={() => { 
-                                  setStudentMenuAnchor(null);
-                                  setSelectedStudentForMenu(null);
-                                  /* TODO: Implement Stationery Status */ 
-                                }}>
-                                  Stationery Status
-                                </MenuItem>
-                              </Menu>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      });
-                    })()}
-                  </TableBody>
-                </Table>
-                {(() => {
-                  const filteredSearchStudents = admissions
-                    .filter(admission => {
-                      if (admission.isActive === false) return false;
-                      // Apply status filter if studentStatusFilter is set
-                      if (studentStatusFilter.length > 0 && !studentStatusFilter.includes(admission.status)) {
-                        return false;
-                      }
-                      return admission.status === 'enrolled';
-                    })
-                    .filter(admission => {
-                      if (searchTerm) {
-                        const search = searchTerm.toLowerCase();
-                        const name = (admission.personalInfo?.name || '').toLowerCase();
-                        const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
-                        const admissionNo = (admission.applicationNumber || '').toLowerCase();
-                        return name.includes(search) || fatherName.includes(search) || admissionNo.includes(search);
-                      }
-                      return true;
-                    });
-                  return filteredSearchStudents.length > 0 ? (
-                    <TablePagination
-                      component="div"
-                      count={filteredSearchStudents.length}
-                      page={searchStudentPagination.page}
-                      onPageChange={searchStudentPagination.handleChangePage}
-                      rowsPerPage={searchStudentPagination.rowsPerPage}
-                      onRowsPerPageChange={searchStudentPagination.handleChangeRowsPerPage}
-                      rowsPerPageOptions={searchStudentPagination.rowsPerPageOptions}
-                      labelRowsPerPage="Rows per page:"
-                    />
-                  ) : null;
-                })()}
-              </TableContainer>
-            )}
-          </Paper>
-        </Box>
-      )}
 
       {/* Section: Analytics */}
       {activeSection === 'analytics' && (

@@ -45,7 +45,6 @@ export const modules = [
       { name: 'Import Students', route: '/admissions/students/import', permission: PERMISSIONS.ADMISSIONS.CREATE },
       { name: 'Reports', route: '/admissions/reports', permission: PERMISSIONS.REPORTS.VIEW },
       { name: 'Admissions Analytics', route: '/admissions/analytics', permission: PERMISSIONS.REPORTS.VIEW },
-      { name: 'Search Student', route: '/admissions/students/search', permission: PERMISSIONS.ADMISSIONS.VIEW },
       { name: 'Search (All)', route: '/admissions/students/search-all', permission: PERMISSIONS.ADMISSIONS.VIEW },
     ]
   },

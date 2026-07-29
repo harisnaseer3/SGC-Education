@@ -301,35 +301,35 @@ const FinanceDashboard = () => {
             {[
               { 
                 title: 'Total Billed', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalBilled || 0).toLocaleString()}`, 
+                value: `Rs. ${(dashboardData?.finance?.totalBilled || 0).toLocaleString()}`, 
                 icon: <MonetizationOn />, 
                 color: '#6366f1', 
                 subtitle: 'Accounts receivable (billed volume)' 
               },
               { 
                 title: 'Total Collected', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalCollected || 0).toLocaleString()}`, 
+                value: `Rs. ${(dashboardData?.finance?.totalCollected || 0).toLocaleString()}`, 
                 icon: <Payment />, 
                 color: '#10b981', 
                 subtitle: 'Revenue (payments cleared)' 
               },
               { 
                 title: 'Total Outstanding', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.totalOutstanding || 0).toLocaleString()}`, 
+                value: `Rs. ${(dashboardData?.finance?.totalOutstanding || 0).toLocaleString()}`, 
                 icon: <AccountBalance />, 
                 color: '#f59e0b', 
                 subtitle: 'Total unpaid arrears' 
               },
               { 
                 title: 'Previous Receivable', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.previousReceivable || 0).toLocaleString()}`, 
+                value: `Rs. ${(dashboardData?.finance?.previousReceivable || 0).toLocaleString()}`, 
                 icon: <TrendingDown />, 
                 color: '#f43f5e', 
                 subtitle: 'Outstanding arrears carried forward' 
               },
               { 
                 title: 'Recovery', 
-                value: `${dashboardData?.finance?.currency || 'PKR'} ${(dashboardData?.finance?.recovery || 0).toLocaleString()}`, 
+                value: `Rs. ${(dashboardData?.finance?.recovery || 0).toLocaleString()}`, 
                 icon: <TrendingUp />, 
                 color: '#06b6d4', 
                 subtitle: 'Carried-forward arrears paid' 
@@ -408,7 +408,7 @@ const FinanceDashboard = () => {
                         />
                         <Tooltip 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                          formatter={(value) => [`PKR ${value.toLocaleString()}`, 'Collections']}
+                          formatter={(value) => [`Rs. ${value.toLocaleString()}`, 'Collections']}
                         />
                         <Area
                           type="monotone"
@@ -522,7 +522,7 @@ const FinanceDashboard = () => {
                         />
                         <Tooltip 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                          formatter={(value) => [`PKR ${value.toLocaleString()}`]}
+                          formatter={(value) => [`Rs. ${value.toLocaleString()}`]}
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
                         <Bar dataKey="Billed" fill="#6366f1" radius={[4, 4, 0, 0]} />
@@ -580,19 +580,19 @@ const FinanceDashboard = () => {
                               <Chip label={`+${campus.newAdmissions}`} size="small" sx={{ bgcolor: '#8b5cf615', color: '#8b5cf6', fontWeight: 700, border: '1px solid #8b5cf630' }} />
                             </td>
                             <td style={{ padding: '16px', fontWeight: 700, color: '#6366f1' }}>
-                              {dashboardData?.finance?.currency || 'PKR'} {campus.feesGenerated.toLocaleString()}
+                              Rs. {campus.feesGenerated.toLocaleString()}
                             </td>
                             <td style={{ padding: '16px', fontWeight: 700, color: '#10b981' }}>
-                              {dashboardData?.finance?.currency || 'PKR'} {campus.feesCollected.toLocaleString()}
+                              Rs. {campus.feesCollected.toLocaleString()}
                             </td>
                             <td style={{ padding: '16px', fontWeight: 700, color: '#f59e0b' }}>
-                              {dashboardData?.finance?.currency || 'PKR'} {campus.outstandingDues.toLocaleString()}
+                              Rs. {campus.outstandingDues.toLocaleString()}
                             </td>
                             <td style={{ padding: '16px', fontWeight: 700, color: '#f43f5e' }}>
-                              {dashboardData?.finance?.currency || 'PKR'} {(campus.previousReceivable || 0).toLocaleString()}
+                              Rs. {(campus.previousReceivable || 0).toLocaleString()}
                             </td>
                             <td style={{ padding: '16px', fontWeight: 700, color: '#06b6d4' }}>
-                              {dashboardData?.finance?.currency || 'PKR'} {(campus.recovery || 0).toLocaleString()}
+                              Rs. {(campus.recovery || 0).toLocaleString()}
                             </td>
                           </tr>
                         ))}
