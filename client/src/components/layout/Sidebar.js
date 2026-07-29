@@ -188,21 +188,14 @@ const Sidebar = ({ collapsed, onToggle }) => {
         },
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: (collapsed && !isMobile) ? 'center' : 'flex-end', px: 1, py: 1 }}>
-        <IconButton onClick={onToggle}>
-          {(collapsed && !isMobile) ? <MenuIcon /> : <ChevronLeftIcon />}
-        </IconButton>
-      </Box>
-
-      <Divider />
 
       <List sx={{ pt: 1 }}>
-        {/* Dashboard Link */}
+        {/* Dashboard Link — collapse toggle on right for desktop */}
         <ListItem disablePadding sx={{ px: 1, mb: 0.5 }}>
           <ListItemButton
             selected={location.pathname === '/dashboard'}
             onClick={() => {
-              setOpenMenus({}); // Clear open menus when going to dashboard
+              setOpenMenus({});
               navigate('/dashboard');
             }}
             sx={{
@@ -227,12 +220,19 @@ const Sidebar = ({ collapsed, onToggle }) => {
             </ListItemIcon>
             <ListItemText
               primary="Dashboard"
-              primaryTypographyProps={{
-                fontWeight: 700,
-                fontSize: '0.9rem'
-              }}
+              primaryTypographyProps={{ fontWeight: 700, fontSize: '0.9rem' }}
               sx={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}
             />
+            {/* Collapse toggle — desktop only, right-aligned */}
+            {!isMobile && (
+              <IconButton
+                size="small"
+                onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                sx={{ ml: 'auto', color: 'text.secondary', '&:hover': { color: '#667eea' } }}
+              >
+                {collapsed ? <MenuIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+              </IconButton>
+            )}
           </ListItemButton>
         </ListItem>
 
