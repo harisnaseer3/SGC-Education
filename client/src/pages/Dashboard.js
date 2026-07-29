@@ -209,7 +209,8 @@ const Dashboard = () => {
         border: `1px solid ${color}20`,
         borderRadius: 3,
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        height: '100%',
+        height: 'auto',
+        minHeight: 80,
         display: 'flex',
         flexDirection: 'column',
         boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
@@ -228,12 +229,12 @@ const Dashboard = () => {
         flexDirection: 'column',
         justifyContent: 'center'
       }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%', gap: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
           <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem', opacity: 0.8 }}>
               {title}
             </Typography>
-            <Typography variant={compact ? "h5" : "h4"} fontWeight="800" color={color} sx={{ lineHeight: 1.2, wordBreak: 'break-word' }}>
+            <Typography variant={compact ? 'subtitle1' : 'h4'} fontWeight="800" color={color} sx={{ lineHeight: 1.3, wordBreak: 'break-word', fontSize: compact ? { xs: '1rem', sm: '1.1rem', md: '1.15rem' } : undefined }}>
               {value}
             </Typography>
             {(subtitle || trend) && (
@@ -431,7 +432,7 @@ const Dashboard = () => {
           {dashboardData && (
             <>
               {/* Row 1: Key Performance Indicators (Compact) */}
-              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
                 {[
                   { 
                     title: 'Total Students', 
@@ -512,7 +513,7 @@ const Dashboard = () => {
                   </Box>
                   
                   {/* Financial KPI Cards */}
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
                   {[
                     { 
                       title: 'Total Billed', 
@@ -621,7 +622,7 @@ const Dashboard = () => {
                   </Typography>
 
                   {/* Voucher KPI Cards */}
-                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 3 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 3 }}>
                   {[
                     { 
                       title: 'Total Vouchers', 
