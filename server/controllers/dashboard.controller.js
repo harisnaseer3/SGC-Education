@@ -665,6 +665,8 @@ const getAnalytics = asyncHandler(async (req, res) => {
   const groupMatch = { isActive: true, createdAt: { $gte: startDate } };
   const institutionGrowthMatch = { isActive: true, createdAt: { $gte: startDate } };
   const classDistributionMatch = { status: { $in: ['active', 'enrolled'] }, isActive: true };
+  // Students use admissionDate (official enrolment date) instead of createdAt
+  const studentMatch = { status: 'enrolled', admissionDate: { $gte: startDate } };
 
   if (institutionId) {
     const oid = new mongoose.Types.ObjectId(institutionId);
@@ -672,6 +674,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
     userMatch.institution = oid;
     groupMatch.institution = oid;
     classDistributionMatch.institution = oid;
+    studentMatch.institution = oid;
   }
   else if (req.user.role === 'admin') {
     const id = getInstitutionId(req.user);
@@ -681,6 +684,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
     userMatch.institution = oid;
     groupMatch.institution = oid;
     classDistributionMatch.institution = oid;
+    studentMatch.institution = oid;
   }
   else if (req.user.role === 'super_admin') {
     // No specific institution filter
@@ -696,6 +700,7 @@ const getAnalytics = asyncHandler(async (req, res) => {
     userMatch.institution = { $in: institutionIds };
     groupMatch.institution = { $in: institutionIds };
     classDistributionMatch.institution = { $in: institutionIds };
+    studentMatch.institution = { $in: institutionIds };
   }
   else {
     throw new ApiError(403, 'Access denied. Admin access required.');
@@ -728,11 +733,11 @@ const getAnalytics = asyncHandler(async (req, res) => {
     ]),
 
     Admission.aggregate([
-      { $match: { ...userMatch, status: 'enrolled' } },
+      { $match: studentMatch },
       {
         $group: {
           _id: {
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: '+05:00' } },
+            date: { $dateToString: { format: '%Y-%m-%d', date: '$admissionDate', timezone: '+05:00' } },
             role: { $literal: 'student' }
           },
           count: { $sum: 1 }

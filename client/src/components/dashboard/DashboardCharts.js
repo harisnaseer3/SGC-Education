@@ -155,9 +155,8 @@ const DashboardCharts = () => {
 
     const monthlyCollectionData = Object.keys(monthlyCollection)
       .sort()
-      .slice(-6) // Last 6 months
       .map(key => ({
-        month: new Date(key + '-01').toLocaleDateString('en-US', { month: 'short' }),
+        month: new Date(key + '-01').toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
         amount: Math.round(monthlyCollection[key])
       }));
 
@@ -198,19 +197,16 @@ const DashboardCharts = () => {
         students: monthlyStudentGrowth[key]
       }));
 
-    // 5. Revenue vs Outstanding
+    // 5. Revenue vs Outstanding — computed from period-filtered payments only
+    //    so the chart correctly responds to the selected period (7/30/90/180 days)
     const totalCollected = payments
       .filter(p => p.status === 'completed')
       .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const totalBilled = studentFees.reduce((sum, f) => {
-      if (!f.vouchers || f.vouchers.length === 0) return sum; // Skip unbilled fees
-      return sum + Number(f.finalAmount || 0);
-    }, 0);
-    const totalOutstanding = studentFees.reduce((sum, f) => {
-      if (!f.vouchers || f.vouchers.length === 0) return sum; // Skip unbilled fees
-      const remaining = Number(f.remainingAmount || 0);
-      return sum + (remaining > 0 ? remaining : 0);
-    }, 0);
+    const totalBilled = payments
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    const totalOutstanding = payments
+      .filter(p => p.status !== 'completed')
+      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
     const revenueData = [
       { name: 'Billed', amount: Math.round(totalBilled), color: '#6366f1' },
@@ -278,6 +274,8 @@ const DashboardCharts = () => {
             <MenuItem value={30}>Last 30 days</MenuItem>
             <MenuItem value={90}>Last 90 days</MenuItem>
             <MenuItem value={180}>Last 6 months</MenuItem>
+            <MenuItem value={365}>Last 1 year</MenuItem>
+            <MenuItem value={1095}>Last 3 years</MenuItem>
           </Select>
         </FormControl>
       </Box>
@@ -292,7 +290,7 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">Financial Overview</Typography>
-                <Typography variant="caption" color="text.secondary">Billed, Collected vs Outstanding</Typography>
+                <Typography variant="caption" color="text.secondary">Collected vs Outstanding for selected period</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
