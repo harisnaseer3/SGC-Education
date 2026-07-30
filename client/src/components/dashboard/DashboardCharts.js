@@ -72,10 +72,14 @@ const DashboardCharts = () => {
       const analyticsParams = new URLSearchParams({ days: period.toString() });
       if (institutionId) analyticsParams.append('institution', institutionId);
       
-      const statsParams = institutionId ? new URLSearchParams({ institution: institutionId }) : new URLSearchParams();
-      
       const startDate = new Date(Date.now() - period * 24 * 60 * 60 * 1000).toISOString();
       const endDate = new Date().toISOString();
+
+      const statsParams = institutionId ? new URLSearchParams({ institution: institutionId }) : new URLSearchParams();
+      // Pass date range so backend can filter financial stats by period
+      statsParams.set('startDate', startDate);
+      statsParams.set('endDate', endDate);
+      
       const paymentsParams = new URLSearchParams({ 
         startDate, 
         endDate 
@@ -83,6 +87,7 @@ const DashboardCharts = () => {
       if (institutionId) paymentsParams.append('institution', institutionId);
       
       const studentFeesParams = institutionId ? new URLSearchParams({ institution: institutionId }) : new URLSearchParams();
+
 
       // Fetch multiple data sources in parallel
       const [analyticsRes, statsRes, paymentsRes, studentFeesRes] = await Promise.all([
@@ -160,24 +165,12 @@ const DashboardCharts = () => {
         amount: Math.round(monthlyCollection[key])
       }));
 
-    // 3. Payment Status Distribution (grouped per student, not per fee-head record)
-    const statusCounts = { paid: 0, partial: 0, unpaid: 0 };
-    studentFees.forEach(fee => {
-      if (!fee.vouchers || fee.vouchers.length === 0) return; // Skip unbilled fees
-      
-      if (fee.status === 'paid') {
-        statusCounts.paid++;
-      } else if (fee.status === 'partial') {
-        statusCounts.partial++;
-      } else {
-        statusCounts.unpaid++;
-      }
-    });
-
+    // 3. Payment Status Distribution (from period-filtered voucher stats)
+    const voucherStats = stats.vouchers?.allTime || { paid: 0, partial: 0, unpaid: 0 };
     const paymentStatusData = [
-      { name: 'Paid', value: statusCounts.paid },
-      { name: 'Partial', value: statusCounts.partial },
-      { name: 'Unpaid', value: statusCounts.unpaid }
+      { name: 'Paid', value: voucherStats.paid || 0, color: '#34d399' },
+      { name: 'Partial', value: voucherStats.partial || 0, color: '#f59e0b' },
+      { name: 'Unpaid', value: voucherStats.unpaid || 0, color: '#ef4444' }
     ].filter(item => item.value > 0);
 
     // 4. Student Enrollment Trend (new students per month)
@@ -197,16 +190,11 @@ const DashboardCharts = () => {
         students: monthlyStudentGrowth[key]
       }));
 
-    // 5. Revenue vs Outstanding — computed from period-filtered payments only
-    //    so the chart correctly responds to the selected period (7/30/90/180 days)
-    const totalCollected = payments
-      .filter(p => p.status === 'completed')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const totalBilled = payments
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    const totalOutstanding = payments
-      .filter(p => p.status !== 'completed')
-      .reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    // 5. Revenue vs Outstanding — use dashboard/stats finance totals for consistency
+    //    These are all-time figures matching the Financial & Voucher Overview section
+    const totalBilled = stats.finance?.totalBilled || 0;
+    const totalCollected = stats.finance?.totalCollected || 0;
+    const totalOutstanding = stats.finance?.totalOutstanding || 0;
 
     const revenueData = [
       { name: 'Billed', amount: Math.round(totalBilled), color: '#6366f1' },
@@ -280,7 +268,16 @@ const DashboardCharts = () => {
         </FormControl>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 3, width: '100%' }}>
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: {
+          xs: '1fr',
+          sm: 'repeat(auto-fit, minmax(300px, 1fr))',
+          md: 'repeat(3, 1fr)'
+        }, 
+        gap: 3, 
+        width: '100%' 
+      }}>
         {/* Financial Overview (Revenue vs Outstanding) */}
         <Box>
           <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, minHeight: 450, width: '100%', boxSizing: 'border-box' }}>
@@ -290,7 +287,7 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">Financial Overview</Typography>
-                <Typography variant="caption" color="text.secondary">Collected vs Outstanding for selected period</Typography>
+                <Typography variant="caption" color="text.secondary">Vouchers generated during selected period (regardless of billing month)</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
@@ -365,7 +362,7 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">Payment Status</Typography>
-                <Typography variant="caption" color="text.secondary">Fee payment breakdown</Typography>
+                <Typography variant="caption" color="text.secondary">Voucher status breakdown for selected period</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
@@ -387,7 +384,7 @@ const DashboardCharts = () => {
                     dataKey="value"
                   >
                     {(chartData?.paymentStatus || []).map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip 
@@ -408,7 +405,7 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">Monthly Fee Collection</Typography>
-                <Typography variant="caption" color="text.secondary">Last 6 months trend</Typography>
+                <Typography variant="caption" color="text.secondary">Monthly fee collection history</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
@@ -465,7 +462,7 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">User Growth Trend</Typography>
-                <Typography variant="caption" color="text.secondary">New registrations by role</Typography>
+                <Typography variant="caption" color="text.secondary">Registrations & admissions for selected period</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />
@@ -534,7 +531,7 @@ const DashboardCharts = () => {
               </Box>
               <Box>
                 <Typography variant="h6" fontWeight="800">Student Enrollment Trend</Typography>
-                <Typography variant="caption" color="text.secondary">New students per month</Typography>
+                <Typography variant="caption" color="text.secondary">Monthly student admissions (by admission date)</Typography>
               </Box>
             </Box>
             <Divider sx={{ mb: 3 }} />

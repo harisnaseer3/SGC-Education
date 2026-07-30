@@ -130,16 +130,25 @@ const AdmissionCharts = ({ filters = {} }) => {
             <MenuItem value={30}>Last 30 days</MenuItem>
             <MenuItem value={90}>Last 90 days</MenuItem>
             <MenuItem value={180}>Last 6 months</MenuItem>
+            <MenuItem value={365}>Last 1 year</MenuItem>
+            <MenuItem value={1095}>Last 3 years</MenuItem>
           </Select>
         </FormControl>
       </Box>
 
-      <Grid container spacing={3}>
-
-
+      <Box sx={{ 
+        display: 'grid', 
+        gridTemplateColumns: {
+          xs: '1fr',
+          sm: 'repeat(auto-fit, minmax(300px, 1fr))',
+          md: 'repeat(3, 1fr)'
+        }, 
+        gap: 3, 
+        width: '100%' 
+      }}>
         {/* Status Breakdown Pie Chart */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Box>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', minHeight: 420, boxSizing: 'border-box' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Applications by Status
             </Typography>
@@ -199,11 +208,11 @@ const AdmissionCharts = ({ filters = {} }) => {
               </ResponsiveContainer>
             )}
           </Paper>
-        </Grid>
+        </Box>
 
         {/* Gender Breakdown */}
-        <Grid item xs={12} md={6}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Box>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', minHeight: 420, boxSizing: 'border-box' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Applications by Gender
             </Typography>
@@ -224,11 +233,11 @@ const AdmissionCharts = ({ filters = {} }) => {
               </ResponsiveContainer>
             )}
           </Paper>
-        </Grid>
+        </Box>
 
         {/* Application Trends Over Time */}
-        <Grid item xs={12}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Box>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', minHeight: 420, boxSizing: 'border-box' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Application Trends Over Time
             </Typography>
@@ -260,11 +269,11 @@ const AdmissionCharts = ({ filters = {} }) => {
               </ResponsiveContainer>
             )}
           </Paper>
-        </Grid>
+        </Box>
 
         {/* Status Trends Over Time */}
-        <Grid item xs={12}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Box>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', minHeight: 420, boxSizing: 'border-box' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
               Status Trends Over Time
             </Typography>
@@ -317,15 +326,13 @@ const AdmissionCharts = ({ filters = {} }) => {
               </ResponsiveContainer>
             )}
           </Paper>
-        </Grid>
-
-
+        </Box>
 
         {/* Student Strength Class Wise */}
-        <Grid item xs={12}>
-          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0' }}>
+        <Box>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 2, border: '1px solid #e0e0e0', minHeight: 420, boxSizing: 'border-box' }}>
             <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Student Strength Class Wise - Current School
+              Student Strength Class Wise
             </Typography>
             <Divider sx={{ mb: 2 }} />
             {!analyticsData.classWiseStrength || analyticsData.classWiseStrength.length === 0 ? (
@@ -344,12 +351,8 @@ const AdmissionCharts = ({ filters = {} }) => {
               </ResponsiveContainer>
             )}
           </Paper>
-        </Grid>
-
-
-
-
-      </Grid>
+        </Box>
+      </Box>
     </Box>
   );
 };

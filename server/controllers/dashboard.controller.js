@@ -331,6 +331,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const studentMatchQuery = classObjectId ? { ...referenceQuery, class: classObjectId } : referenceQuery;
   const studentFeeMatchQuery = classObjectId ? { ...referenceQuery, class: classObjectId } : referenceQuery;
 
+  // Parse optional date range for financial overview filtering
+  const { startDate: startDateStr, endDate: endDateStr } = req.query;
+  const hasDateFilter = !!(startDateStr && endDateStr);
+  const parsedStartDate = hasDateFilter ? new Date(startDateStr) : null;
+  const parsedEndDate   = hasDateFilter ? new Date(endDateStr)   : null;
+
   // Get counts
   const [
     totalInstitutions,
@@ -493,20 +499,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     prevMonthVouchersAgg,
     monthlyBreakdownAgg
   ] = await Promise.all([
-    // Total Collected, Total Billed, and Total Outstanding
-    Promise.all([
-      FeePayment.aggregate([
-        { $match: { ...referenceQuery, status: 'completed' } },
-        ...activeStudentLookupStages,
-        ...(classObjectId ? [{ $match: { 'studentDoc.class': classObjectId } }] : []),
-        { $group: { _id: null, totalCollected: { $sum: '$amount' } } }
-      ]),
-      StudentFee.aggregate([
-        { $match: { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } } },
-        ...activeStudentLookupStages,
-        { $group: { _id: null, totalBilled: { $sum: '$finalAmount' }, totalOutstanding: { $sum: '$remainingAmount' } } }
-      ])
-    ]),
+    // Total Billed, Collected, Outstanding — use same buildUniqueVoucherPipeline as the cards
+    // When period is selected: filter vouchers by generatedAt range (arrears included correctly)
+    StudentFee.aggregate(buildUniqueVoucherPipeline(
+      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } },
+      hasDateFilter ? { 'vouchers.generatedAt': { $gte: parsedStartDate, $lte: parsedEndDate } } : null
+    )),
     // Last Month's Fees
     FeePayment.aggregate([
       { 
@@ -536,9 +534,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     // New Content: Struck Off Students
     Student.countDocuments({ ...studentMatchQuery, status: 'struckoff' }),
 
-    // Voucher Stats (All Time) — all StudentFee records with at least one voucher
+    // Voucher Stats (All Time / Period) — all StudentFee records matching period date filter if present
     StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } }
+      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } },
+      hasDateFilter ? { 'vouchers.generatedAt': { $gte: parsedStartDate, $lte: parsedEndDate } } : null
     )),
     // Voucher Stats (Current Month) — only entries whose voucher matches this month/year
     StudentFee.aggregate(buildUniqueVoucherPipeline(
@@ -558,9 +557,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     ))
   ]);
 
-  const totalCollected = financialStats[0][0]?.totalCollected || 0;
-  const totalBilled = financialStats[1][0]?.totalBilled || 0;
-  const totalOutstanding = financialStats[1][0]?.totalOutstanding || 0;
+  const totalCollected = financialStats[0]?.totalCollected || 0;
+  const totalBilled    = financialStats[0]?.totalBilled    || 0;
+  const totalOutstanding = financialStats[0]?.totalOutstanding || 0;
   const lastMonthTotal = lastMonthFees[0]?.total || 0;
 
   // Campus Breakdown for Finance Managers
