@@ -32,22 +32,27 @@ const errorHandler = (err, req, res, next) => {
     statusCode = 400;
     message = `Invalid ${err.path}: ${err.value}`;
   }
+  // Handle MongoDB duplicate key error (E11000)
+  else if (err.code === 11000) {
+    statusCode = 400;
+    const field = Object.keys(err.keyValue || {})[0] || 'field';
+    const val = err.keyValue ? err.keyValue[field] : '';
+    message = `A record with this ${field} (${val}) already exists.`;
+  }
   // Default error
   else if (!statusCode) {
     statusCode = 500;
-    message = 'Internal server error';
+    message = err.message || 'Internal server error';
   }
 
-  // Log error in development
-  if (process.env.NODE_ENV === 'development') {
-    console.error('Error:', {
-      statusCode,
-      message,
-      stack: err.stack,
-      url: req.originalUrl,
-      method: req.method
-    });
-  }
+  // Always log error details to server console for quick debugging
+  console.error('Error:', {
+    statusCode,
+    message,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method
+  });
 
   res.status(statusCode).json({
     success: false,

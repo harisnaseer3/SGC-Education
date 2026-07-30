@@ -763,7 +763,7 @@ const AdmissionForm = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: '#f0f2f5', pb: 4 }}>
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      <Container maxWidth={false} sx={{ mt: 3, mb: 4, px: { xs: 2, sm: 3, md: 4 } }}>
         {/* Enhanced Header with Gradient */}
         <Paper 
           elevation={0}
@@ -884,98 +884,88 @@ const AdmissionForm = () => {
               <Grid container spacing={2}>
                 {/* Row 1 */}
                 <Grid item xs={12} md={3}>
-                  <Box display="flex" gap={1}>
-                    <FormControl fullWidth required>
-                      <InputLabel>CLASS*</InputLabel>
-                      <Select
-                        value={formData.class}
-                        onChange={(e) => handleChange('class', e.target.value)}
-                        label="CLASS*"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
+                  <FormControl fullWidth required>
+                    <InputLabel>CLASS*</InputLabel>
+                    <Select
+                      value={formData.class}
+                      onChange={(e) => handleChange('class', e.target.value)}
+                      label="CLASS*"
+                      sx={{
+                        bgcolor: 'white',
+                        '&:hover': {
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: 'primary.main',
                           },
-                        }}
-                      >
-                        <MenuItem value="">Select Class</MenuItem>
-                        {classes.map((cls) => (
-                          <MenuItem key={cls._id} value={cls._id}>
-                            {capitalizeFirstOnly(cls.name || '')}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    {/* Add Class button removed - classes must be created via Classes page with all required fields (group, feeType) */}
-                  </Box>
+                        },
+                      }}
+                    >
+                      <MenuItem value="">Select Class</MenuItem>
+                      {classes.map((cls) => (
+                        <MenuItem key={cls._id} value={cls._id}>
+                          {capitalizeFirstOnly(cls.name || '')}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
                 
                 <Grid item xs={12} md={3}>
-                  <Box display="flex" gap={1}>
-                    <FormControl fullWidth required>
-                      <InputLabel>SECTION*</InputLabel>
-                      <Select
-                        value={formData.section}
-                        onChange={(e) => handleChange('section', e.target.value)}
-                        label="SECTION*"
-                        disabled={!formData.class}
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
+                  <FormControl fullWidth required>
+                    <InputLabel>SECTION*</InputLabel>
+                    <Select
+                      value={formData.section}
+                      onChange={(e) => handleChange('section', e.target.value)}
+                      label="SECTION*"
+                      disabled={!formData.class}
+                      sx={{
+                        bgcolor: 'white',
+                        '&:hover': {
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: 'primary.main',
                           },
-                        }}
-                      >
-                        <MenuItem value="">Select Section</MenuItem>
-                        {sections
-                          .filter(sec => {
-                            if (!formData.class) return false;
-                            // Handle both populated object and string ID
-                            const sectionClassId = sec.class?._id || sec.class;
-                            return String(sectionClassId) === String(formData.class);
-                          })
-                          .map((section) => (
-                            <MenuItem key={section._id} value={section._id}>
-                              {capitalizeFirstOnly(section.name || '')} ({section.academicYear}) (Stds: {section.stats?.totalStudents || 0}) {section.isActive ? 'Active' : 'Inactive'}
-                            </MenuItem>
-                          ))}
-                      </Select>
-                    </FormControl>
-                    {/* Add Section button removed - sections must be created via Sections page */}
-                  </Box>
+                        },
+                      }}
+                    >
+                      <MenuItem value="">Select Section</MenuItem>
+                      {sections
+                        .filter(sec => {
+                          if (!formData.class) return false;
+                          const sectionClassId = sec.class?._id || sec.class;
+                          return String(sectionClassId) === String(formData.class);
+                        })
+                        .map((section) => (
+                          <MenuItem key={section._id} value={section._id}>
+                            {capitalizeFirstOnly(section.name || '')}
+                          </MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
                 
                 <Grid item xs={12} md={3}>
-                  <Box display="flex" gap={1}>
-                    <FormControl fullWidth required>
-                      <InputLabel>GROUP*</InputLabel>
-                      <Select
-                        value={formData.group}
-                        onChange={(e) => handleChange('group', e.target.value)}
-                        label="GROUP*"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
+                  <FormControl fullWidth required>
+                    <InputLabel>GROUP*</InputLabel>
+                    <Select
+                      value={formData.group}
+                      onChange={(e) => handleChange('group', e.target.value)}
+                      label="GROUP*"
+                      sx={{
+                        bgcolor: 'white',
+                        '&:hover': {
+                          '& .MuiOutlinedInput-notchedOutline': {
+                            borderColor: 'primary.main',
                           },
-                        }}
-                      >
-                        <MenuItem value="">Select Groups</MenuItem>
-                        {groups.map((group) => (
-                          <MenuItem key={group._id} value={group._id}>
-                            {group.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                    {/* Add Group button removed - groups must be created via Groups page */}
-                  </Box>
+                        },
+                      }}
+                    >
+                      <MenuItem value="">Select Groups</MenuItem>
+                      {groups.map((group) => (
+                        <MenuItem key={group._id} value={group._id}>
+                          {group.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Grid>
                 
                 <Grid item xs={12} md={3}>
@@ -999,33 +989,6 @@ const AdmissionForm = () => {
                     }}
                   />
                 </Grid>
-
-                {/* Status Field - Only visible in Edit Mode */}
-                {isEditMode && (
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
-                      <InputLabel>STATUS</InputLabel>
-                      <Select
-                        value={formData.status}
-                        onChange={(e) => handleChange('status', e.target.value)}
-                        label="STATUS"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
-                      >
-                        <MenuItem value="pending">Pending</MenuItem>
-                        <MenuItem value="enrolled">Enrolled</MenuItem>
-                        <MenuItem value="struckoff">Struck Off</MenuItem>
-                        <MenuItem value="passout">Passout</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                )}
 
                 {/* Row 2 */}
                 <Grid item xs={12} md={3}>
@@ -1189,9 +1152,6 @@ const AdmissionForm = () => {
                 </Grid>
                 
                 <Grid item xs={12} md={3}>
-                </Grid>
-                
-                <Grid item xs={12} md={3}>
                   <FormControlLabel
                     control={
                       <Checkbox
@@ -1203,20 +1163,7 @@ const AdmissionForm = () => {
                   />
                 </Grid>
 
-                {/* Row 5 */}
-                <Grid item xs={12} md={3}>
-                  <FormControl component="fieldset">
-                    <Typography variant="body2" sx={{ mb: 1 }}>ORPHAN</Typography>
-                    <RadioGroup
-                      row
-                      value={formData.orphan}
-                      onChange={(e) => handleChange('orphan', e.target.value)}
-                    >
-                      <FormControlLabel value="YES" control={<Radio />} label="YES" />
-                      <FormControlLabel value="NO" control={<Radio />} label="NO" />
-                    </RadioGroup>
-                  </FormControl>
-                </Grid>
+
                 
                 <Grid item xs={12} md={3}>
                   <Box>
@@ -1235,7 +1182,7 @@ const AdmissionForm = () => {
                           borderColor: 'primary.main',
                           bgcolor: 'rgba(102, 126, 234, 0.04)',
                         },
-                        py: 1.5,
+                        py: 1,
                       }}
                     >
                       Choose File
@@ -1252,7 +1199,7 @@ const AdmissionForm = () => {
                         sx={{ 
                           color: 'success.main',
                           display: 'block',
-                          mt: 1,
+                          mt: 0.5,
                           fontWeight: 500,
                         }}
                       >
@@ -1323,24 +1270,40 @@ const AdmissionForm = () => {
               
               {addressTab === 0 && (
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
-                      multiline
-                      rows={3}
                       label="STUDENT ADDRESS"
                       value={formData.presentAddress.address}
                       onChange={(e) => handleNestedChange('presentAddress', 'address', e.target.value)}
                       placeholder="Student Address"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        },
+                      }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>COUNTRY</InputLabel>
                       <Select
                         value={formData.presentAddress.country}
                         onChange={(e) => handleNestedChange('presentAddress', 'country', e.target.value)}
                         label="COUNTRY"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
                       >
                         {countries.map((country) => (
                           <MenuItem key={country} value={country}>
@@ -1350,13 +1313,21 @@ const AdmissionForm = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>CITY</InputLabel>
                       <Select
                         value={formData.presentAddress.city}
                         onChange={(e) => handleNestedChange('presentAddress', 'city', e.target.value)}
                         label="CITY"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
                       >
                         {cities.map((city) => (
                           <MenuItem key={city} value={city}>
@@ -1371,24 +1342,40 @@ const AdmissionForm = () => {
               
               {addressTab === 1 && (
                 <Grid container spacing={2}>
-                  <Grid item xs={12}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
-                      multiline
-                      rows={3}
                       label="STUDENT ADDRESS"
                       value={formData.permanentAddress.address}
                       onChange={(e) => handleNestedChange('permanentAddress', 'address', e.target.value)}
                       placeholder="Student Address"
+                      sx={{
+                        '& .MuiOutlinedInput-root': {
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        },
+                      }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>COUNTRY</InputLabel>
                       <Select
                         value={formData.permanentAddress.country}
                         onChange={(e) => handleNestedChange('permanentAddress', 'country', e.target.value)}
                         label="COUNTRY"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
                       >
                         {countries.map((country) => (
                           <MenuItem key={country} value={country}>
@@ -1398,13 +1385,21 @@ const AdmissionForm = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>CITY</InputLabel>
                       <Select
                         value={formData.permanentAddress.city}
                         onChange={(e) => handleNestedChange('permanentAddress', 'city', e.target.value)}
                         label="CITY"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
                       >
                         {cities.map((city) => (
                           <MenuItem key={city} value={city}>
@@ -1458,7 +1453,7 @@ const AdmissionForm = () => {
                   Father's Details
                 </Typography>
                 <Grid container spacing={2} sx={{ mb: 4 }}>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
                       label="FATHER NAME"
@@ -1467,7 +1462,7 @@ const AdmissionForm = () => {
                       placeholder="Father Name"
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
                       label="FATHER MOBILE"
@@ -1478,7 +1473,7 @@ const AdmissionForm = () => {
                       helperText={formData.father.mobileNumber && !validatePhone(formData.father.mobileNumber) ? 'Invalid phone number (min 10 digits)' : ''}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>FATHER OPERATOR</InputLabel>
                       <Select
@@ -1501,7 +1496,7 @@ const AdmissionForm = () => {
                   Guardian's Details (Optional)
                 </Typography>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
                       label="GUARDIAN NAME"
@@ -1510,7 +1505,7 @@ const AdmissionForm = () => {
                       placeholder="Guardian Name"
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
                       label="RELATION"
@@ -1519,7 +1514,7 @@ const AdmissionForm = () => {
                       placeholder="Relation"
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
                       label="GUARDIAN CNIC"
@@ -1531,7 +1526,7 @@ const AdmissionForm = () => {
                       helperText={formData.guardian.cnic && !validateCNIC(formData.guardian.cnic) ? 'CNIC must be 13 digits (format: XXXXX-XXXXXXX-X)' : ''}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <TextField
                       fullWidth
                       label="MOBILE NUMBER"
@@ -1542,7 +1537,7 @@ const AdmissionForm = () => {
                       helperText={formData.guardian.mobileNumber && !validatePhone(formData.guardian.mobileNumber) ? 'Invalid phone number (min 10 digits)' : ''}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>MOBILE OPERATOR</InputLabel>
                       <Select

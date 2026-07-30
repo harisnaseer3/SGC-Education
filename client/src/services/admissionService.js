@@ -121,7 +121,7 @@ export const getAdmissionAnalytics = async (filters = {}) => {
   return response.data;
 };
 
-// Get next available roll number
+// Get next available roll number (institution-wide)
 export const getNextRollNumber = async (institutionId) => {
   const params = new URLSearchParams();
   if (institutionId) params.append('institution', institutionId);

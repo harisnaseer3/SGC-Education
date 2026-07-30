@@ -40,6 +40,7 @@ import {
   Divider,
   TablePagination,
   Checkbox,
+  TableSortLabel,
 } from '@mui/material';
 import {
   Add,
@@ -305,6 +306,78 @@ const Admissions = () => {
   };
 
   const filteredRegisterAdmissions = getFilteredRegisterAdmissions();
+
+  const [registerSortConfig, setRegisterSortConfig] = useState({ key: '', direction: 'asc' });
+
+  const handleRegisterSort = (key) => {
+    setRegisterSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const sortedRegisterAdmissions = React.useMemo(() => {
+    const data = [...filteredRegisterAdmissions];
+    if (!registerSortConfig.key) return data;
+
+    data.sort((a, b) => {
+      let aVal = '';
+      let bVal = '';
+
+      switch (registerSortConfig.key) {
+        case 'admissionDate':
+          aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          break;
+        case 'appNumber':
+          aVal = parseInt(a.applicationNumber || a.admissionNo || a.admissionNumber || 0, 10);
+          bVal = parseInt(b.applicationNumber || b.admissionNo || b.admissionNumber || 0, 10);
+          if (isNaN(aVal)) aVal = (a.applicationNumber || a.admissionNo || '').toLowerCase();
+          if (isNaN(bVal)) bVal = (b.applicationNumber || b.admissionNo || '').toLowerCase();
+          break;
+        case 'rollNumber':
+          aVal = parseInt(a.studentId?.rollNumber || a.rollNumber || 0, 10);
+          bVal = parseInt(b.studentId?.rollNumber || b.rollNumber || 0, 10);
+          if (isNaN(aVal)) aVal = (a.studentId?.rollNumber || a.rollNumber || '').toLowerCase();
+          if (isNaN(bVal)) bVal = (b.studentId?.rollNumber || b.rollNumber || '').toLowerCase();
+          break;
+        case 'studentName':
+          aVal = (a.personalInfo?.name || a.name || a.studentName || a.firstName || '').toLowerCase();
+          bVal = (b.personalInfo?.name || b.name || b.studentName || b.firstName || '').toLowerCase();
+          break;
+        case 'fatherName':
+          aVal = (a.guardianInfo?.fatherName || a.fatherName || '').toLowerCase();
+          bVal = (b.guardianInfo?.fatherName || b.fatherName || '').toLowerCase();
+          break;
+        case 'dateOfBirth':
+          const rawA = a.personalInfo?.dateOfBirth || a.dateOfBirth || a.dob;
+          const rawB = b.personalInfo?.dateOfBirth || b.dateOfBirth || b.dob;
+          aVal = rawA ? new Date(rawA).getTime() : 0;
+          bVal = rawB ? new Date(rawB).getTime() : 0;
+          break;
+        case 'phone':
+          aVal = (a.contactInfo?.phone || a.phone || a.mobileNumber || '').toLowerCase();
+          bVal = (b.contactInfo?.phone || b.phone || a.mobileNumber || '').toLowerCase();
+          break;
+        case 'status':
+          aVal = (a.status || 'pending').toLowerCase();
+          bVal = (b.status || 'pending').toLowerCase();
+          break;
+        case 'className':
+          aVal = (a.class?.name || a.className || a.program || '').toLowerCase();
+          bVal = (b.class?.name || b.className || b.program || '').toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+
+      if (aVal < bVal) return registerSortConfig.direction === 'asc' ? -1 : 1;
+      if (aVal > bVal) return registerSortConfig.direction === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return data;
+  }, [filteredRegisterAdmissions, registerSortConfig]);
 
 
   
@@ -951,45 +1024,50 @@ const Admissions = () => {
   };
 
   const filteredAdmissions = admissions.filter((admission) => {
-    // Apply status filter first
-    if (selectedStatus && admission.status !== selectedStatus) {
-      return false;
+    // Always filter out soft-deleted records if applicable
+    if (admission.isActive === false) return false;
+
+    // Apply status filter
+    if (selectedStatus) {
+      const matchStatus = (status) => {
+        if (!status) return false;
+        return status.toLowerCase().replace(/_/, '') === selectedStatus.toLowerCase().replace(/_/, '');
+      };
+      if (!matchStatus(admission.status) && !matchStatus(admission.studentId?.status)) {
+        return false;
+      }
     }
 
-    // Department filter removed - department field no longer exists in admissions
-
-    // Apply search filter
-    if (!searchTerm) return true;
-    const searchLower = searchTerm.toLowerCase();
-    
-    switch (searchType) {
-      case 'studentId':
-        // Search in applicationNumber (primary identifier) or studentId if enrolled
-        // For enrolled students, studentId is populated with student object
-        const studentIdMatch = admission.studentId 
-          ? (typeof admission.studentId === 'object' 
-              ? admission.studentId.enrollmentNumber?.toLowerCase().includes(searchLower) ||
-                admission.studentId._id?.toString().toLowerCase().includes(searchLower)
-              : admission.studentId.toString().toLowerCase().includes(searchLower))
-          : false;
-        return studentIdMatch || admission.applicationNumber?.toLowerCase().includes(searchLower);
-      case 'applicationNumber':
-        return admission.applicationNumber?.toLowerCase().includes(searchLower);
-      case 'name':
-        const fullName = (admission.personalInfo?.name || '').toLowerCase();
-        return fullName.includes(searchLower);
-      case 'email':
-        return admission.contactInfo?.email?.toLowerCase().includes(searchLower);
-      default:
-        const defaultFullName = (admission.personalInfo?.name || '').toLowerCase();
-        return (
-          admission.applicationNumber?.toLowerCase().includes(searchLower) ||
-          defaultFullName.includes(searchLower) ||
-          admission.contactInfo?.email?.toLowerCase().includes(searchLower) ||
-          admission.studentId?.toString().toLowerCase().includes(searchLower) ||
-          admission.contactInfo?.phone?.toLowerCase().includes(searchLower)
-        );
+    // Apply Student Name / General Search filter
+    const searchVal = (filterStudentName || searchTerm || '').trim().toLowerCase();
+    if (searchVal) {
+      const studentName = `${admission.personalInfo?.firstName || ''} ${admission.personalInfo?.middleName || ''} ${admission.personalInfo?.lastName || ''}`.toLowerCase();
+      const fatherName = (admission.guardianInfo?.fatherName || '').toLowerCase();
+      const admissionNo = (admission.applicationNumber || '').toLowerCase();
+      const phone = (admission.contactInfo?.phone || '').toLowerCase();
+      const admissionName = (admission.personalInfo?.name || '').toLowerCase();
+      if (!studentName.includes(searchVal) && !fatherName.includes(searchVal) && !admissionNo.includes(searchVal) && !phone.includes(searchVal) && !admissionName.includes(searchVal)) {
+        return false;
+      }
     }
+
+    // Apply Roll Number filter
+    if (filterRollNumber) {
+      const rollNumber = (admission.studentId?.rollNumber || admission.rollNumber || '').toString().toLowerCase();
+      if (!rollNumber.includes(filterRollNumber.trim().toLowerCase())) {
+        return false;
+      }
+    }
+
+    // Apply Class filter
+    if (filterClass) {
+      const classId = admission.class?._id || admission.class;
+      if (classId !== filterClass) {
+        return false;
+      }
+    }
+
+    return true;
   });
 
   if (loading && admissions.length === 0 && !error) {
@@ -1038,6 +1116,21 @@ const Admissions = () => {
             Academic Setup
           </Typography>
           <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={() => navigate('/admissions/new')}
+              sx={{
+                borderColor: '#10b981',
+                color: '#10b981',
+                '&:hover': {
+                  borderColor: '#059669',
+                  bgcolor: '#10b98115',
+                },
+              }}
+            >
+              ➕ New Admission
+            </Button>
             <Button
               variant="outlined"
               size="small"
@@ -1221,55 +1314,106 @@ const Admissions = () => {
         </Box>
 
         {/* Filters */}
-        <Box display="flex" gap={2} mb={3} flexWrap="wrap">
-          {isSuperAdmin && (
-            <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel>Institution/Campus</InputLabel>
-              <Select
-                value={selectedInstitution}
-                onChange={(e) => {
-                  setSelectedInstitution(e.target.value);
-                  setSelectedDepartment('');
+        <Paper sx={{ p: 2, mb: 3, bgcolor: '#f8f9fa' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1.5, flexWrap: 'wrap' }}>
+            <Typography variant="subtitle2" fontWeight="bold">
+              Search Filters
+            </Typography>
+          </Box>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                label="Student Name / Keyword"
+                placeholder="Search name, app no, phone..."
+                value={filterStudentName}
+                onChange={(e) => setFilterStudentName(e.target.value)}
+                size="small"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <Search fontSize="small" />
+                    </InputAdornment>
+                  ),
                 }}
-                label="Institution/Campus"
-                startAdornment={
-                  <InputAdornment position="start">
-                    <Business sx={{ ml: 1, color: 'text.secondary' }} />
-                  </InputAdornment>
-                }
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <TextField
+                fullWidth
+                label="Roll Number"
+                placeholder="Search roll no..."
+                value={filterRollNumber}
+                onChange={(e) => setFilterRollNumber(e.target.value)}
+                size="small"
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={3}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Class</InputLabel>
+                <Select
+                  value={filterClass}
+                  onChange={(e) => setFilterClass(e.target.value)}
+                  label="Class"
+                >
+                  <MenuItem value="">All Classes</MenuItem>
+                  {Array.from(new Map(admissions
+                    .filter(a => a.class)
+                    .map(a => {
+                      const classId = a.class?._id || a.class;
+                      const className = a.class?.name || 'Unknown';
+                      return [classId, { _id: classId, name: className }];
+                    })
+                  ).values()).map((cls) => (
+                    <MenuItem key={cls._id} value={cls._id}>
+                      {cls.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={selectedStatus}
+                  onChange={(e) => setSelectedStatus(e.target.value)}
+                  label="Status"
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="enrolled">Enrolled</MenuItem>
+                  <MenuItem value="struckoff">Struck Off</MenuItem>
+                  <MenuItem value="passout">Passout</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} sm={6} md={2}>
+              <Button
+                fullWidth
+                variant="outlined"
+                size="small"
+                onClick={() => {
+                  setFilterStudentName('');
+                  setFilterRollNumber('');
+                  setFilterClass('');
+                  setSelectedStatus('');
+                  setSearchTerm('');
+                }}
+                sx={{ height: '40px' }}
               >
-                <MenuItem value="">All Institutions</MenuItem>
-                {institutions.map((inst) => (
-                  <MenuItem key={inst._id} value={inst._id}>
-                    {inst.name} ({inst.code})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          <FormControl sx={{ minWidth: 200 }}>
-            <InputLabel>Status</InputLabel>
-            <Select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              label="Status"
-            >
-              <MenuItem value="">All Status</MenuItem>
-              <MenuItem value="pending">Pending</MenuItem>
-              <MenuItem value="enrolled">Enrolled</MenuItem>
-              <MenuItem value="struckoff">Struck Off</MenuItem>
-              <MenuItem value="passout">Passout</MenuItem>
-            </Select>
-          </FormControl>
-        </Box>
+                Clear
+              </Button>
+            </Grid>
+          </Grid>
+        </Paper>
 
         {/* Table */}
         <TableContainer>
           <Table>
             <TableHead>
               <TableRow sx={{ bgcolor: '#667eea' }}>
-                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Application No.</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Admission No</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Applicant Name</TableCell>
 
                 {isSuperAdmin && <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Institution</TableCell>}
@@ -2346,28 +2490,153 @@ const Admissions = () => {
                       <TableCell padding="checkbox" sx={{ color: 'white' }}>
                         <Checkbox
                           sx={{ color: 'white', '&.Mui-checked': { color: 'white' } }}
-                          indeterminate={selectedAdmissions.length > 0 && selectedAdmissions.length < filteredRegisterAdmissions.length}
-                          checked={filteredRegisterAdmissions.length > 0 && selectedAdmissions.length === filteredRegisterAdmissions.length}
-                          onChange={(e) => handleSelectAll(e, filteredRegisterAdmissions)}
+                          indeterminate={selectedAdmissions.length > 0 && selectedAdmissions.length < sortedRegisterAdmissions.length}
+                          checked={sortedRegisterAdmissions.length > 0 && selectedAdmissions.length === sortedRegisterAdmissions.length}
+                          onChange={(e) => handleSelectAll(e, sortedRegisterAdmissions)}
                         />
                       </TableCell>
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Sr No</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date Of Admission</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Admission No</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Student Name</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Father Name</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Date Of Birth</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Phone No</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Category Or Tribe</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Religion</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Status</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Residence</TableCell>
-                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Class To Which Admitted</TableCell>
+                      
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'admissionDate'}
+                          direction={registerSortConfig.key === 'admissionDate' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('admissionDate')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Date Of Admission
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'appNumber'}
+                          direction={registerSortConfig.key === 'appNumber' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('appNumber')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Admission No
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'rollNumber'}
+                          direction={registerSortConfig.key === 'rollNumber' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('rollNumber')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Roll No
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'studentName'}
+                          direction={registerSortConfig.key === 'studentName' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('studentName')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Student Name
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'fatherName'}
+                          direction={registerSortConfig.key === 'fatherName' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('fatherName')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Father Name
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'dateOfBirth'}
+                          direction={registerSortConfig.key === 'dateOfBirth' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('dateOfBirth')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Date Of Birth
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'phone'}
+                          direction={registerSortConfig.key === 'phone' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('phone')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Phone No
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'status'}
+                          direction={registerSortConfig.key === 'status' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('status')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Status
+                        </TableSortLabel>
+                      </TableCell>
+
+                      <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>
+                        <TableSortLabel
+                          active={registerSortConfig.key === 'className'}
+                          direction={registerSortConfig.key === 'className' ? registerSortConfig.direction : 'asc'}
+                          onClick={() => handleRegisterSort('className')}
+                          sx={{
+                            color: 'white !important',
+                            fontWeight: 'bold',
+                            '& .MuiTableSortLabel-icon': { color: 'white !important' },
+                          }}
+                        >
+                          Class To Which Admitted
+                        </TableSortLabel>
+                      </TableCell>
+
                       <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Action</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {filteredRegisterAdmissions
+                    {sortedRegisterAdmissions
                       .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                       .map((admission, idx) => {
                         const isItemSelected = isSelected(admission._id);
@@ -2385,14 +2654,10 @@ const Admissions = () => {
                         const admissionDate = admission.createdAt 
                           ? new Date(admission.createdAt).toLocaleDateString('en-GB')
                           : 'N/A';
-                        const residence = admission.contactInfo?.currentAddress?.street || admission.contactInfo?.currentAddress?.city
-                          ? `${admission.contactInfo.currentAddress.street || ''}, ${admission.contactInfo.currentAddress.city || ''}`.trim()
-                          : (admission.address || admission.residence || 'N/A');
                         const className = admission.class?.name || admission.className || admission.program || 'N/A';
                         const appNumber = admission.applicationNumber || admission.admissionNo || admission.admissionNumber || 'N/A';
+                        const rollNumber = admission.studentId?.rollNumber || admission.rollNumber || 'N/A';
                         const phone = admission.contactInfo?.phone || admission.phone || admission.mobileNumber || 'N/A';
-                        const category = admission.personalInfo?.category || admission.category || 'General';
-                        const religion = admission.personalInfo?.religion || admission.religion || 'Islam';
                         
                         return (
                           <TableRow 
@@ -2416,6 +2681,7 @@ const Admissions = () => {
                                 {appNumber}
                               </Box>
                             </TableCell>
+                            <TableCell>{rollNumber}</TableCell>
                             <TableCell>
                               <Box sx={{ textDecoration: admission.isActive === false ? 'line-through' : 'none' }}>
                                 {studentName || 'N/A'}
@@ -2424,17 +2690,12 @@ const Admissions = () => {
                             <TableCell>{admission.guardianInfo?.fatherName || admission.fatherName || 'N/A'}</TableCell>
                             <TableCell>{dateOfBirth}</TableCell>
                             <TableCell>{phone}</TableCell>
-                            <TableCell>{category}</TableCell>
-                            <TableCell>{religion}</TableCell>
                             <TableCell>
                               <Chip
                                 label={admission.status || 'pending'}
                                 size="small"
                                 color={getStatusColor(admission.status)}
                               />
-                            </TableCell>
-                            <TableCell sx={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              {residence}
                             </TableCell>
                             <TableCell>{className}</TableCell>
                             <TableCell>

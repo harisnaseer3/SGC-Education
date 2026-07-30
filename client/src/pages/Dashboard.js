@@ -429,9 +429,106 @@ const Dashboard = () => {
         </Alert>
       )}
 
-          {dashboardData && (
-            <>
-              {/* Row 1: Key Performance Indicators (Compact) */}
+      {dashboardData && (
+        <>
+          {/* Academic Setup Bar */}
+          <Paper 
+            elevation={0}
+            sx={{ 
+              p: 2, 
+              mb: 3, 
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #667eea15 0%, #764ba205 100%)', 
+              border: '1px solid #667eea30',
+              boxShadow: '0 4px 12px rgba(102, 126, 234, 0.05)'
+            }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: '#2c3e50' }}>
+                Academic Setup
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1.5, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/admissions/new')}
+                  sx={{
+                    borderColor: '#10b981',
+                    color: '#10b981',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 0.75,
+                    '&:hover': {
+                      borderColor: '#059669',
+                      bgcolor: '#10b98115',
+                    },
+                  }}
+                >
+                  ➕ New Admission
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/classes')}
+                  sx={{
+                    borderColor: '#667eea',
+                    color: '#667eea',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 0.75,
+                    '&:hover': {
+                      borderColor: '#5568d3',
+                      bgcolor: '#667eea15',
+                    },
+                  }}
+                >
+                  📚 Manage Classes
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/sections')}
+                  sx={{
+                    borderColor: '#764ba2',
+                    color: '#764ba2',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 0.75,
+                    '&:hover': {
+                      borderColor: '#653a8b',
+                      bgcolor: '#764ba215',
+                    },
+                  }}
+                >
+                  📑 Manage Sections
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => navigate('/groups')}
+                  sx={{
+                    borderColor: '#f093fb',
+                    color: '#f093fb',
+                    fontWeight: 600,
+                    borderRadius: 2,
+                    px: 2,
+                    py: 0.75,
+                    '&:hover': {
+                      borderColor: '#d97ee4',
+                      bgcolor: '#f093fb15',
+                    },
+                  }}
+                >
+                  👥 Manage Groups
+                </Button>
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Row 1: Key Performance Indicators (Compact) */}
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
                 {[
                   { 

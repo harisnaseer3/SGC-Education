@@ -24,7 +24,7 @@ const sectionSchema = new mongoose.Schema({
   },
   academicYear: {
     type: String,
-    required: [true, 'Please provide academic year'],
+    default: 'All',
     trim: true
   },
   capacity: {
@@ -84,6 +84,9 @@ const sectionSchema = new mongoose.Schema({
 // Update timestamp on save
 sectionSchema.pre('save', function() {
   this.updatedAt = Date.now();
+  if (!this.academicYear || String(this.academicYear).trim() === '') {
+    this.academicYear = 'All';
+  }
 });
 
 // Compound index for unique section code per class and academic year

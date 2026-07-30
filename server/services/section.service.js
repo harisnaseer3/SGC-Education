@@ -1,5 +1,6 @@
 const Section = require('../models/Section');
 const Class = require('../models/Class');
+const Student = require('../models/Student');
 const { ApiError } = require('../middleware/error.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 
@@ -44,7 +45,42 @@ class SectionService {
       .populate('createdBy', 'name email')
       .sort({ 'class.level': 1, code: 1 });
 
-    return sections;
+    if (sections.length === 0) return [];
+
+    // Compute live active student count per section
+    const sectionIds = sections.map(s => s._id);
+    const studentCounts = await Student.aggregate([
+      {
+        $match: {
+          section: { $in: sectionIds },
+          isActive: true,
+          status: { $nin: ['cancelled', 'rejected'] }
+        }
+      },
+      {
+        $group: {
+          _id: '$section',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const countMap = new Map();
+    studentCounts.forEach(item => {
+      if (item._id) {
+        countMap.set(item._id.toString(), item.count);
+      }
+    });
+
+    return sections.map(sec => {
+      const secObj = sec.toObject ? sec.toObject() : { ...sec };
+      const liveCount = countMap.get(sec._id.toString()) || 0;
+      secObj.stats = {
+        ...secObj.stats,
+        totalStudents: liveCount
+      };
+      return secObj;
+    });
   }
 
   /**
@@ -72,7 +108,19 @@ class SectionService {
       }
     }
 
-    return section;
+    const liveCount = await Student.countDocuments({
+      section: section._id,
+      isActive: true,
+      status: { $nin: ['cancelled', 'rejected'] }
+    });
+
+    const secObj = section.toObject();
+    secObj.stats = {
+      ...secObj.stats,
+      totalStudents: liveCount
+    };
+
+    return secObj;
   }
 
   /**
@@ -96,6 +144,10 @@ class SectionService {
     // Set institution from class
     sectionData.institution = classDoc.institution;
     sectionData.createdBy = currentUser._id;
+
+    if (!sectionData.academicYear || String(sectionData.academicYear).trim() === '') {
+      sectionData.academicYear = 'All';
+    }
 
     // Check for duplicate code
     const existingSection = await Section.findOne({

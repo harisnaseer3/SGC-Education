@@ -25,7 +25,7 @@ const getInstitutionId = (user) => {
  */
 class AdmissionService {
   /**
-   * Get the next available roll number for an institution
+   * Get the next available roll number for an institution (institution-wide unique)
    * Starting from 100
    */
   async getNextRollNumber(institutionId) {
@@ -33,31 +33,24 @@ class AdmissionService {
       throw new ApiError(400, 'Institution ID is required');
     }
 
-    // Find the highest roll number in Admission model for this institution
-    const latestAdmission = await Admission.findOne({ institution: institutionId })
-      .sort({ rollNumber: -1 })
-      .select('rollNumber');
+    const query = { 
+      institution: institutionId, 
+      rollNumber: { $exists: true, $ne: '' } 
+    };
 
-    // Find the highest roll number in Student model for this institution
-    const latestStudent = await Student.findOne({ institution: institutionId })
-      .sort({ rollNumber: -1 })
-      .select('rollNumber');
+    // Find all student records for this institution that have a roll number
+    const students = await Student.find(query, { rollNumber: 1 });
 
-    let maxRoll = 99; // Start from 100, so base is 99
+    let maxRoll = 99; // Default starting base is 100
 
-    if (latestAdmission && latestAdmission.rollNumber) {
-      const rollNum = parseInt(latestAdmission.rollNumber);
-      if (!isNaN(rollNum)) {
-        maxRoll = Math.max(maxRoll, rollNum);
+    students.forEach((s) => {
+      if (s.rollNumber) {
+        const rollNum = parseInt(String(s.rollNumber).trim(), 10);
+        if (!isNaN(rollNum) && rollNum > maxRoll) {
+          maxRoll = rollNum;
+        }
       }
-    }
-
-    if (latestStudent && latestStudent.rollNumber) {
-      const rollNum = parseInt(latestStudent.rollNumber);
-      if (!isNaN(rollNum)) {
-        maxRoll = Math.max(maxRoll, rollNum);
-      }
-    }
+    });
 
     return String(maxRoll + 1);
   }
@@ -175,10 +168,25 @@ class AdmissionService {
       admissionData.contactDetails = admissionData.contactInfo;
     }
 
+    // Clean up admissionData object to remove null or empty string fields before creating record
+    if (!admissionData.enrollmentNumber || String(admissionData.enrollmentNumber).trim() === '' || String(admissionData.enrollmentNumber) === 'null') {
+      delete admissionData.enrollmentNumber;
+    }
+    if (!admissionData.applicationNumber || String(admissionData.applicationNumber).trim() === '' || String(admissionData.applicationNumber) === 'null') {
+      delete admissionData.applicationNumber;
+    }
+
+    // Clean up any legacy records in Student collection that have enrollmentNumber: null or ""
+    // which cause MongoDB sparse index (enrollmentNumber_1_institution_1) collisions
+    await Student.updateMany(
+      { $or: [{ enrollmentNumber: null }, { enrollmentNumber: "" }] },
+      { $unset: { enrollmentNumber: "" } }
+    );
+
     // Create admission
     const admission = await Admission.create({
       ...admissionData,
-      createdBy: createdBy ? createdBy.id : null,
+      createdBy: createdBy ? (createdBy._id || createdBy.id) : null,
       submittedAt: Date.now()
     });
 

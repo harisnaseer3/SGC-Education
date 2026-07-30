@@ -351,9 +351,36 @@ const studentSchema = new mongoose.Schema({
 studentSchema.pre('save', async function() {
   this.updatedAt = Date.now();
 
-  // Generate unique application number if missing and status is pending
+  // Ensure null or empty string properties are converted/unset so MongoDB sparse indexes ignore them
+  if (!this.enrollmentNumber || String(this.enrollmentNumber).trim() === '' || String(this.enrollmentNumber) === 'null') {
+    this.set('enrollmentNumber', undefined);
+    if (this._doc) delete this._doc.enrollmentNumber;
+  }
+  if (!this.applicationNumber || String(this.applicationNumber).trim() === '' || String(this.applicationNumber) === 'null') {
+    this.set('applicationNumber', undefined);
+    if (this._doc) delete this._doc.applicationNumber;
+  }
+
+  // Generate unique application number if missing and status is pending or new
   if (!this.applicationNumber && this.isNew) {
-    const counter = await SequenceCounter.findOneAndUpdate(
+    let counter = await SequenceCounter.findOne({ institution: this.institution, type: 'admission' });
+    if (!counter) {
+      const students = await mongoose.model('Student').find(
+        { institution: this.institution, applicationNumber: { $exists: true, $ne: null } },
+        { applicationNumber: 1 }
+      );
+      let maxAppNum = 0;
+      students.forEach(s => {
+        const num = parseInt(s.applicationNumber, 10);
+        if (!isNaN(num) && num > maxAppNum) maxAppNum = num;
+      });
+      counter = await SequenceCounter.findOneAndUpdate(
+        { institution: this.institution, type: 'admission' },
+        { $setOnInsert: { seq: maxAppNum } },
+        { new: true, upsert: true }
+      );
+    }
+    counter = await SequenceCounter.findOneAndUpdate(
       { institution: this.institution, type: 'admission' },
       { $inc: { seq: 1 } },
       { new: true, upsert: true }
@@ -363,7 +390,24 @@ studentSchema.pre('save', async function() {
 
   // Generate unique enrollment number if status is enrolled and missing
   if (this.status === 'enrolled' && !this.enrollmentNumber) {
-    const counter = await SequenceCounter.findOneAndUpdate(
+    let counter = await SequenceCounter.findOne({ institution: this.institution, type: 'enrollment' });
+    if (!counter) {
+      const students = await mongoose.model('Student').find(
+        { institution: this.institution, enrollmentNumber: { $exists: true, $ne: null } },
+        { enrollmentNumber: 1 }
+      );
+      let maxEnrNum = 0;
+      students.forEach(s => {
+        const num = parseInt(s.enrollmentNumber, 10);
+        if (!isNaN(num) && num > maxEnrNum) maxEnrNum = num;
+      });
+      counter = await SequenceCounter.findOneAndUpdate(
+        { institution: this.institution, type: 'enrollment' },
+        { $setOnInsert: { seq: maxEnrNum } },
+        { new: true, upsert: true }
+      );
+    }
+    counter = await SequenceCounter.findOneAndUpdate(
       { institution: this.institution, type: 'enrollment' },
       { $inc: { seq: 1 } },
       { new: true, upsert: true }
@@ -379,7 +423,7 @@ studentSchema.pre('save', async function() {
 
     let maxRoll = 99;
     if (latestStudent && latestStudent.rollNumber) {
-      const rollNum = parseInt(latestStudent.rollNumber);
+      const rollNum = parseInt(latestStudent.rollNumber, 10);
       if (!isNaN(rollNum)) maxRoll = Math.max(maxRoll, rollNum);
     }
     this.rollNumber = String(maxRoll + 1);
@@ -389,6 +433,7 @@ studentSchema.pre('save', async function() {
 // Indexes for better query performance
 studentSchema.index({ enrollmentNumber: 1, institution: 1 }, { unique: true, sparse: true });
 studentSchema.index({ applicationNumber: 1, institution: 1 }, { unique: true, sparse: true });
+studentSchema.index({ rollNumber: 1, institution: 1 }, { unique: true, sparse: true });
 studentSchema.index({ institution: 1 });
 studentSchema.index({ rollNumber: 1 });
 studentSchema.index({ status: 1 });

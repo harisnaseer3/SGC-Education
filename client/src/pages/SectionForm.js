@@ -51,7 +51,6 @@ const SectionForm = () => {
     code: '',
 
     class: '',
-    academicYear: `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
     strength: '',
 
     isActive: true,
@@ -124,7 +123,6 @@ const SectionForm = () => {
         institution: section.institution?._id || user.institution || '',
         department: section.department?._id || '',
         class: section.class?._id || '',
-        academicYear: section.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`,
         strength: section.capacity || '',
 
         isActive: section.isActive !== undefined ? section.isActive : true,
@@ -415,7 +413,7 @@ const SectionForm = () => {
               </Box>
               <Divider sx={{ mb: 3 }} />
               <Grid container spacing={3}>
-                <Grid item xs={12} md={6}>
+                <Grid item xs={12}>
                   <TextField
                     fullWidth
                     label="Capacity (Strength)"
@@ -431,30 +429,6 @@ const SectionForm = () => {
                         </Box>
                       ),
                     }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        borderRadius: 2,
-                        '&:hover fieldset': {
-                          borderColor: '#667eea',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#667eea',
-                        },
-                      },
-                    }}
-                  />
-                </Grid>
-
-                <Grid item xs={12} md={6}>
-                  <TextField
-                    fullWidth
-                    required
-                    label="Academic Year"
-                    name="academicYear"
-                    value={formData.academicYear}
-                    onChange={handleChange}
-                    placeholder="2025-2026"
-                    helperText="Format: YYYY-YYYY"
                     sx={{
                       '& .MuiOutlinedInput-root': {
                         borderRadius: 2,
