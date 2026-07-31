@@ -35,8 +35,8 @@ class StudentPromotionService {
           continue;
         }
 
-        // Check if admission is enrolled
-        if (admission.status !== 'enrolled') {
+        // Check if admission is enrolled or active
+        if (admission.status !== 'enrolled' && admission.status !== 'active') {
           errors.push({ 
             admissionId, 
             error: `Student is not enrolled. Current status: ${admission.status}` 
@@ -44,12 +44,8 @@ class StudentPromotionService {
           continue;
         }
 
-        // Get student record
-        const student = await Student.findById(admission.studentId);
-        if (!student) {
-          errors.push({ admissionId, error: 'Student record not found' });
-          continue;
-        }
+        // Get student record (Admission is Student model in unified schema)
+        const student = (admission.studentId ? await Student.findById(admission.studentId) : null) || admission;
 
         let updatedStudent;
         let updatedAdmission;
@@ -59,15 +55,11 @@ class StudentPromotionService {
           // Status: Student stays 'active', Admission stays 'enrolled'
           // Update: class, section, group, academicYear
           
-          // Get section name for Student model (Student stores section as string)
-          const Section = require('../models/Section');
-          const toSection = await Section.findById(to.section);
-          const sectionName = toSection ? toSection.name.toUpperCase() : null;
-          
           updatedStudent = await Student.findByIdAndUpdate(
             student._id,
             {
-              section: sectionName || to.section, // Student stores section as string (uppercase)
+              class: to.class,
+              section: to.section,
               academicYear: to.academicYear || admission.academicYear,
               status: 'active', // Keep active
               updatedAt: Date.now()
@@ -107,17 +99,13 @@ class StudentPromotionService {
           // Status: Student becomes 'transferred', Admission status stays 'enrolled'
           // Update: institution, class, section, group
           
-          // Get section name for Student model (Student stores section as string)
-          const Section = require('../models/Section');
-          const toSection = await Section.findById(to.section);
-          const sectionName = toSection ? toSection.name.toUpperCase() : null;
-          
           // First, update institution and class (but keep status as 'active' temporarily for fee assignment)
           updatedStudent = await Student.findByIdAndUpdate(
             student._id,
             {
               institution: to.institution,
-              section: sectionName || to.section, // Student stores section as string (uppercase)
+              class: to.class,
+              section: to.section,
               academicYear: to.academicYear || admission.academicYear,
               // Keep status as 'active' temporarily for fee assignment
               updatedAt: Date.now()
@@ -167,23 +155,23 @@ class StudentPromotionService {
 
         } else if (promotionType === 'passout') {
           // PASS OUT: Student completes last class
-          // Status: Student becomes 'graduated', Admission can stay 'enrolled' or be updated
-          // No TO section required
+          // Status: Mark both student and admission records as 'passout'
           
           updatedStudent = await Student.findByIdAndUpdate(
             student._id,
             {
-              status: 'graduated', // Mark as graduated
+              status: 'passout',
+              isActive: false,
               updatedAt: Date.now()
             },
             { new: true }
           );
 
-          // Keep admission as enrolled but mark student as graduated
           updatedAdmission = await Admission.findByIdAndUpdate(
             admission._id,
             {
-              status: 'enrolled', // Keep enrolled status
+              status: 'passout',
+              isActive: false,
               updatedAt: Date.now()
             },
             { new: true }
@@ -193,20 +181,19 @@ class StudentPromotionService {
         // Create promotion record
         const promotionRecord = await StudentPromotion.create({
           student: student._id,
-          admission: admission._id,
           operationType: promotionType,
           from: {
             institution: from.institution,
             class: from.class,
             section: from.section,
-            group: from.group || null,
-            academicYear: admission.academicYear
+            group: (from.group && mongoose.Types.ObjectId.isValid(from.group)) ? from.group : undefined,
+            academicYear: from.academicYear || admission.academicYear || student.academicYear || `${new Date().getFullYear()}-${new Date().getFullYear() + 1}`
           },
           to: to ? {
             institution: to.institution || null,
             class: to.class || null,
             section: to.section || null,
-            group: to.group || null,
+            group: (to.group && mongoose.Types.ObjectId.isValid(to.group)) ? to.group : undefined,
             academicYear: to.academicYear || null
           } : null,
           operationDate: new Date(),
@@ -304,8 +291,7 @@ class StudentPromotionService {
     }
 
     const promotions = await StudentPromotion.find(query)
-      .populate('student', 'enrollmentNumber rollNumber')
-      .populate('admission', 'applicationNumber')
+      .populate('student', 'enrollmentNumber rollNumber applicationNumber admissionNo name personalDetails')
       .populate('from.institution', 'name code')
       .populate('from.class', 'name code')
       .populate('from.section', 'name code')

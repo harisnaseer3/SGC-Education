@@ -45,7 +45,7 @@ import {
   AccountCircle,
   Info,
 } from '@mui/icons-material';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { notifyError, notifySuccess } from '../utils/notify';
 import {
   createAdmission,
@@ -83,13 +83,17 @@ const createInitialFormData = (userCtx) => ({
   presentAddress: {
     address: '',
     country: 'Pakistan',
-    city: 'Sialkot',
+    customCountry: '',
+    city: 'Islamabad',
+    customCity: '',
   },
   // Address - Permanent
   permanentAddress: {
     address: '',
     country: 'Pakistan',
-    city: 'Sialkot',
+    customCountry: '',
+    city: 'Islamabad',
+    customCity: '',
   },
 
   // Guardian - Father
@@ -139,8 +143,19 @@ const createInitialFormData = (userCtx) => ({
 
 const AdmissionForm = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const isEditMode = Boolean(id);
+
+  const handleBack = () => {
+    if (location.state?.from) {
+      navigate(location.state.from);
+    } else if (window.history.length > 1) {
+      navigate(-1);
+    } else {
+      navigate('/admissions');
+    }
+  };
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -155,8 +170,8 @@ const AdmissionForm = () => {
   const [sections, setSections] = useState([]);
   const [groups, setGroups] = useState([]);
   const [religions, setReligions] = useState(['Islam', 'Christianity', 'Hinduism', 'Sikhism', 'Buddhism', 'Other']);
-  const [countries, setCountries] = useState(['Pakistan', 'Bangladesh', 'Other']);
-  const [cities, setCities] = useState(['Sialkot', 'Lahore', 'Karachi', 'Islamabad', 'Other']);
+  const [countries, setCountries] = useState(['Pakistan', 'Other']);
+  const [cities, setCities] = useState(['Islamabad', 'Rawalpindi', 'Lahore', 'Other']);
   const [mobileOperators, setMobileOperators] = useState(['Jazz', 'Telenor', 'Ufone', 'Zong', 'Warid']);
 
   // Dialog states for adding new items
@@ -417,14 +432,18 @@ const AdmissionForm = () => {
         // Address - Present (from currentAddress)
         presentAddress: {
           address: admission.contactInfo?.currentAddress?.street || '',
-          country: admission.contactInfo?.currentAddress?.country || 'Pakistan',
-          city: admission.contactInfo?.currentAddress?.city || 'Sialkot',
+          country: ['Pakistan'].includes(admission.contactInfo?.currentAddress?.country) ? (admission.contactInfo?.currentAddress?.country || 'Pakistan') : (admission.contactInfo?.currentAddress?.country ? 'Other' : 'Pakistan'),
+          customCountry: ['Pakistan'].includes(admission.contactInfo?.currentAddress?.country) ? '' : (admission.contactInfo?.currentAddress?.country || ''),
+          city: ['Islamabad', 'Rawalpindi', 'Lahore'].includes(admission.contactInfo?.currentAddress?.city) ? (admission.contactInfo?.currentAddress?.city || 'Islamabad') : (admission.contactInfo?.currentAddress?.city ? 'Other' : 'Islamabad'),
+          customCity: ['Islamabad', 'Rawalpindi', 'Lahore'].includes(admission.contactInfo?.currentAddress?.city) ? '' : (admission.contactInfo?.currentAddress?.city || ''),
         },
         // Address - Permanent (from permanentAddress)
         permanentAddress: {
           address: admission.contactInfo?.permanentAddress?.street || '',
-          country: admission.contactInfo?.permanentAddress?.country || 'Pakistan',
-          city: admission.contactInfo?.permanentAddress?.city || 'Sialkot',
+          country: ['Pakistan'].includes(admission.contactInfo?.permanentAddress?.country) ? (admission.contactInfo?.permanentAddress?.country || 'Pakistan') : (admission.contactInfo?.permanentAddress?.country ? 'Other' : 'Pakistan'),
+          customCountry: ['Pakistan'].includes(admission.contactInfo?.permanentAddress?.country) ? '' : (admission.contactInfo?.permanentAddress?.country || ''),
+          city: ['Islamabad', 'Rawalpindi', 'Lahore'].includes(admission.contactInfo?.permanentAddress?.city) ? (admission.contactInfo?.permanentAddress?.city || 'Islamabad') : (admission.contactInfo?.permanentAddress?.city ? 'Other' : 'Islamabad'),
+          customCity: ['Islamabad', 'Rawalpindi', 'Lahore'].includes(admission.contactInfo?.permanentAddress?.city) ? '' : (admission.contactInfo?.permanentAddress?.city || ''),
         },
         father: {
           name: guardianInfo?.fatherName || '',
@@ -656,13 +675,13 @@ const AdmissionForm = () => {
           alternatePhone: formData.father.whatsappMobileNumber || '',
           currentAddress: {
             street: formData.presentAddress.address,
-            city: formData.presentAddress.city,
-            country: formData.presentAddress.country,
+            city: formData.presentAddress.city === 'Other' ? (formData.presentAddress.customCity || 'Other') : formData.presentAddress.city,
+            country: formData.presentAddress.country === 'Other' ? (formData.presentAddress.customCountry || 'Other') : formData.presentAddress.country,
           },
           permanentAddress: {
             street: formData.permanentAddress.address,
-            city: formData.permanentAddress.city,
-            country: formData.permanentAddress.country,
+            city: formData.permanentAddress.city === 'Other' ? (formData.permanentAddress.customCity || 'Other') : formData.permanentAddress.city,
+            country: formData.permanentAddress.country === 'Other' ? (formData.permanentAddress.customCountry || 'Other') : formData.permanentAddress.country,
           },
         },
         guardianInfo: {
@@ -715,7 +734,7 @@ const AdmissionForm = () => {
       }
 
       setTimeout(() => {
-        navigate('/admissions');
+        handleBack();
       }, 2000);
     } catch (err) {
       // Extract detailed error message from backend
@@ -790,7 +809,7 @@ const AdmissionForm = () => {
               <Box display="flex" alignItems="center" gap={2}>
                 <Button 
                   startIcon={<ArrowBack />} 
-                  onClick={() => navigate('/admissions')} 
+                  onClick={handleBack} 
                   sx={{ 
                     bgcolor: 'rgba(255, 255, 255, 0.2)',
                     color: 'white',
@@ -1063,12 +1082,9 @@ const AdmissionForm = () => {
                     value={formData.rollNumber}
                     onChange={(e) => handleChange('rollNumber', e.target.value)}
                     placeholder="Roll Number"
-                    InputProps={{
-                      readOnly: true,
-                    }}
                     sx={{
                       '& .MuiOutlinedInput-root': {
-                        bgcolor: '#f1f3f4', // Slightly greyed out for read-only
+                        bgcolor: 'white',
                         '&:hover': {
                           '& .MuiOutlinedInput-notchedOutline': {
                             borderColor: 'primary.main',
@@ -1076,7 +1092,7 @@ const AdmissionForm = () => {
                         },
                       },
                     }}
-                    helperText="Auto-generated sequential roll number"
+                    helperText="Auto-generated (editable)"
                   />
                 </Grid>
                 
@@ -1289,30 +1305,8 @@ const AdmissionForm = () => {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
-                      <InputLabel>COUNTRY</InputLabel>
-                      <Select
-                        value={formData.presentAddress.country}
-                        onChange={(e) => handleNestedChange('presentAddress', 'country', e.target.value)}
-                        label="COUNTRY"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
-                      >
-                        {countries.map((country) => (
-                          <MenuItem key={country} value={country}>
-                            {country}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
+
+                  {/* CITY DROPDOWN FIRST */}
                   <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>CITY</InputLabel>
@@ -1337,6 +1331,80 @@ const AdmissionForm = () => {
                       </Select>
                     </FormControl>
                   </Grid>
+
+                  {/* CUSTOM CITY FIELD IF OTHER */}
+                  {formData.presentAddress.city === 'Other' && (
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        fullWidth
+                        required
+                        label="ENTER CITY NAME*"
+                        value={formData.presentAddress.customCity}
+                        onChange={(e) => handleNestedChange('presentAddress', 'customCity', e.target.value)}
+                        placeholder="Enter City Name"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            bgcolor: 'white',
+                            '&:hover': {
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main',
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </Grid>
+                  )}
+
+                  {/* COUNTRY DROPDOWN AFTER CITY */}
+                  <Grid item xs={12} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel>COUNTRY</InputLabel>
+                      <Select
+                        value={formData.presentAddress.country}
+                        onChange={(e) => handleNestedChange('presentAddress', 'country', e.target.value)}
+                        label="COUNTRY"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
+                      >
+                        {countries.map((country) => (
+                          <MenuItem key={country} value={country}>
+                            {country}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  {/* CUSTOM COUNTRY FIELD IF OTHER */}
+                  {formData.presentAddress.country === 'Other' && (
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        fullWidth
+                        required
+                        label="ENTER COUNTRY NAME*"
+                        value={formData.presentAddress.customCountry}
+                        onChange={(e) => handleNestedChange('presentAddress', 'customCountry', e.target.value)}
+                        placeholder="Enter Country Name"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            bgcolor: 'white',
+                            '&:hover': {
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main',
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </Grid>
+                  )}
                 </Grid>
               )}
               
@@ -1361,30 +1429,8 @@ const AdmissionForm = () => {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
-                      <InputLabel>COUNTRY</InputLabel>
-                      <Select
-                        value={formData.permanentAddress.country}
-                        onChange={(e) => handleNestedChange('permanentAddress', 'country', e.target.value)}
-                        label="COUNTRY"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
-                      >
-                        {countries.map((country) => (
-                          <MenuItem key={country} value={country}>
-                            {country}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
+
+                  {/* CITY DROPDOWN FIRST */}
                   <Grid item xs={12} md={3}>
                     <FormControl fullWidth>
                       <InputLabel>CITY</InputLabel>
@@ -1409,6 +1455,80 @@ const AdmissionForm = () => {
                       </Select>
                     </FormControl>
                   </Grid>
+
+                  {/* CUSTOM CITY FIELD IF OTHER */}
+                  {formData.permanentAddress.city === 'Other' && (
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        fullWidth
+                        required
+                        label="ENTER CITY NAME*"
+                        value={formData.permanentAddress.customCity}
+                        onChange={(e) => handleNestedChange('permanentAddress', 'customCity', e.target.value)}
+                        placeholder="Enter City Name"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            bgcolor: 'white',
+                            '&:hover': {
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main',
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </Grid>
+                  )}
+
+                  {/* COUNTRY DROPDOWN AFTER CITY */}
+                  <Grid item xs={12} md={3}>
+                    <FormControl fullWidth>
+                      <InputLabel>COUNTRY</InputLabel>
+                      <Select
+                        value={formData.permanentAddress.country}
+                        onChange={(e) => handleNestedChange('permanentAddress', 'country', e.target.value)}
+                        label="COUNTRY"
+                        sx={{
+                          bgcolor: 'white',
+                          '&:hover': {
+                            '& .MuiOutlinedInput-notchedOutline': {
+                              borderColor: 'primary.main',
+                            },
+                          },
+                        }}
+                      >
+                        {countries.map((country) => (
+                          <MenuItem key={country} value={country}>
+                            {country}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
+
+                  {/* CUSTOM COUNTRY FIELD IF OTHER */}
+                  {formData.permanentAddress.country === 'Other' && (
+                    <Grid item xs={12} md={3}>
+                      <TextField
+                        fullWidth
+                        required
+                        label="ENTER COUNTRY NAME*"
+                        value={formData.permanentAddress.customCountry}
+                        onChange={(e) => handleNestedChange('permanentAddress', 'customCountry', e.target.value)}
+                        placeholder="Enter Country Name"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            bgcolor: 'white',
+                            '&:hover': {
+                              '& .MuiOutlinedInput-notchedOutline': {
+                                borderColor: 'primary.main',
+                              },
+                            },
+                          },
+                        }}
+                      />
+                    </Grid>
+                  )}
                 </Grid>
               )}
             </Box>

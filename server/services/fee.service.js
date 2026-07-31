@@ -251,11 +251,10 @@ class FeeService {
       throw new ApiError(400, 'Institution is required');
     }
 
-    // Get all active students in the institution
-    // Don't filter by status field as it might not be set consistently
+    // Get only enrolled/active students in the institution
     const students = await Student.find({
       institution: institutionId,
-      isActive: true
+      status: { $in: ['enrolled', 'active'] }
     })
       .populate('class', 'name code')
       .populate('section', 'name code')
@@ -679,10 +678,11 @@ class FeeService {
       throw new ApiError(400, 'Institution is required');
     }
 
-    // Get active students to prevent orphaned records from showing up
+    // Get active enrolled students to prevent orphaned or passout records from showing up
     const activeStudents = await Student.find({ 
       institution: institutionId, 
-      isActive: { $ne: false } 
+      isActive: { $ne: false },
+      status: { $in: ['enrolled', 'active'] }
     }).select('_id');
     const activeStudentIds = activeStudents.map(s => s._id);
 
@@ -783,8 +783,8 @@ class FeeService {
     // (e.g., struck_off, rejected, cancelled, suspended, etc.) BEFORE the voucher month ends
     const voucherEndDate = new Date(year, month, 0, 23, 59, 59, 999);
     students = students.filter(student => {
-      // Struck-off students can NEVER have new vouchers generated
-      if (student.status === 'struckoff') {
+      // Struck-off and passout students can NEVER have new vouchers generated
+      if (student.status === 'struckoff' || student.status === 'passout') {
         return false;
       }
 

@@ -1414,6 +1414,7 @@ const Admissions = () => {
             <TableHead>
               <TableRow sx={{ bgcolor: '#667eea' }}>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Admission No</TableCell>
+                <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Roll No</TableCell>
                 <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Applicant Name</TableCell>
 
                 {isSuperAdmin && <TableCell sx={{ color: 'white', fontWeight: 'bold' }}>Institution</TableCell>}
@@ -1426,7 +1427,7 @@ const Admissions = () => {
             <TableBody>
               {filteredAdmissions.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={isSuperAdmin ? 7 : 6} align="center">
+                  <TableCell colSpan={isSuperAdmin ? 8 : 7} align="center">
                     <Box py={4}>
                       <Typography variant="body2" color="text.secondary">
                         No admissions found
@@ -1439,6 +1440,11 @@ const Admissions = () => {
                   <TableRow key={admission._id} hover>
                     <TableCell>
                       <Chip label={admission.applicationNumber} size="small" color="primary" variant="outlined" />
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="bold">
+                        {admission.rollNumber || 'N/A'}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">

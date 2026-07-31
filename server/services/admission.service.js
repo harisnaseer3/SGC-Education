@@ -223,15 +223,11 @@ class AdmissionService {
     // Update admission
     // If enrolled, handle syncing with student and user records
     if (admission.status === 'enrolled') {
-      // Don't allow changing roll number if already set
-      if (updateData.rollNumber && updateData.rollNumber !== admission.rollNumber) {
-        delete updateData.rollNumber;
-      }
-
-        // Sync with Student record
+      // Sync with Student record
       const student = await Student.findOne({ admission: admissionId });
       if (student) {
         // Map updates to student fields
+        if (updateData.rollNumber) student.rollNumber = updateData.rollNumber;
         if (updateData.admissionDate) student.admissionDate = updateData.admissionDate;
         if (updateData.personalInfo) {
           student.personalDetails = {
@@ -327,9 +323,13 @@ class AdmissionService {
       changedAt: Date.now()
     };
 
+    const isInactiveStatus = ['passout', 'struckoff', 'cancelled', 'expelled', 'rejected', 'school_leaving', 'struck_off'].includes(status);
+    const isActiveStatus = !isInactiveStatus;
+
     await Admission.findByIdAndUpdate(admissionId, {
       $set: { 
         status: status,
+        isActive: isActiveStatus,
         reviewedBy: currentUser.id,
         reviewedAt: Date.now(),
         reviewRemarks: remarks
@@ -596,6 +596,8 @@ class AdmissionService {
       query.academicYear = filters.academicYear;
     }
 
+    const baseQuery = { ...query, isActive: { $ne: false } };
+
     const [
       totalApplications,
       pendingApplications,
@@ -604,12 +606,12 @@ class AdmissionService {
       rejectedApplications,
       enrolledApplications
     ] = await Promise.all([
-      Admission.countDocuments({ ...query, isActive: true }),
-      Admission.countDocuments({ ...query, status: 'pending', isActive: true }),
-      Admission.countDocuments({ ...query, status: 'struck_off', isActive: true }),
-      Admission.countDocuments({ ...query, status: 'approved', isActive: true }),
-      Admission.countDocuments({ ...query, status: 'rejected', isActive: true }),
-      Admission.countDocuments({ ...query, status: 'enrolled', isActive: true })
+      Admission.countDocuments(baseQuery),
+      Admission.countDocuments({ ...baseQuery, status: { $regex: /^pending$/i } }),
+      Admission.countDocuments({ ...baseQuery, status: { $regex: /struck.*off/i } }),
+      Admission.countDocuments({ ...baseQuery, status: { $regex: /^approved$/i } }),
+      Admission.countDocuments({ ...baseQuery, status: { $regex: /^rejected$/i } }),
+      Admission.countDocuments({ ...baseQuery, status: { $regex: /^enrolled$/i } })
     ]);
 
     return {

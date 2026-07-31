@@ -426,13 +426,17 @@ const StudentPromotion = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      setSuccess(response.data.message || 'Operation completed successfully');
-      setSelectedStudents([]);
-      resetForm();
-      fetchStudents();
-      fetchHistory();
-      
-      setTimeout(() => setSuccess(''), 5000);
+      const resData = response.data?.data;
+      if (resData && resData.processed === 0 && resData.errors && resData.errors.length > 0) {
+        setError(resData.errors[0].error || 'Failed to process student promotion');
+      } else {
+        setSuccess(response.data.message || 'Operation completed successfully');
+        setSelectedStudents([]);
+        resetForm();
+        fetchStudents();
+        fetchHistory();
+        setTimeout(() => setSuccess(''), 5000);
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to process operation');
     } finally {
@@ -532,15 +536,18 @@ const StudentPromotion = () => {
                 </Button>
               </Box>
 
-              {/* Filters: Class and Search */}
-              <Box sx={{ mb: 2, display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <FormControl size="small" sx={{ minWidth: 200 }}>
+              {/* Filters: Class and Search in one row */}
+              <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center', width: '100%' }}>
+                <FormControl size="small" sx={{ minWidth: 220, width: 240, flexShrink: 0 }}>
                   <InputLabel>Filter by Class</InputLabel>
                   <Select
                     value={filterClass}
                     label="Filter by Class"
                     onChange={(e) => setFilterClass(e.target.value)}
                   >
+                    <MenuItem value="">
+                      <em>All Classes</em>
+                    </MenuItem>
                     {classes.map((cls) => (
                       <MenuItem key={cls._id} value={cls._id}>
                         {cls.name}
@@ -554,7 +561,7 @@ const StudentPromotion = () => {
                   placeholder="Search by name, enrollment, or roll number"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  sx={{ flexGrow: 1, minWidth: 250 }}
+                  sx={{ flex: 1 }}
                   InputProps={{
                     startAdornment: (
                       <InputAdornment position="start">
