@@ -1185,7 +1185,7 @@ const Admissions = () => {
         <>
       {/* Statistics Cards */}
       <Grid container spacing={3} sx={{ mb: 4, px: 3 }}>
-        <Grid item xs={12} sm={4} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1205,7 +1205,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1225,7 +1225,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1245,7 +1245,7 @@ const Admissions = () => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid item xs={12} sm={4} md={3}>
+        <Grid item xs={12} sm={6} md={2.4}>
           <Card
             elevation={0}
             sx={{
@@ -1261,6 +1261,26 @@ const Admissions = () => {
                   <Typography variant="h4" fontWeight="bold" color="#e91e63">{stats.struckOffApplications || 0}</Typography>
                 </Box>
                 <Cancel sx={{ fontSize: 40, color: '#e91e63', opacity: 0.7 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid item xs={12} sm={6} md={2.4}>
+          <Card
+            elevation={0}
+            sx={{
+              background: 'linear-gradient(135deg, #9c27b015 0%, #9c27b005 100%)',
+              border: '1px solid #9c27b030',
+              borderRadius: 2,
+            }}
+          >
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="text.secondary" variant="body2">Pass Out</Typography>
+                  <Typography variant="h4" fontWeight="bold" color="#9c27b0">{stats.passoutApplications || 0}</Typography>
+                </Box>
+                <School sx={{ fontSize: 40, color: '#9c27b0', opacity: 0.7 }} />
               </Box>
             </CardContent>
           </Card>
@@ -1296,11 +1316,6 @@ const Admissions = () => {
               variant="outlined"
             />
             <Chip
-              label={`Approved: ${stats.approvedApplications || 0}`}
-              color="success"
-              variant="outlined"
-            />
-            <Chip
               label={`Enrolled: ${stats.enrolledApplications || 0}`}
               color="info"
               variant="outlined"
@@ -1308,6 +1323,11 @@ const Admissions = () => {
             <Chip
               label={`Struck Off: ${stats.struckOffApplications || 0}`}
               color="error"
+              variant="outlined"
+            />
+            <Chip
+              label={`Pass Out: ${stats.passoutApplications || 0}`}
+              color="secondary"
               variant="outlined"
             />
           </Box>

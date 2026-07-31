@@ -78,6 +78,12 @@ class AdmissionService {
     if (filters.academicYear) query.academicYear = filters.academicYear;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
 
+    // Ensure all passout and struckoff admission records have isActive: true (so they are not treated as soft-deleted)
+    await Admission.updateMany(
+      { status: { $in: ['passout', 'struckoff', 'struck_off'] }, isActive: false },
+      { $set: { isActive: true } }
+    );
+
     if (filters.search) {
       query.$or = [
         { applicationNumber: { $regex: filters.search, $options: 'i' } },
@@ -323,13 +329,10 @@ class AdmissionService {
       changedAt: Date.now()
     };
 
-    const isInactiveStatus = ['passout', 'struckoff', 'cancelled', 'expelled', 'rejected', 'school_leaving', 'struck_off'].includes(status);
-    const isActiveStatus = !isInactiveStatus;
-
     await Admission.findByIdAndUpdate(admissionId, {
       $set: { 
         status: status,
-        isActive: isActiveStatus,
+        isActive: true, // Keep admission record active (not soft-deleted)
         reviewedBy: currentUser.id,
         reviewedAt: Date.now(),
         reviewRemarks: remarks
@@ -602,22 +605,25 @@ class AdmissionService {
       totalApplications,
       pendingApplications,
       struckOffApplications,
+      passoutApplications,
       approvedApplications,
       rejectedApplications,
       enrolledApplications
     ] = await Promise.all([
-      Admission.countDocuments(baseQuery),
-      Admission.countDocuments({ ...baseQuery, status: { $regex: /^pending$/i } }),
-      Admission.countDocuments({ ...baseQuery, status: { $regex: /struck.*off/i } }),
-      Admission.countDocuments({ ...baseQuery, status: { $regex: /^approved$/i } }),
-      Admission.countDocuments({ ...baseQuery, status: { $regex: /^rejected$/i } }),
-      Admission.countDocuments({ ...baseQuery, status: { $regex: /^enrolled$/i } })
+      Admission.countDocuments({ ...query, isActive: { $ne: false } }),
+      Admission.countDocuments({ ...query, isActive: { $ne: false }, status: { $regex: /^pending$/i } }),
+      Admission.countDocuments({ ...query, isActive: { $ne: false }, status: { $regex: /struck.*off/i } }),
+      Admission.countDocuments({ ...query, status: { $regex: /^passout$/i } }),
+      Admission.countDocuments({ ...query, isActive: { $ne: false }, status: { $regex: /^approved$/i } }),
+      Admission.countDocuments({ ...query, isActive: { $ne: false }, status: { $regex: /^rejected$/i } }),
+      Admission.countDocuments({ ...query, isActive: { $ne: false }, status: { $regex: /^enrolled$/i } })
     ]);
 
     return {
       totalApplications,
       pendingApplications,
       struckOffApplications,
+      passoutApplications,
       approvedApplications,
       rejectedApplications,
       enrolledApplications

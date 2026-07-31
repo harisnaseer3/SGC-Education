@@ -171,7 +171,7 @@ class StudentPromotionService {
             admission._id,
             {
               status: 'passout',
-              isActive: false,
+              isActive: true, // Keep admission record active (not soft-deleted)
               updatedAt: Date.now()
             },
             { new: true }
