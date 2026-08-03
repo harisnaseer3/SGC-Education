@@ -1264,7 +1264,7 @@ class FeeService {
     while (retries < maxRetries) {
       try {
         const receiptNumber = await generateReceiptNumber({
-          institution: studentFee.institution,
+          institution: studentFee.institution?._id || studentFee.institution,
           year: new Date().getFullYear(),
           type: 'RCP'
         });

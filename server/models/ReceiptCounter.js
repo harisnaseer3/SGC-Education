@@ -11,7 +11,7 @@ const receiptCounterSchema = new mongoose.Schema(
     institution: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Institution',
-      required: true,
+      required: false,
       index: true,
     },
     year: {
@@ -36,8 +36,9 @@ const receiptCounterSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// One counter per institution/year/type
-receiptCounterSchema.index({ institution: 1, year: 1, type: 1 }, { unique: true });
+// Indexes
+receiptCounterSchema.index({ year: 1, type: 1 });
+receiptCounterSchema.index({ institution: 1, year: 1, type: 1 });
 
 module.exports = mongoose.model('ReceiptCounter', receiptCounterSchema);
 
