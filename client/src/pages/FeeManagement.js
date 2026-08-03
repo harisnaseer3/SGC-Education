@@ -1019,70 +1019,42 @@ const FeeManagement = () => {
 
         const arrearsRecordOnVoucher = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
 
-        const calculatedArrears = arrearsRecordOnVoucher 
-          ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
-          : Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
-
-        // Determine voucher status based on payments for this specific voucher
-        // A voucher is "Paid" only if payments were made AFTER the voucher was generated
-        // and the remaining amount is 0 for fees with this voucher
-        let voucherStatus = 'Unpaid';
-        if (feesWithVoucher.length > 0) {
-          // Get the voucher's generated date (use the first one found, they should all be the same)
-          let voucherGeneratedDate = null;
-          for (const sf of studentFees) {
-            if (sf.vouchers && Array.isArray(sf.vouchers)) {
-              const voucher = sf.vouchers.find(v => 
-                v && 
-                Number(v.month) === Number(month) && 
-                Number(v.year) === Number(year)
-              );
-              if (voucher && voucher.generatedAt) {
-                voucherGeneratedDate = new Date(voucher.generatedAt);
-                break;
-              }
-            }
-          }
-
-          // Calculate total voucher amount
-          const totalVoucherAmount = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.finalAmount || 0), 0);
-          
-          // Calculate total paid amount for fees with this voucher
-          const totalPaidForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
-          
-          // Calculate total remaining for fees with this voucher
-          const totalRemainingForVoucher = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.remainingAmount || 0), 0);
-        } else {
-          // If no fees found, default to 'Generated' (voucher exists but no fee data)
-          voucherStatus = 'Generated';
-        }
+        // Dynamic unpaid arrears calculation from previous periods
+        const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
         // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
         const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
           ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
-          : feesWithVoucher.reduce((sum, f) => {
-              if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
-              return sum + parseFloat(f.paidAmount || 0);
-            }, 0);
+          : 0;
+
+        // Effective remaining arrears for this voucher
+        const calculatedArrears = Math.max(0, outstandingPrevArrears - arrearsPaymentsOnVoucher);
 
         // Sum remaining amounts for current non-arrears items
         const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
           if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
-          return sum + parseFloat(f.remainingAmount || 0);
+          return sum + Math.max(0, parseFloat(f.finalAmount || 0) - parseFloat(f.paidAmount || 0));
         }, 0);
 
-        // Determine voucher status using the SAME remaining amount shown to the user
-        // This uses the displayed remaining (excl arrears head + calculated arrears - arrears payments)
+        const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears;
+
+        // Determine voucher status using the displayed remaining amount
+        let voucherStatus = feesWithVoucher.length === 0 ? 'Generated' : 'Unpaid';
         if (voucherStatus !== 'Generated') {
-          const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher;
           if (displayedRemaining <= 0.01) {
             voucherStatus = 'Paid';
-          } else if (feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0) > 0) {
+          } else if (feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0) > 0 || totalPaidPrev > 0 || arrearsPaymentsOnVoucher > 0) {
             voucherStatus = 'Partial';
           } else {
             voucherStatus = 'Unpaid';
           }
         }
+
+        const initialArrearsAmount = arrearsRecordOnVoucher
+          ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
+          : outstandingPrevArrears;
+        const totalVoucherObligation = voucherAmount + initialArrearsAmount;
+        const displayPaidAmount = Math.max(0, totalVoucherObligation - displayedRemaining);
 
         uniqueStudentsMap.set(studentIdStr, {
           _id: admission?._id || studentIdStr,
@@ -1097,7 +1069,8 @@ const FeeManagement = () => {
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount,
           arrears: calculatedArrears,
-          remainingAmount: totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher
+          paidAmount: displayPaidAmount,
+          remainingAmount: displayedRemaining
         });
       });
 
@@ -2004,37 +1977,41 @@ const FeeManagement = () => {
 
                 const arrearsRecordOnVoucher = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
 
-                const calculatedArrears = arrearsRecordOnVoucher 
-                  ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
-                  : Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+                // Dynamic unpaid arrears calculation from previous periods
+                const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+
+                // Any payment made against the Arrears head on THIS voucher
+                const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
+                  ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
+                  : 0;
+
+                // Effective remaining arrears for this voucher
+                const calculatedArrears = Math.max(0, outstandingPrevArrears - arrearsPaymentsOnVoucher);
 
                 // For the "Remaining Amount" of the VOUCHER specifically, we sum its constituent fees
-                // But we exclude the Arrears head from totalRemainingForVoucher if we are adding calculatedArrears separately
                 const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
                   if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
                   return sum + Math.max(0, parseFloat(f.finalAmount || 0) - parseFloat(f.paidAmount || 0));
                 }, 0);
 
-                // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
-                const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
-                  ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
-                  : feesWithVoucher.reduce((sum, f) => {
-                      if (f.feeHead?.name?.toLowerCase() !== 'arrears') return sum;
-                      return sum + parseFloat(f.paidAmount || 0);
-                    }, 0);
+                const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears;
 
-                // Determine voucher status using the SAME remaining amount shown to the user
-                // This uses the displayed remaining (excl arrears head + calculated arrears - arrears payments)
-                const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher;
+                // Determine voucher status using the displayed remaining amount
                 if (feesWithVoucher.length > 0) {
                   if (displayedRemaining <= 0.01) {
                     voucherStatus = 'Paid';
-                  } else if (totalPaidForVoucher > 0) {
+                  } else if (totalPaidForVoucher > 0 || totalPaidPrev > 0 || arrearsPaymentsOnVoucher > 0) {
                     voucherStatus = 'Partial';
                   } else {
                     voucherStatus = 'Unpaid';
                   }
                 }
+
+                const initialArrearsAmount = arrearsRecordOnVoucher
+                  ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
+                  : outstandingPrevArrears;
+                const totalVoucherObligation = voucherAmount + initialArrearsAmount;
+                const displayPaidAmount = Math.max(0, totalVoucherObligation - displayedRemaining);
                 
                 studentsWithVouchers.push({
                   ...student,
@@ -2042,8 +2019,8 @@ const FeeManagement = () => {
                   voucherAmount: voucherAmount,
                   voucherMonth: voucherMonth,
                   voucherStatus: voucherStatus,
-                  paidAmount: totalPaidForVoucher,
-                  remainingAmount: totalRemainingForVoucherExclArrears + calculatedArrears - arrearsPaymentsOnVoucher,
+                  paidAmount: displayPaidAmount,
+                  remainingAmount: displayedRemaining,
                   arrears: calculatedArrears,
                   originalAdmissionId: student._id, // Store original admission ID
                   _id: `${student._id}-${voucherInfo.voucherNumber}-${voucherInfo.month}-${voucherInfo.year}` // Unique key for each voucher row
