@@ -522,7 +522,15 @@ const FeeManagement = () => {
         params.institution = institutionId;
       }
       const response = await axios.get(`${API_URL}/bank-accounts`, createAxiosConfig({ params }));
-      setBankAccounts(response.data.data || []);
+      const accounts = response.data.data || [];
+      setBankAccounts(accounts);
+      if (accounts.length > 0) {
+        setManualDepositForm(prev => ({
+          ...prev,
+          bankAccount: prev.bankAccount || accounts[0]._id,
+          bankName: prev.bankName || accounts[0].bankName || ''
+        }));
+      }
     } catch (err) {
       console.error('Error fetching bank accounts:', err);
     }
@@ -531,6 +539,16 @@ const FeeManagement = () => {
   useEffect(() => {
     fetchBankAccounts();
   }, []);
+
+  useEffect(() => {
+    if (bankAccounts.length > 0 && !manualDepositForm.bankAccount) {
+      setManualDepositForm(prev => ({
+        ...prev,
+        bankAccount: bankAccounts[0]._id,
+        bankName: bankAccounts[0].bankName || ''
+      }));
+    }
+  }, [bankAccounts, manualDepositForm.bankAccount]);
 
   // Fetch institutions
   useEffect(() => {
@@ -2326,14 +2344,15 @@ const FeeManagement = () => {
       notifySuccess(`Successfully recorded payment(s) totaling Rs. ${totalPayment.toLocaleString()}`);
       
       // Reset form
+      const defaultBank = bankAccounts.length > 0 ? bankAccounts[0] : null;
       setManualDepositForm({
         paymentMethod: 'bank',
-        bankAccount: '',
+        bankAccount: defaultBank ? defaultBank._id : '',
+        bankName: defaultBank ? (defaultBank.bankName || '') : '',
         paymentDate: new Date().toISOString().split('T')[0],
         feeAmount: '',
         remarks: '',
         chequeNumber: '',
-        bankName: '',
         transactionId: ''
       });
       
