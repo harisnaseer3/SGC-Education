@@ -1259,7 +1259,7 @@ class FeeService {
     // Retry logic for duplicate receipt numbers (handles race conditions)
     let feePayment;
     let retries = 0;
-    const maxRetries = 5;
+    const maxRetries = 10;
     
     while (retries < maxRetries) {
       try {
@@ -1272,8 +1272,8 @@ class FeeService {
         // Create FeePayment record with receiptNumber explicitly set
         // This prevents the pre-save hook from generating another one
         feePayment = await FeePayment.create({
-          institution: studentFee.institution,
-          student: studentFee.student,
+          institution: studentFee.institution?._id || studentFee.institution,
+          student: studentFee.student?._id || studentFee.student,
           studentFee: studentFeeId,
           receiptNumber: receiptNumber,
           voucherNumber: finalVoucherNumber,
@@ -1291,13 +1291,14 @@ class FeeService {
         // Success - break out of retry loop
         break;
       } catch (error) {
-        // Check if it's a duplicate key error for receiptNumber
-        if (error.code === 11000 && error.keyPattern && error.keyPattern.receiptNumber) {
+        // Check if it's a duplicate key error (11000)
+        if (error.code === 11000) {
+          console.warn(`[recordPayment] Duplicate key error (attempt ${retries + 1}/${maxRetries}): ${error.message}`);
           retries++;
           if (retries >= maxRetries) {
-            throw new ApiError(500, 'Failed to generate unique receipt number after multiple attempts. Please try again.');
+            throw new ApiError(500, `Failed to generate unique receipt number after ${maxRetries} attempts: ${error.message}`);
           }
-          // Wait a bit before retrying (exponential backoff)
+          // Short delay before retrying
           await new Promise(resolve => setTimeout(resolve, 50 * retries));
           continue;
         }

@@ -3,7 +3,7 @@ const FeePayment = require('../models/FeePayment');
 
 /**
  * Generate a unique receipt number atomically using ReceiptCounter
- * This prevents race conditions and ensures global uniqueness across institutions.
+ * This prevents race conditions and guarantees global uniqueness across institutions.
  * 
  * @param {Object} options - Options for receipt generation
  * @param {Object} [options.institution] - Institution ObjectId (optional)
@@ -15,54 +15,8 @@ async function generateReceiptNumber({ institution, year, type = 'RCP' } = {}) {
   const currentYear = year || new Date().getFullYear();
   const receiptType = type.toUpperCase();
 
-  // Find existing global counter for this year/type
-  let counter = await ReceiptCounter.findOne({
-    year: currentYear,
-    type: receiptType
-  });
-
-  if (!counter) {
-    // Sync counter with the maximum receipt sequence in existing FeePayment records
-    const pattern = new RegExp(`^${receiptType}-${currentYear}-(\\d+)`, 'i');
-    const latestPayment = await FeePayment.findOne({
-      receiptNumber: pattern
-    }).sort({ receiptNumber: -1 }).select('receiptNumber').lean();
-
-    let maxSeq = 0;
-    if (latestPayment && latestPayment.receiptNumber) {
-      const match = latestPayment.receiptNumber.match(pattern);
-      if (match && match[1]) {
-        maxSeq = parseInt(match[1], 10) || 0;
-      }
-    }
-
-    try {
-      counter = await ReceiptCounter.findOneAndUpdate(
-        {
-          year: currentYear,
-          type: receiptType
-        },
-        {
-          $setOnInsert: {
-            year: currentYear,
-            type: receiptType,
-            seq: maxSeq
-          }
-        },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true
-        }
-      );
-    } catch (e) {
-      // Fallback if created concurrently
-      counter = await ReceiptCounter.findOne({ year: currentYear, type: receiptType });
-    }
-  }
-
-  // Atomically increment seq for thread safety
-  const updatedCounter = await ReceiptCounter.findOneAndUpdate(
+  // Atomically increment global sequence counter
+  const counter = await ReceiptCounter.findOneAndUpdate(
     {
       year: currentYear,
       type: receiptType
@@ -72,14 +26,48 @@ async function generateReceiptNumber({ institution, year, type = 'RCP' } = {}) {
     },
     {
       new: true,
-      upsert: true
+      upsert: true,
+      setDefaultsOnInsert: true
     }
   );
 
-  const seq = updatedCounter && updatedCounter.seq !== undefined ? updatedCounter.seq : 1;
+  let seq = counter && counter.seq !== undefined ? counter.seq : 1;
+  let receiptNumber = `${receiptType}-${currentYear}-${String(seq).padStart(6, '0')}`;
 
-  // Generate receipt number: RCP-YYYY-XXXXXX
-  const receiptNumber = `${receiptType}-${currentYear}-${String(seq).padStart(6, '0')}`;
+  // Check if this receipt number already exists in FeePayment collection
+  const exists = await FeePayment.exists({ receiptNumber });
+
+  if (exists) {
+    // Perform numeric max search across all FeePayments for this year
+    const pattern = new RegExp(`^${receiptType}-${currentYear}-`, 'i');
+    const allPayments = await FeePayment.find(
+      { receiptNumber: pattern },
+      { receiptNumber: 1 }
+    ).lean();
+
+    let maxSeq = seq;
+    for (const p of allPayments) {
+      if (p.receiptNumber) {
+        const parts = p.receiptNumber.split('-');
+        const lastPart = parts[parts.length - 1];
+        const num = parseInt(lastPart, 10);
+        if (!isNaN(num) && num > maxSeq) {
+          maxSeq = num;
+        }
+      }
+    }
+
+    const nextSeq = maxSeq + 1;
+
+    // Update ReceiptCounter to nextSeq so future calls start from here
+    await ReceiptCounter.findOneAndUpdate(
+      { year: currentYear, type: receiptType },
+      { $set: { seq: nextSeq } },
+      { upsert: true }
+    );
+
+    receiptNumber = `${receiptType}-${currentYear}-${String(nextSeq).padStart(6, '0')}`;
+  }
 
   return receiptNumber;
 }
