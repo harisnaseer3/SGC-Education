@@ -415,6 +415,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   //   PAID    = totalPaid > 0  (any payment has been made on this voucher)
   //   OVERDUE = totalPaid = 0 AND the due date has already passed
   //   PENDING = totalPaid = 0 AND the due date has NOT yet passed
+  // Helper: count unique vouchers grouped by (student, month, year).
+  // One voucher = one student fee bill for one month.
   const _now = new Date();
   const buildUniqueVoucherPipeline = (matchQuery, extraMonthFilter, groupByMonth = false) => {
     const stages = [
@@ -439,6 +441,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         $group: {
           _id: { student: '$student', month: '$vouchers.month', year: '$vouchers.year' },
           totalPaid:      { $sum: '$paidAmount' },
+          // Regular fees (excluding Arrears head to prevent double counting summary records)
+          regularBilled:  { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, 0, '$finalAmount' ] } },
           totalFinal:     { $sum: '$finalAmount' },
           totalRemaining: { $sum: '$remainingAmount' },
           totalArrears:   { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, '$finalAmount', 0 ] } },
@@ -449,11 +453,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       },
       {
         $addFields: {
+          displayedBilled: { $add: ['$regularBilled', '$totalArrears'] },
           voucherStatus: {
             $switch: {
               branches: [
-                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $lte: ['$totalRemaining', 0] }] }, then: 'paid' },
-                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $gt: ['$totalRemaining', 0] }] }, then: 'partial' }
+                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $lte: ['$totalRemaining', 0.01] }] }, then: 'paid' },
+                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $gt: ['$totalRemaining', 0.01] }] }, then: 'partial' }
               ],
               default: 'unpaid'
             }
@@ -467,7 +472,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           paid:    { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] },    1, 0] } },
           unpaid:  { $sum: { $cond: [{ $eq: ['$voucherStatus', 'unpaid'] },  1, 0] } },
           partial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, 1, 0] } },
-          totalBilled: { $sum: '$totalFinal' },
+          totalBilled: { $sum: '$displayedBilled' },
           totalCollected: { $sum: '$totalPaid' },
           totalOutstanding: { $sum: '$totalRemaining' },
           totalArrears: { $sum: '$totalArrears' },
