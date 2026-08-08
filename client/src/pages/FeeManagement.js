@@ -1206,16 +1206,8 @@ const FeeManagement = () => {
           }
           
           // Determine which date to use for comparison
-          // Priority: admissionEffectiveDate > admissionDate > createdAt
-          let studentAdmissionDate = null;
-          
-          if (admission.admissionEffectiveDate) {
-            studentAdmissionDate = new Date(admission.admissionEffectiveDate);
-          } else if (admission.admissionDate) {
-            studentAdmissionDate = new Date(admission.admissionDate);
-          } else if (admission.createdAt) {
-            studentAdmissionDate = new Date(admission.createdAt);
-          }
+          const dateVal = admission.admissionDate || admission.createdAt;
+          const studentAdmissionDate = dateVal ? new Date(dateVal) : null;
           
           // If admission exists but no valid date found, include with warning
           if (!studentAdmissionDate || isNaN(studentAdmissionDate.getTime())) {
@@ -7555,9 +7547,7 @@ const FeeManagement = () => {
                     <Typography variant="body2">
                       <strong>Admission Date:</strong> {(() => {
                         const dateVal = selectedStudentForAssignment.admissionDate || 
-                                        selectedStudentForAssignment.admissionEffectiveDate || 
                                         selectedStudentForAssignment.createdAt ||
-                                        selectedStudentForAssignment.admission?.admissionEffectiveDate ||
                                         selectedStudentForAssignment.admission?.admissionDate ||
                                         selectedStudentForAssignment.admission?.createdAt;
                         if (!dateVal) return 'N/A';

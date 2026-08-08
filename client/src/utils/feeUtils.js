@@ -178,9 +178,6 @@ export const transformStudentData = (data, options = {}) => {
     admissionDate: admission?.admissionDate 
       ? new Date(admission.admissionDate).toLocaleDateString() 
       : (admission?.createdAt ? new Date(admission.createdAt).toLocaleDateString() : 'N/A'),
-    admissionEffectiveDate: admission?.effectiveDate 
-      ? new Date(admission.effectiveDate).toLocaleDateString() 
-      : (admission?.createdAt ? new Date(admission.createdAt).toLocaleDateString() : 'N/A'),
     mobileNumber: admission?.contactInfo?.phone || 
                   admission?.contactInfo?.mobileNumber || 
                   admission?.personalInfo?.phone || 

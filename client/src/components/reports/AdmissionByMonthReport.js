@@ -205,7 +205,7 @@ const AdmissionByMonthReport = () => {
       'Category Name': row.categoryName || '',
       'Family Number': row.familyNumber || '',
       'Admission Date': row.admissionDate || '',
-      'Admission Effective Date': row.admissionEffectiveDate || '',
+      'Admission Date': row.admissionDate || '',
       'Gender': row.gender || '',
       'Religion': row.religion || '',
       'Guardian': row.guardian || '',

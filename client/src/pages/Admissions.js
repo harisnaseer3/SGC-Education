@@ -243,7 +243,7 @@ const Admissions = () => {
 
       // Filter by last 30 days of admission
       if (filterNewAdmissions) {
-        const dateStr = admission.admissionDate || admission.admissionEffectiveDate || admission.createdAt;
+        const dateStr = admission.admissionDate || admission.createdAt;
         const admissionDate = dateStr ? new Date(dateStr) : null;
         if (!admissionDate || isNaN(admissionDate.getTime())) return false;
 
@@ -326,8 +326,10 @@ const Admissions = () => {
 
       switch (registerSortConfig.key) {
         case 'admissionDate':
-          aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-          bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          const rawDateA = a.admissionDate || a.createdAt;
+          const rawDateB = b.admissionDate || b.createdAt;
+          aVal = rawDateA ? new Date(rawDateA).getTime() : 0;
+          bVal = rawDateB ? new Date(rawDateB).getTime() : 0;
           break;
         case 'appNumber':
           aVal = parseInt(a.applicationNumber || a.admissionNo || a.admissionNumber || 0, 10);
@@ -2677,13 +2679,22 @@ const Admissions = () => {
                               year: 'numeric'
                             })
                           : 'N/A';
-                        const admissionDate = admission.createdAt 
-                          ? new Date(admission.createdAt).toLocaleDateString('en-GB')
+                        const dateOfAdmissionRaw = admission.admissionDate || admission.createdAt;
+                        const admissionDate = dateOfAdmissionRaw 
+                          ? new Date(dateOfAdmissionRaw).toLocaleDateString('en-GB')
                           : 'N/A';
                         const className = admission.class?.name || admission.className || admission.program || 'N/A';
                         const appNumber = admission.applicationNumber || admission.admissionNo || admission.admissionNumber || 'N/A';
                         const rollNumber = admission.studentId?.rollNumber || admission.rollNumber || 'N/A';
-                        const phone = admission.contactInfo?.phone || admission.phone || admission.mobileNumber || 'N/A';
+                        const phone = admission.contactInfo?.phone || 
+                                      admission.contactDetails?.phone || 
+                                      admission.contactInfo?.alternatePhone || 
+                                      admission.guardianInfo?.father?.mobileNumber || 
+                                      admission.guardianInfo?.mother?.mobileNumber || 
+                                      admission.guardianInfo?.mobileNumber || 
+                                      admission.phone || 
+                                      admission.mobileNumber || 
+                                      'N/A';
                         
                         return (
                           <TableRow 

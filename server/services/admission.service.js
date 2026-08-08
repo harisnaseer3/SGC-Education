@@ -229,28 +229,37 @@ class AdmissionService {
     // Update admission
     // If enrolled, handle syncing with student and user records
     if (admission.status === 'enrolled') {
-      // Sync with Student record
-      const student = await Student.findOne({ admission: admissionId });
+      // Sync with Student record (In unified model, Student _id is admissionId, or linked via admission field)
+      const student = await Student.findOne({ $or: [{ _id: admissionId }, { admission: admissionId }] });
       if (student) {
         // Map updates to student fields
         if (updateData.rollNumber) student.rollNumber = updateData.rollNumber;
-        if (updateData.admissionDate) student.admissionDate = updateData.admissionDate;
+        if (updateData.admissionDate) {
+          student.admissionDate = updateData.admissionDate;
+        }
         if (updateData.personalInfo) {
           student.personalDetails = {
             ...student.personalDetails,
-            bloodGroup: updateData.personalInfo.bloodGroup || student.personalDetails.bloodGroup,
-            nationality: updateData.personalInfo.nationality || student.personalDetails.nationality,
-            religion: updateData.personalInfo.religion || student.personalDetails.religion,
-            category: updateData.personalInfo.category || student.personalDetails.category
+            name: updateData.personalInfo.name || student.personalDetails?.name,
+            firstName: updateData.personalInfo.firstName || student.personalDetails?.firstName,
+            lastName: updateData.personalInfo.lastName || student.personalDetails?.lastName,
+            bloodGroup: updateData.personalInfo.bloodGroup || student.personalDetails?.bloodGroup,
+            nationality: updateData.personalInfo.nationality || student.personalDetails?.nationality,
+            religion: updateData.personalInfo.religion || student.personalDetails?.religion,
+            category: updateData.personalInfo.category || student.personalDetails?.category
           };
         }
-        if (updateData.contactInfo) {
+        if (updateData.contactInfo || updateData.contactDetails) {
+          const contact = updateData.contactInfo || updateData.contactDetails;
           student.contactDetails = {
             ...student.contactDetails,
-            alternatePhone: updateData.contactInfo.alternatePhone || student.contactDetails.alternatePhone,
-            currentAddress: updateData.contactInfo.currentAddress || student.contactDetails.currentAddress,
-            permanentAddress: updateData.contactInfo.permanentAddress || student.contactDetails.permanentAddress
+            phone: contact.phone || student.contactDetails?.phone,
+            email: contact.email || student.contactDetails?.email,
+            alternatePhone: contact.alternatePhone || student.contactDetails?.alternatePhone,
+            currentAddress: contact.currentAddress || student.contactDetails?.currentAddress,
+            permanentAddress: contact.permanentAddress || student.contactDetails?.permanentAddress
           };
+          student.contactInfo = student.contactDetails;
         }
         if (updateData.guardianInfo) {
           student.guardianInfo = {
@@ -262,8 +271,8 @@ class AdmissionService {
         if (updateData.program) student.program = updateData.program;
         
         // Ensure student status is synced if they were previously struck off
-        if (student.status !== 'active') {
-          student.status = 'active';
+        if (student.status !== 'enrolled' && student.status !== 'passout') {
+          student.status = 'enrolled';
           student.isActive = true;
         }
         
@@ -1604,9 +1613,6 @@ class AdmissionService {
         admissionDate: admission.createdAt 
           ? new Date(admission.createdAt).toLocaleDateString('en-GB')
           : '',
-        admissionEffectiveDate: admission.submittedAt 
-          ? new Date(admission.submittedAt).toLocaleDateString('en-GB')
-          : admission.createdAt ? new Date(admission.createdAt).toLocaleDateString('en-GB') : '',
         gender: admission.personalInfo?.gender || 'N/A',
         religion: admission.personalInfo?.religion || '',
         guardian: guardianName || 'N/A',
@@ -2075,14 +2081,13 @@ class AdmissionService {
         // Save
         const newAdmission = new Admission(admissionData);
         
-        // Set Admission Date and Effective Date from 'Admission Effective Date' column
-        const effectiveDateInput = row['Admission Effective Date'] || row['Admission Date'];
+        // Set Admission Date from 'Admission Date' or 'Admission Effective Date' column
+        const effectiveDateInput = row['Admission Date'] || row['Admission Effective Date'];
         if (effectiveDateInput) {
           const effectiveDate = new Date(effectiveDateInput);
           // Check if date is valid
           if (!isNaN(effectiveDate.getTime())) {
             newAdmission.admissionDate = effectiveDate;
-            newAdmission.admissionEffectiveDate = effectiveDate;
             // Also update legacy timestamp fields to match historical date
             newAdmission.createdAt = effectiveDate;
             newAdmission.submittedAt = effectiveDate; // Map to submittedAt

@@ -207,7 +207,6 @@ const createInitialFormData = (userCtx) => ({
   rollNumber: '',
   religion: 'Islam',
   gender: 'Male',
-  admEffectNo: new Date().toISOString().split('T')[0],
   markAsEnrolled: false,
   orphan: 'NO',
   studentPicture: null,
@@ -554,11 +553,9 @@ const AdmissionForm = () => {
         studentName: admission.personalInfo?.name || '',
         fatherName: guardianInfo?.fatherName || '',
         dateOfBirth: admission.personalInfo?.dateOfBirth ? new Date(admission.personalInfo.dateOfBirth).toISOString().split('T')[0] : '',
-        // Roll number comes from Student model if enrolled, otherwise Admission fallback
         rollNumber: student?.rollNumber || admission.rollNumber || prev.rollNumber || '',
         religion: admission.personalInfo?.religion || 'Islam',
         gender: admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'Male',
-        admEffectNo: admission.admissionEffectiveDate ? new Date(admission.admissionEffectiveDate).toISOString().split('T')[0] : (admission.admissionDate ? new Date(admission.admissionDate).toISOString().split('T')[0] : prev.admEffectNo),
         institution: admission.institution?._id || admission.institution || prev.institution,
         academicYear: admission.academicYear || student?.academicYear || prev.academicYear,
         program: admission.program || student?.program || prev.program,
@@ -785,7 +782,6 @@ const AdmissionForm = () => {
         setLoading(false);
         return;
       }
-
       const admissionData = {
         institution: institutionId,
         academicYear: formData.academicYear,
@@ -793,8 +789,7 @@ const AdmissionForm = () => {
         class: formData.class || undefined,
         section: formData.section || undefined,
         rollNumber: formData.rollNumber || undefined,
-        admissionDate: formData.admissionDate,
-        admissionEffectiveDate: formData.admEffectNo || formData.admissionDate,
+        admissionDate: formData.admEffectNo || formData.admissionDate,
         status: isEditMode ? formData.status : undefined, // Include status only in edit mode
         personalInfo: {
           name,
@@ -1206,20 +1201,7 @@ const AdmissionForm = () => {
                   </FormControl>
                 </Box>
 
-                {/* Row 4 */}
-                <Box sx={gridColSx}>
-                  <TextField
-                    fullWidth
-                    required
-                    label="ADM EFFCT NO*"
-                    type="date"
-                    value={formData.admEffectNo}
-                    onChange={(e) => handleChange('admEffectNo', e.target.value)}
-                    InputLabelProps={{ shrink: true }}
-                    sx={fieldSx}
-                  />
-                </Box>
-                
+
                 <Box sx={gridColSx}>
                   <Box sx={checkboxBoxSx}>
                     <FormControlLabel

@@ -285,7 +285,7 @@ class FeeService {
         section: sectionDoc.name || (typeof student.section === 'string' ? student.section : student.sectionName || ''),
         academicYear: student.academicYear,
         hasAssignedFee: hasAssignedFee,
-        admissionDate: student.admissionEffectiveDate || student.admissionDate || student.createdAt || null
+        admissionDate: student.admissionDate || student.createdAt || null
       };
     });
 
@@ -702,7 +702,7 @@ class FeeService {
     const studentFees = await StudentFee.find(query)
       .populate({
         path: 'student',
-        select: 'enrollmentNumber rollNumber status academicYear applicationNumber admissionNo admissionNumber name firstName lastName personalDetails guardianInfo class className section sectionName admissionEffectiveDate admissionDate createdAt statusHistory',
+        select: 'enrollmentNumber rollNumber status academicYear applicationNumber admissionNo admissionNumber name firstName lastName personalDetails guardianInfo class className section sectionName admissionDate createdAt statusHistory',
         populate: [
           { path: 'class', select: 'name code' },
           { path: 'section', select: 'name code' }

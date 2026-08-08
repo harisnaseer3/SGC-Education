@@ -52,9 +52,6 @@ const studentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now
   },
-  admissionEffectiveDate: {
-    type: Date
-  },
 
   // Personal Details
   personalDetails: {
@@ -388,8 +385,8 @@ studentSchema.pre('save', async function() {
     this.applicationNumber = String(counter.seq);
   }
 
-  // Generate unique enrollment number if status is enrolled and missing
-  if (this.status === 'enrolled' && !this.enrollmentNumber) {
+  // Generate unique enrollment number if status is enrolled and missing (only for NEW documents)
+  if (this.isNew && this.status === 'enrolled' && !this.enrollmentNumber) {
     let counter = await SequenceCounter.findOne({ institution: this.institution, type: 'enrollment' });
     if (!counter) {
       const students = await mongoose.model('Student').find(
@@ -415,8 +412,8 @@ studentSchema.pre('save', async function() {
     this.enrollmentNumber = String(counter.seq);
   }
   
-  // Generate roll number if missing and enrolled
-  if (this.status === 'enrolled' && !this.rollNumber) {
+  // Generate roll number if missing and enrolled (only for NEW documents)
+  if (this.isNew && this.status === 'enrolled' && !this.rollNumber) {
     const latestStudent = await mongoose.model('Student').findOne({ institution: this.institution })
       .sort({ rollNumber: -1 })
       .select('rollNumber');
@@ -465,7 +462,7 @@ studentSchema.virtual('admission').get(function() {
     contactInfo: this.contactInfo,
     status: this.status,
     applicationNumber: this.applicationNumber,
-    admissionEffectiveDate: this.admissionEffectiveDate,
+    admissionEffectiveDate: this.admissionDate,
     admissionDate: this.admissionDate,
     statusHistory: this.statusHistory,
     class: this.class,
