@@ -678,14 +678,6 @@ class FeeService {
       throw new ApiError(400, 'Institution is required');
     }
 
-    // Get active enrolled students to prevent orphaned or passout records from showing up
-    const activeStudents = await Student.find({ 
-      institution: institutionId, 
-      isActive: { $ne: false },
-      status: { $in: ['enrolled', 'active'] }
-    }).select('_id');
-    const activeStudentIds = activeStudents.map(s => s._id);
-
     // Build query: Include active records AND records with vouchers (history)
     const query = {
       institution: institutionId,
@@ -695,15 +687,9 @@ class FeeService {
       ]
     };
 
-    // Optional student filter OR default to all active students
+    // Optional student filter
     if (student) {
-      if (activeStudentIds.some(id => id.toString() === student.toString())) {
-        query.student = student;
-      } else {
-        return []; // Requested student is not active
-      }
-    } else {
-      query.student = { $in: activeStudentIds };
+      query.student = student;
     }
 
     // Optional academic year filter
