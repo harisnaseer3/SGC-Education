@@ -7551,6 +7551,21 @@ const FeeManagement = () => {
                   <Grid item xs={6}>
                     <Typography variant="body2"><strong>Class:</strong> {capitalizeFirstOnly(selectedStudentForAssignment.class)}</Typography>
                   </Grid>
+                  <Grid item xs={6}>
+                    <Typography variant="body2">
+                      <strong>Admission Date:</strong> {(() => {
+                        const dateVal = selectedStudentForAssignment.admissionDate || 
+                                        selectedStudentForAssignment.admissionEffectiveDate || 
+                                        selectedStudentForAssignment.createdAt ||
+                                        selectedStudentForAssignment.admission?.admissionEffectiveDate ||
+                                        selectedStudentForAssignment.admission?.admissionDate ||
+                                        selectedStudentForAssignment.admission?.createdAt;
+                        if (!dateVal) return 'N/A';
+                        const d = new Date(dateVal);
+                        return isNaN(d.getTime()) ? 'N/A' : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                      })()}
+                    </Typography>
+                  </Grid>
                 </Grid>
               </Box>
             )}

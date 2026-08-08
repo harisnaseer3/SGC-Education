@@ -284,7 +284,8 @@ class FeeService {
         class: classDoc.name || (typeof student.class === 'string' ? student.class : student.className || ''),
         section: sectionDoc.name || (typeof student.section === 'string' ? student.section : student.sectionName || ''),
         academicYear: student.academicYear,
-        hasAssignedFee: hasAssignedFee
+        hasAssignedFee: hasAssignedFee,
+        admissionDate: student.admissionEffectiveDate || student.admissionDate || student.createdAt || null
       };
     });
 
