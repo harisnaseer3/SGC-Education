@@ -1988,11 +1988,11 @@ const FeeManagement = () => {
 
                 const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears;
 
-                // Determine voucher status using the displayed remaining amount
+                // Determine voucher status using the displayed remaining amount and current voucher payments
                 if (feesWithVoucher.length > 0) {
                   if (displayedRemaining <= 0.01) {
                     voucherStatus = 'Paid';
-                  } else if (totalPaidForVoucher > 0 || totalPaidPrev > 0 || arrearsPaymentsOnVoucher > 0) {
+                  } else if (totalPaidForVoucher > 0 || arrearsPaymentsOnVoucher > 0) {
                     voucherStatus = 'Partial';
                   } else {
                     voucherStatus = 'Unpaid';
@@ -2003,7 +2003,7 @@ const FeeManagement = () => {
                   ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
                   : outstandingPrevArrears;
                 const totalVoucherObligation = voucherAmount + initialArrearsAmount;
-                const displayPaidAmount = Math.max(0, totalVoucherObligation - displayedRemaining);
+                const displayPaidAmount = totalPaidForVoucher;
                 
                 studentsWithVouchers.push({
                   ...student,
