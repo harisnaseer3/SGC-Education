@@ -59,6 +59,140 @@ import axios from 'axios';
 import { getApiUrl } from '../config/api';
 import { capitalizeFirstOnly } from '../utils/textUtils';
 
+const formGridSx = {
+  display: 'grid',
+  gridTemplateColumns: {
+    xs: '1fr',
+    sm: 'repeat(2, 1fr)',
+    md: 'repeat(4, 1fr)',
+  },
+  gap: 2,
+  width: '100%',
+  boxSizing: 'border-box',
+};
+
+const gridColSx = {
+  width: '100%',
+  minWidth: 0,
+  boxSizing: 'border-box',
+};
+
+const fullWidthColSx = {
+  gridColumn: {
+    xs: 'span 1',
+    sm: 'span 2',
+    md: 'span 4',
+  },
+  width: '100%',
+  minWidth: 0,
+  boxSizing: 'border-box',
+};
+
+const fieldSx = {
+  width: '100%',
+  minWidth: '100%',
+  display: 'flex',
+  flexDirection: 'column',
+  boxSizing: 'border-box',
+  '& .MuiOutlinedInput-root': {
+    width: '100%',
+    minWidth: '100%',
+    bgcolor: '#f8fafc',
+    borderRadius: '8px',
+    height: '50px',
+    fontSize: '0.9rem',
+    fontWeight: 500,
+    color: '#1e293b',
+    boxSizing: 'border-box',
+    '& fieldset': {
+      borderColor: '#cbd5e1',
+    },
+    '&:hover fieldset': {
+      borderColor: '#6366f1',
+    },
+    '&.Mui-focused fieldset': {
+      borderColor: '#6366f1',
+      borderWidth: '2px',
+    },
+  },
+  '& .MuiInputLabel-root': {
+    fontSize: '0.85rem',
+    fontWeight: 600,
+    color: '#475569',
+    '&.Mui-focused': {
+      color: '#6366f1',
+    },
+  },
+};
+
+const selectSx = {
+  width: '100%',
+  minWidth: '100%',
+  display: 'flex',
+  bgcolor: '#f8fafc',
+  borderRadius: '8px',
+  height: '50px',
+  fontSize: '0.9rem',
+  fontWeight: 500,
+  color: '#1e293b',
+  boxSizing: 'border-box',
+  '& .MuiSelect-select': {
+    display: 'flex',
+    alignItems: 'center',
+    py: '12px',
+    width: '100%',
+    minWidth: '100%',
+    boxSizing: 'border-box',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  '& .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#cbd5e1',
+  },
+  '&:hover .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#6366f1',
+  },
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+    borderColor: '#6366f1',
+    borderWidth: '2px',
+  },
+};
+
+const checkboxBoxSx = {
+  width: '100%',
+  height: '50px',
+  display: 'flex',
+  alignItems: 'center',
+  px: 2,
+  borderRadius: '8px',
+  border: '1px solid #cbd5e1',
+  bgcolor: '#f8fafc',
+  boxSizing: 'border-box',
+  transition: 'all 0.2s ease-in-out',
+  '&:hover': {
+    borderColor: '#6366f1',
+  },
+};
+
+const uploadButtonSx = {
+  width: '100%',
+  height: '50px',
+  borderRadius: '8px',
+  borderColor: '#cbd5e1',
+  color: '#475569',
+  bgcolor: '#f8fafc',
+  textTransform: 'none',
+  fontWeight: 600,
+  fontSize: '0.875rem',
+  boxShadow: 'none',
+  boxSizing: 'border-box',
+  '&:hover': {
+    borderColor: '#6366f1',
+    bgcolor: 'rgba(99, 102, 241, 0.05)',
+  },
+};
+
 const user = JSON.parse(localStorage.getItem('user') || '{}');
 
 const createInitialFormData = (userCtx) => ({
@@ -804,25 +938,27 @@ const AdmissionForm = () => {
             }
           }}
         >
-          <Box sx={{ p: 4, position: 'relative', zIndex: 1 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
-              <Box display="flex" alignItems="center" gap={2}>
+          <Box sx={{ p: { xs: 2.5, sm: 3, md: 4 }, position: 'relative', zIndex: 1 }}>
+            <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2}>
+              <Box display="flex" alignItems="center" gap={2} sx={{ width: { xs: '100%', sm: 'auto' } }}>
                 <Button 
                   startIcon={<ArrowBack />} 
                   onClick={handleBack} 
                   sx={{ 
                     bgcolor: 'rgba(255, 255, 255, 0.2)',
                     color: 'white',
+                    minWidth: 'auto',
+                    px: 2,
                     '&:hover': { bgcolor: 'rgba(255, 255, 255, 0.3)' }
                   }}
                 >
                   Back
                 </Button>
                 <Box>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white', mb: 0.5 }}>
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white', mb: 0.5, fontSize: { xs: '1.35rem', sm: '1.75rem', md: '2.125rem' } }}>
                     {isEditMode ? 'Edit Admission' : 'New Student Admission'}
                   </Typography>
-                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)' }}>
+                  <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.9)', fontSize: { xs: '0.8rem', sm: '0.875rem' } }}>
                     {isEditMode ? 'Update student admission information' : 'Fill in the details to create a new admission'}
                   </Typography>
                 </Box>
@@ -830,6 +966,7 @@ const AdmissionForm = () => {
               <Button
                 variant="contained"
                 sx={{ 
+                  width: { xs: '100%', sm: 'auto' },
                   bgcolor: 'rgba(255, 255, 255, 0.2)',
                   color: 'white',
                   backdropFilter: 'blur(10px)',
@@ -847,7 +984,7 @@ const AdmissionForm = () => {
         <Paper 
           elevation={0}
           sx={{ 
-            p: 4,
+            p: { xs: 2, sm: 3, md: 4 },
             borderRadius: 3,
             boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
           }}
@@ -870,7 +1007,7 @@ const AdmissionForm = () => {
             <Box 
               sx={{ 
                 mb: 4,
-                p: 3,
+                p: { xs: 2, sm: 2.5, md: 3 },
                 borderRadius: 2,
                 bgcolor: '#f8f9fa',
                 border: '1px solid #e9ecef',
@@ -900,23 +1037,17 @@ const AdmissionForm = () => {
                 </Box>
               </Box>
               
-              <Grid container spacing={2}>
+              <Box sx={formGridSx}>
                 {/* Row 1 */}
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth required>
+                <Box sx={gridColSx}>
+                  <FormControl fullWidth required sx={fieldSx}>
                     <InputLabel>CLASS*</InputLabel>
                     <Select
+                      fullWidth
                       value={formData.class}
                       onChange={(e) => handleChange('class', e.target.value)}
                       label="CLASS*"
-                      sx={{
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      }}
+                      sx={selectSx}
                     >
                       <MenuItem value="">Select Class</MenuItem>
                       {classes.map((cls) => (
@@ -926,24 +1057,18 @@ const AdmissionForm = () => {
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth required>
+                <Box sx={gridColSx}>
+                  <FormControl fullWidth required sx={fieldSx}>
                     <InputLabel>SECTION*</InputLabel>
                     <Select
+                      fullWidth
                       value={formData.section}
                       onChange={(e) => handleChange('section', e.target.value)}
                       label="SECTION*"
                       disabled={!formData.class}
-                      sx={{
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      }}
+                      sx={selectSx}
                     >
                       <MenuItem value="">Select Section</MenuItem>
                       {sections
@@ -959,23 +1084,17 @@ const AdmissionForm = () => {
                         ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth required>
+                <Box sx={gridColSx}>
+                  <FormControl fullWidth required sx={fieldSx}>
                     <InputLabel>GROUP*</InputLabel>
                     <Select
+                      fullWidth
                       value={formData.group}
                       onChange={(e) => handleChange('group', e.target.value)}
                       label="GROUP*"
-                      sx={{
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      }}
+                      sx={selectSx}
                     >
                       <MenuItem value="">Select Groups</MenuItem>
                       {groups.map((group) => (
@@ -985,9 +1104,9 @@ const AdmissionForm = () => {
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <TextField
                     fullWidth
                     required
@@ -996,21 +1115,12 @@ const AdmissionForm = () => {
                     value={formData.admissionDate}
                     onChange={(e) => handleChange('admissionDate', e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      },
-                    }}
+                    sx={fieldSx}
                   />
-                </Grid>
+                </Box>
 
                 {/* Row 2 */}
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <TextField
                     fullWidth
                     required
@@ -1018,20 +1128,11 @@ const AdmissionForm = () => {
                     value={formData.studentName}
                     onChange={(e) => handleChange('studentName', e.target.value)}
                     placeholder="Student Name"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      },
-                    }}
+                    sx={fieldSx}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <TextField
                     fullWidth
                     required
@@ -1039,20 +1140,11 @@ const AdmissionForm = () => {
                     value={formData.fatherName}
                     onChange={(e) => handleChange('fatherName', e.target.value)}
                     placeholder="Father Name"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      },
-                    }}
+                    sx={fieldSx}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <TextField
                     fullWidth
                     required
@@ -1061,56 +1153,32 @@ const AdmissionForm = () => {
                     value={formData.dateOfBirth}
                     onChange={(e) => handleChange('dateOfBirth', e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      },
-                    }}
+                    sx={fieldSx}
                   />
-                </Grid>
+                </Box>
 
                 {/* Row 3 */}
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <TextField
                     fullWidth
                     label="ROLL NUMBER"
                     value={formData.rollNumber}
                     onChange={(e) => handleChange('rollNumber', e.target.value)}
                     placeholder="Roll Number"
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      },
-                    }}
+                    sx={fieldSx}
                     helperText="Auto-generated (editable)"
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth required>
+                <Box sx={gridColSx}>
+                  <FormControl fullWidth required sx={fieldSx}>
                     <InputLabel>RELIGION*</InputLabel>
                     <Select
+                      fullWidth
                       value={formData.religion}
                       onChange={(e) => handleChange('religion', e.target.value)}
                       label="RELIGION*"
-                      sx={{
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      }}
+                      sx={selectSx}
                     >
                       {religions.map((rel) => (
                         <MenuItem key={rel} value={rel}>
@@ -1119,33 +1187,27 @@ const AdmissionForm = () => {
                       ))}
                     </Select>
                   </FormControl>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
-                  <FormControl fullWidth required>
+                <Box sx={gridColSx}>
+                  <FormControl fullWidth required sx={fieldSx}>
                     <InputLabel>GENDER*</InputLabel>
                     <Select
+                      fullWidth
                       value={formData.gender}
                       onChange={(e) => handleChange('gender', e.target.value)}
                       label="GENDER*"
-                      sx={{
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      }}
+                      sx={selectSx}
                     >
                       <MenuItem value="Male">Male</MenuItem>
                       <MenuItem value="Female">Female</MenuItem>
                       <MenuItem value="Other">Other</MenuItem>
                     </Select>
                   </FormControl>
-                </Grid>
+                </Box>
 
                 {/* Row 4 */}
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <TextField
                     fullWidth
                     required
@@ -1154,54 +1216,36 @@ const AdmissionForm = () => {
                     value={formData.admEffectNo}
                     onChange={(e) => handleChange('admEffectNo', e.target.value)}
                     InputLabelProps={{ shrink: true }}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        bgcolor: 'white',
-                        '&:hover': {
-                          '& .MuiOutlinedInput-notchedOutline': {
-                            borderColor: 'primary.main',
-                          },
-                        },
-                      },
-                    }}
+                    sx={fieldSx}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} md={3}>
-                  <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={formData.markAsEnrolled}
-                        onChange={(e) => handleChange('markAsEnrolled', e.target.checked)}
-                      />
-                    }
-                    label="MARK AS ENROLLED"
-                  />
-                </Grid>
+                <Box sx={gridColSx}>
+                  <Box sx={checkboxBoxSx}>
+                    <FormControlLabel
+                      control={
+                        <Checkbox
+                          checked={formData.markAsEnrolled}
+                          onChange={(e) => handleChange('markAsEnrolled', e.target.checked)}
+                          sx={{ color: '#6366f1', '&.Mui-checked': { color: '#6366f1' } }}
+                        />
+                      }
+                      label="MARK AS ENROLLED"
+                      sx={{ m: 0, width: '100%', '& .MuiFormControlLabel-label': { fontSize: '0.85rem', fontWeight: 600, color: '#475569' } }}
+                    />
+                  </Box>
+                </Box>
 
-
-                
-                <Grid item xs={12} md={3}>
+                <Box sx={gridColSx}>
                   <Box>
-                    <Typography variant="body2" sx={{ mb: 1, fontWeight: 600, color: '#495057' }}>
-                      STUDENT PICTURE
-                    </Typography>
                     <Button
                       variant="outlined"
                       component="label"
                       fullWidth
                       startIcon={<PhotoCamera />}
-                      sx={{
-                        borderColor: '#dee2e6',
-                        color: '#495057',
-                        '&:hover': {
-                          borderColor: 'primary.main',
-                          bgcolor: 'rgba(102, 126, 234, 0.04)',
-                        },
-                        py: 1,
-                      }}
+                      sx={uploadButtonSx}
                     >
-                      Choose File
+                      {formData.studentPicture ? 'Change Picture' : 'Upload Picture'}
                       <input
                         type="file"
                         hidden
@@ -1217,22 +1261,25 @@ const AdmissionForm = () => {
                           display: 'block',
                           mt: 0.5,
                           fontWeight: 500,
+                          textOverflow: 'ellipsis',
+                          overflow: 'hidden',
+                          whiteSpace: 'nowrap'
                         }}
                       >
                         ✓ {formData.studentPicture.name}
                       </Typography>
                     )}
                   </Box>
-                </Grid>
+                </Box>
                 
-              </Grid>
+              </Box>
             </Box>
 
             {/* ADDRESS Section */}
             <Box 
               sx={{ 
                 mb: 4,
-                p: 3,
+                p: { xs: 2, sm: 2.5, md: 3 },
                 borderRadius: 2,
                 bgcolor: '#f8f9fa',
                 border: '1px solid #e9ecef',
@@ -1253,7 +1300,7 @@ const AdmissionForm = () => {
                   <LocationOn sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50' }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50', fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                     Address Information
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#6c757d', mt: 0.5 }}>
@@ -1265,6 +1312,9 @@ const AdmissionForm = () => {
               <Tabs 
                 value={addressTab} 
                 onChange={(e, newValue) => setAddressTab(newValue)} 
+                variant="scrollable"
+                scrollButtons="auto"
+                allowScrollButtonsMobile
                 sx={{ 
                   mb: 3,
                   '& .MuiTab-root': {
@@ -1285,43 +1335,28 @@ const AdmissionForm = () => {
               </Tabs>
               
               {addressTab === 0 && (
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={3}>
+                <Box sx={formGridSx}>
+                  <Box sx={fullWidthColSx}>
                     <TextField
                       fullWidth
                       label="STUDENT ADDRESS"
                       value={formData.presentAddress.address}
                       onChange={(e) => handleNestedChange('presentAddress', 'address', e.target.value)}
-                      placeholder="Student Address"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        },
-                      }}
+                      placeholder="House no, Street, Colony, City"
+                      sx={fieldSx}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* CITY DROPDOWN FIRST */}
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
+                  <Box sx={gridColSx}>
+                    <FormControl fullWidth sx={fieldSx}>
                       <InputLabel>CITY</InputLabel>
                       <Select
+                        fullWidth
                         value={formData.presentAddress.city}
                         onChange={(e) => handleNestedChange('presentAddress', 'city', e.target.value)}
                         label="CITY"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
+                        sx={selectSx}
                       >
                         {cities.map((city) => (
                           <MenuItem key={city} value={city}>
@@ -1330,11 +1365,11 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                  </Grid>
+                  </Box>
 
                   {/* CUSTOM CITY FIELD IF OTHER */}
                   {formData.presentAddress.city === 'Other' && (
-                    <Grid item xs={12} md={3}>
+                    <Box sx={gridColSx}>
                       <TextField
                         fullWidth
                         required
@@ -1342,36 +1377,21 @@ const AdmissionForm = () => {
                         value={formData.presentAddress.customCity}
                         onChange={(e) => handleNestedChange('presentAddress', 'customCity', e.target.value)}
                         placeholder="Enter City Name"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'white',
-                            '&:hover': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main',
-                              },
-                            },
-                          },
-                        }}
+                        sx={fieldSx}
                       />
-                    </Grid>
+                    </Box>
                   )}
 
                   {/* COUNTRY DROPDOWN AFTER CITY */}
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
+                  <Box sx={gridColSx}>
+                    <FormControl fullWidth sx={fieldSx}>
                       <InputLabel>COUNTRY</InputLabel>
                       <Select
+                        fullWidth
                         value={formData.presentAddress.country}
                         onChange={(e) => handleNestedChange('presentAddress', 'country', e.target.value)}
                         label="COUNTRY"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
+                        sx={selectSx}
                       >
                         {countries.map((country) => (
                           <MenuItem key={country} value={country}>
@@ -1380,11 +1400,11 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                  </Grid>
+                  </Box>
 
                   {/* CUSTOM COUNTRY FIELD IF OTHER */}
                   {formData.presentAddress.country === 'Other' && (
-                    <Grid item xs={12} md={3}>
+                    <Box sx={gridColSx}>
                       <TextField
                         fullWidth
                         required
@@ -1392,60 +1412,36 @@ const AdmissionForm = () => {
                         value={formData.presentAddress.customCountry}
                         onChange={(e) => handleNestedChange('presentAddress', 'customCountry', e.target.value)}
                         placeholder="Enter Country Name"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'white',
-                            '&:hover': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main',
-                              },
-                            },
-                          },
-                        }}
+                        sx={fieldSx}
                       />
-                    </Grid>
+                    </Box>
                   )}
-                </Grid>
+                </Box>
               )}
               
               {addressTab === 1 && (
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={3}>
+                <Box sx={formGridSx}>
+                  <Box sx={fullWidthColSx}>
                     <TextField
                       fullWidth
                       label="STUDENT ADDRESS"
                       value={formData.permanentAddress.address}
                       onChange={(e) => handleNestedChange('permanentAddress', 'address', e.target.value)}
-                      placeholder="Student Address"
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        },
-                      }}
+                      placeholder="House no, Street, Colony, City"
+                      sx={fieldSx}
                     />
-                  </Grid>
+                  </Box>
 
                   {/* CITY DROPDOWN FIRST */}
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
+                  <Box sx={gridColSx}>
+                    <FormControl fullWidth sx={fieldSx}>
                       <InputLabel>CITY</InputLabel>
                       <Select
+                        fullWidth
                         value={formData.permanentAddress.city}
                         onChange={(e) => handleNestedChange('permanentAddress', 'city', e.target.value)}
                         label="CITY"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
+                        sx={selectSx}
                       >
                         {cities.map((city) => (
                           <MenuItem key={city} value={city}>
@@ -1454,11 +1450,11 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                  </Grid>
+                  </Box>
 
                   {/* CUSTOM CITY FIELD IF OTHER */}
                   {formData.permanentAddress.city === 'Other' && (
-                    <Grid item xs={12} md={3}>
+                    <Box sx={gridColSx}>
                       <TextField
                         fullWidth
                         required
@@ -1466,36 +1462,21 @@ const AdmissionForm = () => {
                         value={formData.permanentAddress.customCity}
                         onChange={(e) => handleNestedChange('permanentAddress', 'customCity', e.target.value)}
                         placeholder="Enter City Name"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'white',
-                            '&:hover': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main',
-                              },
-                            },
-                          },
-                        }}
+                        sx={fieldSx}
                       />
-                    </Grid>
+                    </Box>
                   )}
 
                   {/* COUNTRY DROPDOWN AFTER CITY */}
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
+                  <Box sx={gridColSx}>
+                    <FormControl fullWidth sx={fieldSx}>
                       <InputLabel>COUNTRY</InputLabel>
                       <Select
+                        fullWidth
                         value={formData.permanentAddress.country}
                         onChange={(e) => handleNestedChange('permanentAddress', 'country', e.target.value)}
                         label="COUNTRY"
-                        sx={{
-                          bgcolor: 'white',
-                          '&:hover': {
-                            '& .MuiOutlinedInput-notchedOutline': {
-                              borderColor: 'primary.main',
-                            },
-                          },
-                        }}
+                        sx={selectSx}
                       >
                         {countries.map((country) => (
                           <MenuItem key={country} value={country}>
@@ -1504,11 +1485,11 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                  </Grid>
+                  </Box>
 
                   {/* CUSTOM COUNTRY FIELD IF OTHER */}
                   {formData.permanentAddress.country === 'Other' && (
-                    <Grid item xs={12} md={3}>
+                    <Box sx={gridColSx}>
                       <TextField
                         fullWidth
                         required
@@ -1516,20 +1497,11 @@ const AdmissionForm = () => {
                         value={formData.permanentAddress.customCountry}
                         onChange={(e) => handleNestedChange('permanentAddress', 'customCountry', e.target.value)}
                         placeholder="Enter Country Name"
-                        sx={{
-                          '& .MuiOutlinedInput-root': {
-                            bgcolor: 'white',
-                            '&:hover': {
-                              '& .MuiOutlinedInput-notchedOutline': {
-                                borderColor: 'primary.main',
-                              },
-                            },
-                          },
-                        }}
+                        sx={fieldSx}
                       />
-                    </Grid>
+                    </Box>
                   )}
-                </Grid>
+                </Box>
               )}
             </Box>
 
@@ -1537,7 +1509,7 @@ const AdmissionForm = () => {
             <Box 
               sx={{ 
                 mb: 4,
-                p: 3,
+                p: { xs: 2, sm: 2.5, md: 3 },
                 borderRadius: 2,
                 bgcolor: '#f8f9fa',
                 border: '1px solid #e9ecef',
@@ -1558,7 +1530,7 @@ const AdmissionForm = () => {
                   <FamilyRestroom sx={{ fontSize: 28 }} />
                 </Box>
                 <Box>
-                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50' }}>
+                  <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50', fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                     Guardian Information
                   </Typography>
                   <Typography variant="body2" sx={{ color: '#6c757d', mt: 0.5 }}>
@@ -1572,17 +1544,18 @@ const AdmissionForm = () => {
                 <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#495057', mb: 2, borderBottom: '1px solid #dee2e6', pb: 1 }}>
                   Father's Details
                 </Typography>
-                <Grid container spacing={2} sx={{ mb: 4 }}>
-                  <Grid item xs={12} md={3}>
+                <Box sx={{ ...formGridSx, mb: 4 }}>
+                  <Box sx={gridColSx}>
                     <TextField
                       fullWidth
                       label="FATHER NAME"
                       value={formData.father.name}
                       onChange={(e) => handleNestedChange('father', 'name', e.target.value)}
                       placeholder="Father Name"
+                      sx={fieldSx}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
+                  </Box>
+                  <Box sx={gridColSx}>
                     <TextField
                       fullWidth
                       label="FATHER MOBILE"
@@ -1591,15 +1564,18 @@ const AdmissionForm = () => {
                       placeholder="e.g: 923001234567"
                       error={formData.father.mobileNumber && !validatePhone(formData.father.mobileNumber)}
                       helperText={formData.father.mobileNumber && !validatePhone(formData.father.mobileNumber) ? 'Invalid phone number (min 10 digits)' : ''}
+                      sx={fieldSx}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
+                  </Box>
+                  <Box sx={gridColSx}>
+                    <FormControl fullWidth sx={fieldSx}>
                       <InputLabel>FATHER OPERATOR</InputLabel>
                       <Select
+                        fullWidth
                         value={formData.father.mobileOperator}
                         onChange={(e) => handleNestedChange('father', 'mobileOperator', e.target.value)}
                         label="FATHER OPERATOR"
+                        sx={selectSx}
                       >
                         {mobileOperators.map((op) => (
                           <MenuItem key={op} value={op}>
@@ -1608,33 +1584,35 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
 
                 {/* Guardian Details Sub-section */}
                 <Typography variant="subtitle1" fontWeight="bold" sx={{ color: '#495057', mb: 2, borderBottom: '1px solid #dee2e6', pb: 1 }}>
                   Guardian's Details (Optional)
                 </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} md={3}>
+                <Box sx={formGridSx}>
+                  <Box sx={gridColSx}>
                     <TextField
                       fullWidth
                       label="GUARDIAN NAME"
                       value={formData.guardian.name}
                       onChange={(e) => handleNestedChange('guardian', 'name', e.target.value)}
                       placeholder="Guardian Name"
+                      sx={fieldSx}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
+                  </Box>
+                  <Box sx={gridColSx}>
                     <TextField
                       fullWidth
                       label="RELATION"
                       value={formData.guardian.relation}
                       onChange={(e) => handleNestedChange('guardian', 'relation', e.target.value)}
                       placeholder="Relation"
+                      sx={fieldSx}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
+                  </Box>
+                  <Box sx={gridColSx}>
                     <TextField
                       fullWidth
                       label="GUARDIAN CNIC"
@@ -1644,9 +1622,10 @@ const AdmissionForm = () => {
                       inputProps={{ maxLength: 15 }}
                       error={formData.guardian.cnic && !validateCNIC(formData.guardian.cnic)}
                       helperText={formData.guardian.cnic && !validateCNIC(formData.guardian.cnic) ? 'CNIC must be 13 digits (format: XXXXX-XXXXXXX-X)' : ''}
+                      sx={fieldSx}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
+                  </Box>
+                  <Box sx={gridColSx}>
                     <TextField
                       fullWidth
                       label="MOBILE NUMBER"
@@ -1655,15 +1634,18 @@ const AdmissionForm = () => {
                       placeholder="e.g: 923001234567"
                       error={formData.guardian.mobileNumber && !validatePhone(formData.guardian.mobileNumber)}
                       helperText={formData.guardian.mobileNumber && !validatePhone(formData.guardian.mobileNumber) ? 'Invalid phone number (min 10 digits)' : ''}
+                      sx={fieldSx}
                     />
-                  </Grid>
-                  <Grid item xs={12} md={3}>
-                    <FormControl fullWidth>
+                  </Box>
+                  <Box sx={gridColSx}>
+                    <FormControl fullWidth sx={fieldSx}>
                       <InputLabel>MOBILE OPERATOR</InputLabel>
                       <Select
+                        fullWidth
                         value={formData.guardian.mobileOperator}
                         onChange={(e) => handleNestedChange('guardian', 'mobileOperator', e.target.value)}
                         label="MOBILE OPERATOR"
+                        sx={selectSx}
                       >
                         {mobileOperators.map((op) => (
                           <MenuItem key={op} value={op}>
@@ -1672,24 +1654,26 @@ const AdmissionForm = () => {
                         ))}
                       </Select>
                     </FormControl>
-                  </Grid>
-                </Grid>
+                  </Box>
+                </Box>
               </Box>
             </Box>
 
             {/* Save Button */}
             <Box 
               display="flex" 
+              flexDirection={{ xs: 'column', sm: 'row' }} 
               justifyContent="space-between" 
-              alignItems="center"
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+              gap={2}
               mt={4}
               pt={3}
               sx={{ 
                 borderTop: '2px solid #e9ecef',
               }}
             >
-              <Box>
-                <Typography variant="body2" sx={{ color: '#6c757d', mb: 1 }}>
+              <Box sx={{ mb: { xs: 1, sm: 0 } }}>
+                <Typography variant="body2" sx={{ color: '#6c757d', mb: 0.5 }}>
                   <Info sx={{ fontSize: 16, verticalAlign: 'middle', mr: 0.5 }} />
                   Please review all information before submitting
                 </Typography>
@@ -1701,9 +1685,11 @@ const AdmissionForm = () => {
                 type="submit"
                 variant="contained"
                 size="large"
+                fullWidth
                 startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Save />}
                 disabled={loading}
                 sx={{
+                  width: { xs: '100%', sm: 'auto' },
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   px: 5,
                   py: 1.5,
