@@ -28,6 +28,7 @@ import {
   MonetizationOn,
   TrendingDown,
   Assessment,
+  PersonOff,
 } from '@mui/icons-material';
 import {
   ResponsiveContainer,
@@ -191,10 +192,21 @@ const FinanceDashboard = () => {
   };
 
   // Process data for trends chart
-  const formattedTrendData = (dashboardData?.trends?.feeCollectionTrend || []).map(item => ({
-    ...item,
-    formattedDate: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-  }));
+  const formattedTrendData = (dashboardData?.trends?.feeCollectionTrend || []).map(item => {
+    let d = new Date();
+    if (item.date) {
+      const parts = item.date.split('-');
+      if (parts.length === 3) {
+        d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+      } else {
+        d = new Date(item.date);
+      }
+    }
+    return {
+      ...item,
+      formattedDate: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    };
+  });
 
   // Process data for campus comparison chart
   const campusChartData = (dashboardData?.campusBreakdown || []).map(c => ({
@@ -325,7 +337,7 @@ const FinanceDashboard = () => {
 
       {dashboardData && (
         <>
-          <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', md: 'repeat(3, 1fr)', lg: 'repeat(3, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
             {[
               { 
                 title: 'Total Billed', 
@@ -382,13 +394,18 @@ const FinanceDashboard = () => {
                 icon: <TrendingUp />, 
                 color: '#ec4899', 
                 subtitle: 'Newly enrolled in period' 
+              },
+              { 
+                title: 'Struck Off Students', 
+                value: (dashboardData?.overview?.struckOffStudents || 0).toLocaleString(), 
+                icon: <PersonOff />, 
+                color: '#ff6b6b', 
+                subtitle: 'Total struck off' 
               }
             ].map((stat, i) => (
-              <Grid item xs={12} sm={6} md={3} lg={3} xl={3} key={i}>
-                <StatCard compact {...stat} />
-              </Grid>
+              <StatCard compact key={i} {...stat} />
             ))}
-          </Grid>
+          </Box>
 
 
           {/* Charts Section */}
@@ -413,7 +430,7 @@ const FinanceDashboard = () => {
                       </Typography>
                     </Box>
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={320}>
                       <AreaChart data={formattedTrendData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                         <defs>
                           <linearGradient id="feeCollectionGrad" x1="0" y1="0" x2="0" y2="1">
@@ -533,7 +550,7 @@ const FinanceDashboard = () => {
                       </Typography>
                     </Box>
                   ) : (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height={320}>
                       <BarChart data={campusChartData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                         <XAxis 
@@ -550,6 +567,7 @@ const FinanceDashboard = () => {
                         />
                         <Tooltip 
                           contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                          labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
                           formatter={(value) => [`Rs. ${value.toLocaleString()}`]}
                         />
                         <Legend iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 600, paddingTop: '10px' }} />
