@@ -408,89 +408,204 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     prevYear -= 1;
   }
 
-  // Helper: count unique vouchers grouped by (student, month, year).
-  // One voucher = one student fee bill for one month.
-  //
-  // Status rules (matching FeeManagement page behaviour):
-  //   PAID    = totalPaid > 0  (any payment has been made on this voucher)
-  //   OVERDUE = totalPaid = 0 AND the due date has already passed
-  //   PENDING = totalPaid = 0 AND the due date has NOT yet passed
-  // Helper: count unique vouchers grouped by (student, month, year).
-  // One voucher = one student fee bill for one month.
-  const _now = new Date();
-  const buildUniqueVoucherPipeline = (matchQuery, extraMonthFilter, groupByMonth = false) => {
-    const stages = [
-      { $match: matchQuery },
-      ...activeStudentLookupStages,
-      { $unwind: '$vouchers' },
-    ];
-    if (extraMonthFilter) {
-      stages.push({ $match: extraMonthFilter });
-    }
-    stages.push(
-      {
-        $lookup: {
-          from: 'feeheads',
-          localField: 'feeHead',
-          foreignField: '_id',
-          as: 'feeHeadDoc'
-        }
-      },
-      { $unwind: { path: '$feeHeadDoc', preserveNullAndEmptyArrays: true } },
-      {
-        $group: {
-          _id: { student: '$student', month: '$vouchers.month', year: '$vouchers.year' },
-          totalPaid:      { $sum: '$paidAmount' },
-          // Regular fees (excluding Arrears head to prevent double counting summary records)
-          regularBilled:  { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, 0, '$finalAmount' ] } },
-          totalFinal:     { $sum: '$finalAmount' },
-          totalRemaining: { $sum: '$remainingAmount' },
-          totalArrears:   { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, '$finalAmount', 0 ] } },
-          remainingArrears: { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, '$remainingAmount', 0 ] } },
-          remainingRegular: { $sum: { $cond: [ { $regexMatch: { input: { $ifNull: ['$feeHeadDoc.name', ''] }, regex: 'arrears', options: 'i' } }, 0, '$remainingAmount' ] } },
-          minDueDate:     { $min: '$dueDate' }
-        }
-      },
-      {
-        $addFields: {
-          displayedBilled: { $add: ['$regularBilled', '$totalArrears'] },
-          voucherStatus: {
-            $switch: {
-              branches: [
-                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $lte: ['$totalRemaining', 0.01] }] }, then: 'paid' },
-                { case: { $and: [{ $gt: ['$totalPaid', 0] }, { $gt: ['$totalRemaining', 0.01] }] }, then: 'partial' }
-              ],
-              default: 'unpaid'
-            }
-          }
-        }
-      },
-      {
-        $group: {
-          _id: groupByMonth ? { month: '$_id.month', year: '$_id.year' } : null,
-          total:   { $sum: 1 },
-          paid:    { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] },    1, 0] } },
-          unpaid:  { $sum: { $cond: [{ $eq: ['$voucherStatus', 'unpaid'] },  1, 0] } },
-          partial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, 1, 0] } },
-          totalBilled: { $sum: '$displayedBilled' },
-          totalCollected: { $sum: '$totalPaid' },
-          totalOutstanding: { $sum: '$totalRemaining' },
-          totalArrears: { $sum: '$totalArrears' },
-          collectedPaid: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'paid'] }, '$totalPaid', 0] } },
-          collectedPartial: { $sum: { $cond: [{ $eq: ['$voucherStatus', 'partial'] }, '$totalPaid', 0] } },
-          outstandingRegular: { $sum: '$remainingRegular' },
-          outstandingArrears: { $sum: '$remainingArrears' }
-        }
+  // Helper: compute dynamic voucher stats matching FeeManagement page logic
+  const fetchDynamicVoucherStats = async (matchQuery) => {
+    // Fetch all student fees for the query, populated with feeHead and student
+    const allStudentFees = await StudentFee.find(matchQuery)
+      .populate({ path: 'feeHead', select: 'name' })
+      .populate({ path: 'student', select: '_id isActive' })
+      .lean();
+
+    // Filter out fees of inactive students
+    const activeStudentFees = allStudentFees.filter(sf => sf.student && sf.student.isActive !== false);
+
+    // Group fees by studentId
+    const feesByStudent = new Map();
+    activeStudentFees.forEach(sf => {
+      const sId = (sf.student?._id || sf.student).toString();
+      if (!feesByStudent.has(sId)) {
+        feesByStudent.set(sId, []);
       }
-    );
-    if (groupByMonth) {
-      stages.push({ $sort: { '_id.year': -1, '_id.month': -1 } });
-    }
-    return stages;
+      feesByStudent.get(sId).push(sf);
+    });
+
+    // Collect all voucher keys: `${month}-${year}`
+    const monthlyMap = new Map(); // key -> { month, year, vouchers: [] }
+
+    feesByStudent.forEach((studentFees, studentId) => {
+      // Find all unique (month, year) vouchers for this student
+      const studentVouchersMap = new Map();
+
+      studentFees.forEach(sf => {
+        if (sf.vouchers && Array.isArray(sf.vouchers) && sf.vouchers.length > 0) {
+          sf.vouchers.forEach(v => {
+            if (v && v.month && v.year) {
+              const key = `${v.month}-${v.year}`;
+              if (!studentVouchersMap.has(key)) {
+                studentVouchersMap.set(key, { month: Number(v.month), year: Number(v.year) });
+              }
+            }
+          });
+        }
+      });
+
+      // For each voucher of this student
+      studentVouchersMap.forEach(({ month, year }, key) => {
+        // 1. Find fees associated with this voucher
+        const feesWithVoucher = studentFees.filter(sf => 
+          sf.vouchers && sf.vouchers.some(v => v && Number(v.month) === month && Number(v.year) === year)
+        );
+
+        let voucherAmount = 0;
+        let regularPaid = 0;
+        let regularRemaining = 0;
+        let arrearsPaymentsOnVoucher = 0;
+
+        feesWithVoucher.forEach(sf => {
+          const isArrearsHead = sf.feeHead?.name?.toLowerCase() === 'arrears';
+          if (!isArrearsHead) {
+            voucherAmount += parseFloat(sf.finalAmount || 0);
+            regularPaid += parseFloat(sf.paidAmount || 0);
+            regularRemaining += Math.max(0, parseFloat(sf.finalAmount || 0) - parseFloat(sf.paidAmount || 0));
+          } else {
+            arrearsPaymentsOnVoucher += parseFloat(sf.paidAmount || 0);
+          }
+        });
+
+        // 2. Calculate dynamic arrears from PREVIOUS periods
+        let totalBilledPrev = 0;
+        let totalPaidPrev = 0;
+
+        studentFees.forEach(f => {
+          const hasVouchers = f.vouchers && f.vouchers.length > 0;
+          let isPrevious = false;
+
+          if (hasVouchers) {
+            isPrevious = f.vouchers.every(v => 
+              (Number(v.year) < year) || 
+              (Number(v.year) === year && Number(v.month) < month)
+            );
+          }
+
+          if (isPrevious) {
+            const isArrearsHead = f.feeHead?.name?.toLowerCase() === 'arrears';
+            if (!isArrearsHead) {
+              totalBilledPrev += parseFloat(f.finalAmount || 0);
+            }
+            totalPaidPrev += parseFloat(f.paidAmount || 0);
+          }
+        });
+
+        const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+        const calculatedArrears = Math.max(0, outstandingPrevArrears - arrearsPaymentsOnVoucher);
+        const displayedRemaining = regularRemaining + calculatedArrears;
+        const totalPaidForVoucher = regularPaid + arrearsPaymentsOnVoucher;
+        const displayedBilled = voucherAmount + calculatedArrears;
+
+        // Determine status
+        let voucherStatus = 'unpaid';
+        if (displayedRemaining <= 0.01) {
+          voucherStatus = 'paid';
+        } else if (totalPaidForVoucher > 0) {
+          voucherStatus = 'partial';
+        } else {
+          voucherStatus = 'unpaid';
+        }
+
+        const voucherData = {
+          studentId,
+          month,
+          year,
+          voucherAmount,
+          arrears: calculatedArrears,
+          displayedBilled,
+          totalPaid: totalPaidForVoucher,
+          displayedRemaining,
+          regularRemaining,
+          calculatedArrears,
+          voucherStatus
+        };
+
+        if (!monthlyMap.has(key)) {
+          monthlyMap.set(key, { month, year, vouchers: [] });
+        }
+        monthlyMap.get(key).vouchers.push(voucherData);
+      });
+    });
+
+    const aggregateVoucherList = (voucherList) => {
+      let total = voucherList.length;
+      let paid = 0;
+      let unpaid = 0;
+      let partial = 0;
+      let totalBilled = 0;
+      let totalCollected = 0;
+      let totalOutstanding = 0;
+      let totalArrears = 0;
+      let collectedPaid = 0;
+      let collectedPartial = 0;
+      let outstandingRegular = 0;
+      let outstandingArrears = 0;
+
+      voucherList.forEach(v => {
+        if (v.voucherStatus === 'paid') paid++;
+        else if (v.voucherStatus === 'partial') partial++;
+        else unpaid++;
+
+        totalBilled += v.displayedBilled;
+        totalCollected += v.totalPaid;
+        totalOutstanding += v.displayedRemaining;
+        totalArrears += v.arrears;
+
+        if (v.voucherStatus === 'paid') collectedPaid += v.totalPaid;
+        else if (v.voucherStatus === 'partial') collectedPartial += v.totalPaid;
+
+        outstandingRegular += v.regularRemaining;
+        outstandingArrears += v.calculatedArrears;
+      });
+
+      return {
+        total,
+        paid,
+        unpaid,
+        partial,
+        totalBilled,
+        totalCollected,
+        totalOutstanding,
+        totalArrears,
+        collectedPaid,
+        collectedPartial,
+        outstandingRegular,
+        outstandingArrears
+      };
+    };
+
+    const monthlyBreakdown = [];
+    let allTimeVouchers = [];
+
+    monthlyMap.forEach(({ month, year, vouchers }) => {
+      const stats = aggregateVoucherList(vouchers);
+      monthlyBreakdown.push({
+        _id: { month, year },
+        ...stats
+      });
+      allTimeVouchers.push(...vouchers);
+    });
+
+    monthlyBreakdown.sort((a, b) => {
+      if (a._id.year !== b._id.year) return b._id.year - a._id.year;
+      return b._id.month - a._id.month;
+    });
+
+    const allTime = aggregateVoucherList(allTimeVouchers);
+
+    return {
+      allTime,
+      monthlyBreakdown
+    };
   };
 
   const [
-    financialStats,
     lastMonthFees,
     recentInstitutionsCount,
     recentUsersCount,
@@ -499,17 +614,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     overdueFeesCount,
     upcomingEvents,
     struckOffStudentsCount,
-    allTimeVouchersAgg,
-    currentMonthVouchersAgg,
-    prevMonthVouchersAgg,
-    monthlyBreakdownAgg
+    dynamicVoucherData
   ] = await Promise.all([
-    // Total Billed, Collected, Outstanding — use same buildUniqueVoucherPipeline as the cards
-    // When period is selected: filter vouchers by generatedAt range (arrears included correctly)
-    StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } },
-      hasDateFilter ? { 'vouchers.generatedAt': { $gte: parsedStartDate, $lte: parsedEndDate } } : null
-    )),
     // Last Month's Fees
     FeePayment.aggregate([
       { 
@@ -525,46 +631,34 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     ]),
     Institution.countDocuments({ ...institutionQuery, createdAt: { $gte: thirtyDaysAgo } }),
     User.countDocuments({ ...userQuery, createdAt: { $gte: thirtyDaysAgo } }),
-    // New Content: Enrolled Students
+    // Enrolled Students
     Admission.countDocuments({ ...studentMatchQuery, status: 'enrolled' }),
-    // New Content: New Admissions (last 30 days)
+    // New Admissions (last 30 days)
     Admission.countDocuments({ ...studentMatchQuery, admissionDate: { $gte: thirtyDaysAgo } }),
-    // New Content: Overdue Fees
+    // Overdue Fees
     StudentFee.countDocuments({ ...studentFeeMatchQuery, status: 'overdue', isActive: true }),
-    // New Content: Upcoming Events
+    // Upcoming Events
     AcademicCalendar.find({ 
       ...referenceQuery, 
       startDate: { $gte: new Date() } 
     }).sort({ startDate: 1 }).limit(5),
-    // New Content: Struck Off Students
+    // Struck Off Students
     Student.countDocuments({ ...studentMatchQuery, status: 'struckoff' }),
 
-    // Voucher Stats (All Time / Period) — all StudentFee records matching period date filter if present
-    StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } },
-      hasDateFilter ? { 'vouchers.generatedAt': { $gte: parsedStartDate, $lte: parsedEndDate } } : null
-    )),
-    // Voucher Stats (Current Month) — only entries whose voucher matches this month/year
-    StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...studentFeeMatchQuery, vouchers: { $elemMatch: { month: currentMonth, year: currentYear } } },
-      { 'vouchers.month': currentMonth, 'vouchers.year': currentYear }
-    )),
-    // Voucher Stats (Previous Month)
-    StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...studentFeeMatchQuery, vouchers: { $elemMatch: { month: prevMonth, year: prevYear } } },
-      { 'vouchers.month': prevMonth, 'vouchers.year': prevYear }
-    )),
-    // Voucher Stats (Monthly Breakdown)
-    StudentFee.aggregate(buildUniqueVoucherPipeline(
-      { ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } },
-      null,
-      true
-    ))
+    // Dynamic Voucher Stats
+    fetchDynamicVoucherStats({ ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } })
   ]);
 
-  const totalCollected = financialStats[0]?.totalCollected || 0;
-  const totalBilled    = financialStats[0]?.totalBilled    || 0;
-  const totalOutstanding = financialStats[0]?.totalOutstanding || 0;
+  const { allTime: allTimeVouchersAgg, monthlyBreakdown: monthlyBreakdownAgg } = dynamicVoucherData;
+
+  const emptyVoucherStats = { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, totalArrears: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 };
+
+  const currentMonthVouchersAgg = monthlyBreakdownAgg.find(m => m._id.month === currentMonth && m._id.year === currentYear) || emptyVoucherStats;
+  const prevMonthVouchersAgg = monthlyBreakdownAgg.find(m => m._id.month === prevMonth && m._id.year === prevYear) || emptyVoucherStats;
+
+  const totalCollected = currentMonthVouchersAgg.totalCollected;
+  const totalBilled    = currentMonthVouchersAgg.totalBilled;
+  const totalOutstanding = currentMonthVouchersAgg.totalOutstanding;
   const lastMonthTotal = lastMonthFees[0]?.total || 0;
 
   // Campus Breakdown for Finance Managers
