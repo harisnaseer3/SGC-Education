@@ -1043,18 +1043,14 @@ const FeeManagement = () => {
         if (voucherStatus !== 'Generated') {
           if (displayedRemaining <= 0.01) {
             voucherStatus = 'Paid';
-          } else if (feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0) > 0 || totalPaidPrev > 0 || arrearsPaymentsOnVoucher > 0) {
+          } else if (feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0) > 0 || arrearsPaymentsOnVoucher > 0) {
             voucherStatus = 'Partial';
           } else {
             voucherStatus = 'Unpaid';
           }
         }
 
-        const initialArrearsAmount = arrearsRecordOnVoucher
-          ? parseFloat(arrearsRecordOnVoucher.finalAmount || 0)
-          : outstandingPrevArrears;
-        const totalVoucherObligation = voucherAmount + initialArrearsAmount;
-        const displayPaidAmount = Math.max(0, totalVoucherObligation - displayedRemaining);
+        const displayPaidAmount = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
 
         uniqueStudentsMap.set(studentIdStr, {
           _id: admission?._id || studentIdStr,
@@ -4874,24 +4870,25 @@ const FeeManagement = () => {
                     <TableCell>Voucher Number</TableCell>
                     <TableCell align="right">Voucher Amount</TableCell>
                     <TableCell align="right">Arrears</TableCell>
+                    <TableCell align="right">Paid Amount</TableCell>
+                    <TableCell align="right">Remaining Amount</TableCell>
                     <TableCell>ID</TableCell>
                     <TableCell>Roll #</TableCell>
                     <TableCell>Name</TableCell>
                     <TableCell>Class</TableCell>
-                    <TableCell>Section</TableCell>
                     <TableCell>Action</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {loading ? (
                     <TableRow>
-                      <TableCell colSpan={9} align="center">
+                      <TableCell colSpan={12} align="center">
                         <CircularProgress />
                       </TableCell>
                     </TableRow>
                   ) : getFilteredPrintVoucherStudents().length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={9} align="center">
+                      <TableCell colSpan={12} align="center">
                         <Typography variant="body2" color="textSecondary">
                           {printVoucherStudents.length === 0 
                             ? 'No data found' 
@@ -4931,6 +4928,12 @@ const FeeManagement = () => {
                         <TableCell align="right" sx={{ color: (student.arrears || 0) > 0 ? 'error.main' : 'inherit', fontWeight: (student.arrears || 0) > 0 ? 'bold' : 'normal' }}>
                           Rs. {(student.arrears || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
+                        <TableCell align="right">
+                          Rs. {(student.paidAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </TableCell>
+                        <TableCell align="right" sx={{ color: (student.remainingAmount || 0) > 0 ? 'error.main' : 'success.main', fontWeight: 'bold' }}>
+                          Rs. {(student.remainingAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </TableCell>
                         <TableCell>{student.id || 'N/A'}</TableCell>
                         <TableCell>{student.rollNumber || 'N/A'}</TableCell>
                         <TableCell>
@@ -4942,7 +4945,6 @@ const FeeManagement = () => {
                           )}
                         </TableCell>
                         <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
-                        <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
                             <IconButton
@@ -4988,6 +4990,8 @@ const FeeManagement = () => {
               const filtered = getFilteredPrintVoucherStudents();
               const totalVoucherAmount = filtered.reduce((sum, s) => sum + (s.voucherAmount || 0), 0);
               const totalArrears = filtered.reduce((sum, s) => sum + (s.arrears || 0), 0);
+              const totalPaidAmount = filtered.reduce((sum, s) => sum + (s.paidAmount || 0), 0);
+              const totalRemainingAmount = filtered.reduce((sum, s) => sum + (s.remainingAmount || 0), 0);
               return (
                 <Paper 
                   elevation={0}
@@ -5019,6 +5023,22 @@ const FeeManagement = () => {
                       </Typography>
                       <Typography variant="h6" fontWeight="bold" sx={{ color: totalArrears > 0 ? 'error.main' : 'text.primary' }}>
                         Rs. {totalArrears.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
+                        Total Paid Amount
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" color="success.main">
+                        Rs. {totalPaidAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
+                        Total Remaining Amount
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: totalRemainingAmount > 0 ? 'error.main' : 'success.main' }}>
+                        Rs. {totalRemainingAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Typography>
                     </Box>
                   </Box>
