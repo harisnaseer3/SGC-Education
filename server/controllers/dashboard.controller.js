@@ -27,7 +27,7 @@ const activeStudentLookupStages = [
 ];
 
 // Helper: compute dynamic voucher stats matching FeeManagement page logic
-const fetchDynamicVoucherStats = async (matchQuery) => {
+const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
   // Fetch all student fees for the query, populated with feeHead and student
   const allStudentFees = await StudentFee.find(matchQuery)
     .populate({ path: 'feeHead', select: 'name' })
@@ -58,6 +58,15 @@ const fetchDynamicVoucherStats = async (matchQuery) => {
       if (sf.vouchers && Array.isArray(sf.vouchers) && sf.vouchers.length > 0) {
         sf.vouchers.forEach(v => {
           if (v && v.month && v.year) {
+            if (dateFilter && (dateFilter.startDate || dateFilter.endDate)) {
+              let genDate = v.generatedAt ? new Date(v.generatedAt) : (sf.createdAt ? new Date(sf.createdAt) : null);
+              if (!genDate) {
+                genDate = new Date(Number(v.year), Number(v.month) - 1, 15);
+              }
+              if (dateFilter.startDate && genDate < dateFilter.startDate) return;
+              if (dateFilter.endDate && genDate > dateFilter.endDate) return;
+            }
+
             const key = `${v.month}-${v.year}`;
             if (!studentVouchersMap.has(key)) {
               studentVouchersMap.set(key, { month: Number(v.month), year: Number(v.year) });
@@ -579,7 +588,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     Student.countDocuments({ ...studentMatchQuery, status: 'struckoff' }),
 
     // Dynamic Voucher Stats
-    fetchDynamicVoucherStats({ ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } })
+    fetchDynamicVoucherStats({ ...studentFeeMatchQuery, 'vouchers.0': { $exists: true } }, hasDateFilter ? { startDate: parsedStartDate, endDate: parsedEndDate } : null)
   ]);
 
   const { allTime: allTimeVouchersAgg, monthlyBreakdown: monthlyBreakdownAgg } = dynamicVoucherData;
@@ -589,9 +598,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
   const currentMonthVouchersAgg = monthlyBreakdownAgg.find(m => m._id.month === currentMonth && m._id.year === currentYear) || emptyVoucherStats;
   const prevMonthVouchersAgg = monthlyBreakdownAgg.find(m => m._id.month === prevMonth && m._id.year === prevYear) || emptyVoucherStats;
 
-  const totalCollected = currentMonthVouchersAgg.totalCollected;
-  const totalBilled    = currentMonthVouchersAgg.totalBilled;
-  const totalOutstanding = currentMonthVouchersAgg.totalOutstanding;
+  const activeFinStats = hasDateFilter ? allTimeVouchersAgg : currentMonthVouchersAgg;
+  const totalCollected = activeFinStats.totalCollected;
+  const totalBilled    = activeFinStats.totalBilled;
+  const totalOutstanding = activeFinStats.totalOutstanding;
   const lastMonthTotal = lastMonthFees[0]?.total || 0;
 
   // Campus Breakdown for Finance Managers
@@ -663,9 +673,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         struckOffStudents: struckOffStudentsCount
       },
       vouchers: {
-        allTime: allTimeVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
-        currentMonth: currentMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
-        prevMonth: prevMonthVouchersAgg[0] || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
+        allTime: allTimeVouchersAgg || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
+        currentMonth: currentMonthVouchersAgg || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
+        prevMonth: prevMonthVouchersAgg || { total: 0, paid: 0, unpaid: 0, partial: 0, totalBilled: 0, totalCollected: 0, totalOutstanding: 0, collectedPaid: 0, collectedPartial: 0, outstandingRegular: 0, outstandingArrears: 0 },
         monthlyBreakdown: monthlyBreakdownAgg || []
       },
       upcomingEvents,
