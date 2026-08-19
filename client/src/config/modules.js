@@ -23,6 +23,7 @@ import {
   Description,
   CloudDownload,
   Security, // Add Security icon
+  History, // Add History icon
 } from '@mui/icons-material';
 import { PERMISSIONS, ROLE_PERMISSIONS, USER_ROLES } from '../utils/constants';
 
@@ -97,9 +98,11 @@ export const modules = [
     children: [
       { name: 'User List', route: '/users', permission: PERMISSIONS.USERS.VIEW },
       { name: 'Create User', route: '/users/new', permission: PERMISSIONS.USERS.CREATE },
-      { name: 'Role Management', route: '/roles', icon: Security, permission: PERMISSIONS.SYSTEM.MANAGE },
+      { name: 'Role Management', route: '/roles', icon: Security, permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
+      { name: 'Activity Logs', route: '/activity-logs', icon: History, permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
     ]
   },
+  { name: 'Activity Logs', icon: History, color: '#667eea', route: '/activity-logs', permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
   { name: 'Transport', icon: DirectionsBus, color: '#ee5a6f', route: null },
   { name: 'Event', icon: Event, color: '#764ba2', route: '/calendar', permission: PERMISSIONS.ACADEMIC.VIEW },
   { name: 'Institute Branding', icon: Brush, color: '#667eea', route: null },
@@ -135,7 +138,10 @@ export const getAvailableModules = () => {
 
     // If module has children, filter them too
     if (module.children) {
-      module.children = module.children.filter(child => hasPermission(child.permission));
+      module.children = module.children.filter(child => {
+        if (child.superAdminOnly && userRole !== USER_ROLES.SUPER_ADMIN) return false;
+        return hasPermission(child.permission);
+      });
       // If no children left after filtering, hide the whole module? 
       // Depends on if the parent has its own route.
       if (module.children.length === 0 && !module.route) return false;

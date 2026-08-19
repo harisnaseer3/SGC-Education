@@ -34,6 +34,7 @@ import ResultForm from './pages/ResultForm';
 import BackupManagement from './pages/BackupManagement';
 import RoleManagement from './pages/RoleManagement';
 import BankAccounts from './pages/BankAccounts';
+import ActivityLogs from './pages/ActivityLogs';
 import usePermissions from './hooks/usePermissions';
 import { PERMISSIONS } from './utils/constants';
 
@@ -107,6 +108,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
       '/results': 'Results',
       '/backup-management': 'Backup Management',
       '/bank-accounts': 'Bank Accounts',
+      '/activity-logs': 'Activity Logs',
     };
     
     // Check for edit routes
@@ -529,6 +531,14 @@ function App() {
             element={
               <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
                 <BankAccounts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/activity-logs"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.SYSTEM.MANAGE}>
+                <ActivityLogs />
               </ProtectedRoute>
             }
           />

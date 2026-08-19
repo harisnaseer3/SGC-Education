@@ -1,5 +1,6 @@
 const userService = require('../services/user.service');
 const { asyncHandler } = require('../middleware/error.middleware');
+const { createActivityLog } = require('../middleware/activityLog.middleware');
 
 /**
  * User Controller - Handles HTTP requests for user management
@@ -27,6 +28,10 @@ const getProfile = asyncHandler(async (req, res) => {
 const updateProfile = asyncHandler(async (req, res) => {
   const user = await userService.updateProfile(req.user.id, req.body);
 
+  createActivityLog(req.user.id, 'update', 'user', `Updated own profile: ${user.name}`, {
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
+
   res.json({
     success: true,
     message: 'Profile updated successfully',
@@ -43,6 +48,10 @@ const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
   await userService.changePassword(req.user.id, currentPassword, newPassword);
+
+  createActivityLog(req.user.id, 'change_password', 'user', `Changed account password`, {
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
 
   res.json({
     success: true,
@@ -78,6 +87,11 @@ const getUsers = asyncHandler(async (req, res) => {
 const createUser = asyncHandler(async (req, res) => {
   const user = await userService.createUser(req.body, req.user);
 
+  createActivityLog(req.user.id, 'create', 'user', `Created user: ${user.name} (${user.email}, ${user.role})`, {
+    targetUserId: user._id,
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
+
   res.status(201).json({
     success: true,
     message: 'User created successfully',
@@ -111,6 +125,11 @@ const updateUser = asyncHandler(async (req, res) => {
     req.user
   );
 
+  createActivityLog(req.user.id, 'update', 'user', `Updated user: ${user.name} (${user.role})`, {
+    targetUserId: user._id,
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
+
   res.json({
     success: true,
     message: 'User updated successfully',
@@ -126,6 +145,12 @@ const updateUser = asyncHandler(async (req, res) => {
 const toggleUserStatus = asyncHandler(async (req, res) => {
   const user = await userService.toggleUserStatus(req.params.id, req.user);
 
+  const action = user.isActive ? 'activate' : 'deactivate';
+  createActivityLog(req.user.id, action, 'user', `${user.isActive ? 'Activated' : 'Deactivated'} user: ${user.name} (${user.email})`, {
+    targetUserId: user._id,
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
+
   res.json({
     success: true,
     message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
@@ -140,6 +165,11 @@ const toggleUserStatus = asyncHandler(async (req, res) => {
  */
 const deactivateUser = asyncHandler(async (req, res) => {
   await userService.deactivateUser(req.params.id, req.user);
+
+  createActivityLog(req.user.id, 'deactivate', 'user', `Deactivated user ID: ${req.params.id}`, {
+    targetUserId: req.params.id,
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
 
   res.json({
     success: true,
