@@ -101,7 +101,6 @@ export const modules = [
       { name: 'Activity Logs', route: '/activity-logs', icon: History, permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
     ]
   },
-  { name: 'Activity Logs', icon: History, color: '#667eea', route: '/activity-logs', permission: PERMISSIONS.SYSTEM.MANAGE, superAdminOnly: true },
   { name: 'Transport', icon: DirectionsBus, color: '#ee5a6f', route: null },
   { name: 'Event', icon: Event, color: '#764ba2', route: '/calendar', permission: PERMISSIONS.ACADEMIC.VIEW },
   { name: 'Institute Branding', icon: Brush, color: '#667eea', route: null },
