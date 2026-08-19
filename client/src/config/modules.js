@@ -82,7 +82,6 @@ export const modules = [
     ]
   },
   { name: 'Results', icon: Assessment, color: '#feca57', route: '/results', permission: PERMISSIONS.RESULTS.VIEW },
-  { name: 'SMS & Notification', icon: Notifications, color: '#fa709a', route: '/notifications', permission: PERMISSIONS.SYSTEM.MANAGE },
   { name: 'Complaints', icon: Report, color: '#ee5a6f', route: null },
   
   { name: 'HR Management', icon: People, color: '#667eea', route: null },

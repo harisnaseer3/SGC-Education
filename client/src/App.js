@@ -23,7 +23,6 @@ import AdmissionForm from './pages/AdmissionForm';
 import ImportStudents from './pages/ImportStudents';
 import Users from './pages/Users';
 import UserForm from './pages/UserForm';
-import Notifications from './pages/Notifications';
 import FeeManagement from './pages/FeeManagement';
 import Calendar from './pages/Calendar';
 import Messages from './pages/Messages';
@@ -99,7 +98,6 @@ const ProtectedRoute = ({ children, title, permission }) => {
       '/groups': 'Groups',
       '/admissions': 'Admissions',
       '/users': 'Users',
-      '/notifications': 'Notifications',
       '/fee-management': 'Fee Management',
       '/calendar': 'Academic Calendar',
       '/messages': 'Messages',
@@ -438,14 +436,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/notifications"
-            element={
-              <ProtectedRoute>
-                <Notifications />
-              </ProtectedRoute>
-            }
-          />
+
           <Route
             path="/fee-management"
             element={

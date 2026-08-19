@@ -1,6 +1,5 @@
 const Message = require('../models/Message');
 const User = require('../models/User');
-const notificationService = require('./notification.service');
 const { ApiError } = require('../middleware/error.middleware');
 
 /**
@@ -172,18 +171,8 @@ class MessageService {
    * Send message as notification
    */
   async sendAsNotification(message, recipients) {
-    const recipientIds = recipients.map(r => r._id);
-
-    await notificationService.createBulkNotifications(
-      recipientIds,
-      {
-        title: message.subject,
-        message: message.body,
-        type: message.priority === 'urgent' ? 'warning' : 'info',
-        priority: message.priority
-      },
-      message.createdBy
-    );
+    // Notification module removed per user request
+    return true;
   }
 
   /**
