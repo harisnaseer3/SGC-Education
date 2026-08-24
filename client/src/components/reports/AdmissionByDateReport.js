@@ -504,7 +504,7 @@ const AdmissionByDateReport = () => {
                   src={logoSrc}
                   alt="School Logo"
                   style={{ width: '80px', height: '80px', marginBottom: '10px', objectFit: 'contain' }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
+                  onError={(e) => { e.target.onerror = null; e.target.src = '/logo192.png'; }}
                 />
               );
             })()}
