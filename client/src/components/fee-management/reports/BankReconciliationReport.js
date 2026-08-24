@@ -24,7 +24,7 @@ import {
 import { Search, FileDownload, Print, ArrowBack } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import { getApiBaseUrl } from '../../../config/api';
+import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { notifyError } from '../../../utils/notify';
 import { createAxiosConfig, getInstitutionId } from '../../../utils/feeUtils';
 
@@ -295,6 +295,13 @@ const BankReconciliationReport = ({ onBack }) => {
           </Box>
 
           <Box sx={{ textAlign: 'center', mb: 1 }}>
+            {institution?.logo && (
+              <Box
+                component="img"
+                src={getLogoUrl(institution.logo, institution._id)}
+                sx={{ height: 60, width: 60, borderRadius: '50%', mb: 1, objectFit: 'cover' }}
+              />
+            )}
             <Typography variant="h4" sx={{ fontWeight: 'bold', fontFamily: 'serif' }}>
               {institution?.name || 'TIGES - TAJ CAMPUS'}
             </Typography>

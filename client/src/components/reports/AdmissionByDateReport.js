@@ -28,7 +28,7 @@ import {
 } from '@mui/material';
 import { Assessment, DateRange, Print } from '@mui/icons-material';
 import axios from 'axios';
-import { getApiUrl } from '../../config/api';
+import { getApiUrl, getLogoUrl } from '../../config/api';
 
 const AdmissionByDateReport = () => {
   const [loading, setLoading] = useState(false);
@@ -495,13 +495,19 @@ const AdmissionByDateReport = () => {
           }}
         >
           <Box sx={{ textAlign: 'center', mb: 3 }}>
-            {/* School Logo - You may need to adjust the path */}
-            <img
-              src="/logo.png"
-              alt="School Logo"
-              style={{ width: '80px', height: '80px', marginBottom: '10px' }}
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
+            {/* School Logo */}
+            {(() => {
+              const selectedInst = institutions.find(inst => selectedInstitutions.includes(inst._id));
+              const logoSrc = getLogoUrl(selectedInst?.logo, selectedInst?._id) || '/logo.png';
+              return (
+                <img
+                  src={logoSrc}
+                  alt="School Logo"
+                  style={{ width: '80px', height: '80px', marginBottom: '10px', objectFit: 'contain' }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              );
+            })()}
             <Typography variant="h5" fontWeight="bold">
               {institutions.find(inst => selectedInstitutions.includes(inst._id))?.name || 'School Name'}
             </Typography>

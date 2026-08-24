@@ -18,7 +18,7 @@ import {
 import { Search, FileDownload, Print } from '@mui/icons-material';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
-import { getApiBaseUrl } from '../../../config/api';
+import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { notifyError, notifySuccess } from '../../../utils/notify';
 import { createAxiosConfig, getInstitutionId, parseMonthYear, formatMonthYear } from '../../../utils/feeUtils';
 
@@ -287,6 +287,13 @@ const BankVouchersReport = ({ onBack }) => {
           </Box>
 
           <Box sx={{ textAlign: 'center', mb: 2 }}>
+            {institution?.logo && (
+              <Box
+                component="img"
+                src={getLogoUrl(institution.logo, institution._id)}
+                sx={{ height: 60, width: 60, borderRadius: '50%', mb: 1, objectFit: 'cover' }}
+              />
+            )}
             <Typography variant="h4" sx={{ fontWeight: 'bold' }}>
               {institution?.name || 'SGC Education System'}
             </Typography>
