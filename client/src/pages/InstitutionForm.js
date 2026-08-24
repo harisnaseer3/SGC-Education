@@ -39,7 +39,7 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { getApiUrl } from '../config/api';
+import { getApiUrl, getLogoUrl } from '../config/api';
 
 const InstitutionForm = () => {
   const navigate = useNavigate();
@@ -208,9 +208,7 @@ const InstitutionForm = () => {
       });
       // Set logo preview if logo exists
       if (data.logo) {
-        // Construct proper URL for static files (remove /api/v1 from base URL)
-        const baseUrl = getApiUrl('').replace('/api/v1/', '').replace('/api/v1', '');
-        setLogoPreview(`${baseUrl}${data.logo}`);
+        setLogoPreview(getLogoUrl(data.logo));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch institution');
@@ -316,9 +314,7 @@ const InstitutionForm = () => {
   const handleRemoveLogo = () => {
     setLogoFile(null);
     if (formData.logo) {
-      // Construct proper URL for static files
-      const baseUrl = getApiUrl('').replace('/api/v1/', '').replace('/api/v1', '');
-      setLogoPreview(`${baseUrl}${formData.logo}`);
+      setLogoPreview(getLogoUrl(formData.logo));
     } else {
       setLogoPreview(null);
     }

@@ -43,7 +43,7 @@ import {
   formatCurrency, 
   formatMonthYear 
 } from '../../../utils/feeUtils';
-import { getApiBaseUrl } from '../../../config/api';
+import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { notifyError, notifySuccess } from '../../../utils/notify';
 
 const API_URL = getApiBaseUrl();
@@ -478,9 +478,7 @@ const FeeListReport = ({ onBack }) => {
                   {institution?.logo ? (
                     <Box
                       component="img"
-                      src={institution.logo.startsWith('http') 
-                        ? institution.logo 
-                        : `${API_URL.replace('/api/v1', '')}${institution.logo}`}
+                      src={getLogoUrl(institution.logo)}
                       sx={{ height: '80px', width: '80px', borderRadius: '50%', objectFit: 'cover' }}
                     />
                   ) : (

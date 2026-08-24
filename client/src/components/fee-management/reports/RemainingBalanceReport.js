@@ -33,7 +33,7 @@ import {
 import axios from 'axios';
 import { format } from 'date-fns';
 import * as XLSX from 'xlsx';
-import { getApiBaseUrl } from '../../../config/api';
+import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { 
   getInstitutionId, 
   createAxiosConfig,
@@ -329,9 +329,7 @@ const RemainingBalanceReport = ({ onBack }) => {
             {institutionData?.logo && (
               <Box
                 component="img"
-                src={institutionData.logo.startsWith('http') 
-                  ? institutionData.logo 
-                  : `${API_URL.replace('/api/v1', '')}${institutionData.logo}`}
+                src={getLogoUrl(institutionData.logo)}
                 sx={{ width: 60, height: 60, borderRadius: '50%', border: '1px solid #ddd' }}
               />
             )}

@@ -25,4 +25,24 @@ export const getApiUrl = (endpoint) => {
  */
 export const getApiBaseUrl = () => API_BASE_URL;
 
+/**
+ * Get full accessible URL for a logo or uploaded static image.
+ * If path starts with http://, https://, data:, or blob:, returns path as is.
+ * Otherwise resolves path relative to API_BASE_URL so that proxies route it correctly.
+ * @param {string} logoPath
+ * @returns {string|null}
+ */
+export const getLogoUrl = (logoPath) => {
+  if (!logoPath) return null;
+  if (
+    logoPath.startsWith('http://') ||
+    logoPath.startsWith('https://') ||
+    logoPath.startsWith('data:') ||
+    logoPath.startsWith('blob:')
+  ) {
+    return logoPath;
+  }
+  return getApiUrl(logoPath);
+};
+
 export default API_BASE_URL;
