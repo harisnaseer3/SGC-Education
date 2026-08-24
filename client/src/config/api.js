@@ -46,7 +46,8 @@ export const getLogoUrl = (logoPath, institutionId) => {
     return logoPath;
   }
   if (institutionId) {
-    return getApiUrl(`institutions/${institutionId}/logo-image`);
+    const fileName = logoPath ? logoPath.split('/').pop() : '';
+    return getApiUrl(`institutions/${institutionId}/logo-image${fileName ? `?file=${encodeURIComponent(fileName)}` : ''}`);
   }
   if (logoPath && (logoPath.startsWith('http://') || logoPath.startsWith('https://'))) {
     return logoPath;
