@@ -193,14 +193,39 @@ const getLogoImage = asyncHandler(async (req, res) => {
     return res.status(404).send('Logo not found');
   }
 
-  // Construct absolute path to file on disk
-  const logoPath = path.join(__dirname, '..', 'public', institution.logo);
-  
-  if (!fs.existsSync(logoPath)) {
+  const rawLogo = String(institution.logo).replace(/\\/g, '/');
+  const queryFile = req.query.file ? String(req.query.file).replace(/\\/g, '/') : '';
+  const fileName = path.basename(rawLogo);
+
+  // Candidate paths to search on disk
+  const candidatePaths = [
+    path.join(__dirname, '..', 'public', rawLogo),
+    path.join(__dirname, '..', 'public', 'uploads', 'institutions', fileName),
+    path.join(__dirname, '..', 'public', 'uploads', fileName),
+    path.join(__dirname, '..', rawLogo),
+    path.join(process.cwd(), 'server', 'public', rawLogo),
+    path.join(process.cwd(), 'server', 'public', 'uploads', 'institutions', fileName),
+    path.join(process.cwd(), 'public', rawLogo),
+    path.join(process.cwd(), 'public', 'uploads', 'institutions', fileName),
+    path.join(process.cwd(), rawLogo)
+  ];
+
+  if (queryFile) {
+    candidatePaths.unshift(
+      path.join(__dirname, '..', 'public', 'uploads', 'institutions', queryFile),
+      path.join(process.cwd(), 'server', 'public', 'uploads', 'institutions', queryFile)
+    );
+  }
+
+  const foundPath = candidatePaths.find(p => fs.existsSync(p));
+
+  if (!foundPath) {
+    console.error(`[getLogoImage] Logo file not found for institution ${req.params.id}. DB logo path: "${institution.logo}". Searched paths:`, candidatePaths);
     return res.status(404).send('Logo file not found on server');
   }
 
-  res.sendFile(logoPath);
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  return res.sendFile(path.resolve(foundPath));
 });
 
 module.exports = {
