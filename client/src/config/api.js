@@ -27,22 +27,31 @@ export const getApiBaseUrl = () => API_BASE_URL;
 
 /**
  * Get full accessible URL for a logo or uploaded static image.
- * If path starts with http://, https://, data:, or blob:, returns path as is.
- * Otherwise resolves path relative to API_BASE_URL so that proxies route it correctly.
+ * If path starts with data: or blob:, returns path as is.
+ * If institutionId is provided, uses the dedicated API endpoint (/institutions/:id/logo-image)
+ * which bypasses Nginx static asset regex rules on live servers.
+ * Otherwise resolves logoPath relative to API_BASE_URL.
  * @param {string} logoPath
+ * @param {string} [institutionId]
  * @returns {string|null}
  */
-export const getLogoUrl = (logoPath) => {
-  if (!logoPath) return null;
+export const getLogoUrl = (logoPath, institutionId) => {
+  if (!logoPath && !institutionId) return null;
   if (
-    logoPath.startsWith('http://') ||
-    logoPath.startsWith('https://') ||
-    logoPath.startsWith('data:') ||
-    logoPath.startsWith('blob:')
+    logoPath && (
+      logoPath.startsWith('data:') ||
+      logoPath.startsWith('blob:')
+    )
   ) {
     return logoPath;
   }
-  return getApiUrl(logoPath);
+  if (institutionId) {
+    return getApiUrl(`institutions/${institutionId}/logo-image`);
+  }
+  if (logoPath && (logoPath.startsWith('http://') || logoPath.startsWith('https://'))) {
+    return logoPath;
+  }
+  return logoPath ? getApiUrl(logoPath) : null;
 };
 
 export default API_BASE_URL;

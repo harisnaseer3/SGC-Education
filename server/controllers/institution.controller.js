@@ -178,6 +178,31 @@ const uploadLogo = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/v1/institutions/:id/logo-image
+ * @desc    Get institution logo image file (Public endpoint for <img> tags)
+ * @access  Public
+ */
+const getLogoImage = asyncHandler(async (req, res) => {
+  const path = require('path');
+  const fs = require('fs');
+  const Institution = require('../models/Institution');
+  
+  const institution = await Institution.findById(req.params.id);
+  if (!institution || !institution.logo) {
+    return res.status(404).send('Logo not found');
+  }
+
+  // Construct absolute path to file on disk
+  const logoPath = path.join(__dirname, '..', 'public', institution.logo);
+  
+  if (!fs.existsSync(logoPath)) {
+    return res.status(404).send('Logo file not found on server');
+  }
+
+  res.sendFile(logoPath);
+});
+
 module.exports = {
   getInstitutions,
   getInstitutionById,
@@ -186,5 +211,6 @@ module.exports = {
   deleteInstitution,
   toggleStatus,
   getStats,
-  uploadLogo
+  uploadLogo,
+  getLogoImage
 };

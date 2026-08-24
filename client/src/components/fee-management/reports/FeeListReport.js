@@ -478,7 +478,7 @@ const FeeListReport = ({ onBack }) => {
                   {institution?.logo ? (
                     <Box
                       component="img"
-                      src={getLogoUrl(institution.logo)}
+                      src={getLogoUrl(institution.logo, institution._id)}
                       sx={{ height: '80px', width: '80px', borderRadius: '50%', objectFit: 'cover' }}
                     />
                   ) : (

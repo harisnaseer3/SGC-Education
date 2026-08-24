@@ -48,7 +48,10 @@ const upload = multer({
  * Base path: /api/v1/institutions
  */
 
-// All routes require authentication
+// Public route for logo image fetching (used by <img> tags)
+router.get('/:id/logo-image', institutionController.getLogoImage);
+
+// All other routes require authentication
 router.use(authenticate);
 
 // Routes accessible by all authenticated users

@@ -329,7 +329,7 @@ const RemainingBalanceReport = ({ onBack }) => {
             {institutionData?.logo && (
               <Box
                 component="img"
-                src={getLogoUrl(institutionData.logo)}
+                src={getLogoUrl(institutionData.logo, institutionData._id)}
                 sx={{ width: 60, height: 60, borderRadius: '50%', border: '1px solid #ddd' }}
               />
             )}

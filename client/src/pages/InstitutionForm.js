@@ -208,7 +208,7 @@ const InstitutionForm = () => {
       });
       // Set logo preview if logo exists
       if (data.logo) {
-        setLogoPreview(getLogoUrl(data.logo));
+        setLogoPreview(getLogoUrl(data.logo, id));
       }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch institution');
@@ -314,7 +314,7 @@ const InstitutionForm = () => {
   const handleRemoveLogo = () => {
     setLogoFile(null);
     if (formData.logo) {
-      setLogoPreview(getLogoUrl(formData.logo));
+      setLogoPreview(getLogoUrl(formData.logo, id));
     } else {
       setLogoPreview(null);
     }
