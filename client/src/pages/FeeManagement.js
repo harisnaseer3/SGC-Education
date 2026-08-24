@@ -76,7 +76,7 @@ import {
   formatCurrency,
   matchesVoucherMonthYear
 } from '../utils/feeUtils';
-import { getApiBaseUrl } from '../config/api';
+import { getApiBaseUrl, getLogoUrl } from '../config/api';
 import ReportsTab from '../components/fee-management/ReportsTab';
 
 const API_URL = getApiBaseUrl();
@@ -6870,15 +6870,9 @@ const FeeManagement = () => {
                       <Box sx={{ textAlign: 'center', mb: 1 }}>
                         <Box
                           component="img"
-                          src={
-                            voucherData.institution?.logo 
-                              ? (voucherData.institution.logo.startsWith('http') 
-                                  ? voucherData.institution.logo 
-                                  : `${API_URL.replace('/api/v1', '')}${voucherData.institution.logo}`)
-                              : process.env.PUBLIC_URL + '/logo.png'
-                          }
+                          src={getLogoUrl(voucherData.institution?.logo, voucherData.institution?._id) || (process.env.PUBLIC_URL + '/logo.png')}
                           alt="Logo"
-                          onError={(e) => { e.target.style.display = 'none'; }}
+                          onError={(e) => { e.target.onerror = null; e.target.src = process.env.PUBLIC_URL + '/logo.png'; }}
                           sx={{
                             width: 40,
                             height: 40,
@@ -7171,8 +7165,9 @@ const FeeManagement = () => {
                           <Box sx={{ textAlign: 'center', mb: 1 }}>
                             <Box
                               component="img"
-                              src={data.institution?.logo ? (data.institution.logo.startsWith('http') ? data.institution.logo : `${API_URL.replace('/api/v1', '')}${data.institution.logo}`) : process.env.PUBLIC_URL + '/logo.png'}
+                              src={getLogoUrl(data.institution?.logo, data.institution?._id) || (process.env.PUBLIC_URL + '/logo.png')}
                               alt="Logo"
+                              onError={(e) => { e.target.onerror = null; e.target.src = process.env.PUBLIC_URL + '/logo.png'; }}
                               sx={{ width: 40, height: 40, borderRadius: '50%', border: '1px solid #000', mx: 'auto', display: 'block' }}
                             />
                             <Typography sx={{ fontWeight: 'bold', fontSize: '0.8rem', mt: 0.5 }}>{data.institution?.name?.toUpperCase() || 'INSTITUTION NAME'}</Typography>
