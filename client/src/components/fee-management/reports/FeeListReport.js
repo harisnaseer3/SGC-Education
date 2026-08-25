@@ -234,16 +234,20 @@ const FeeListReport = ({ onBack }) => {
           );
 
           if (isCurrentMonth) {
-            group.monthlyFees += (sf.finalAmount || 0);
             const headName = sf.feeHead?.name || 'Other';
+            const isArrearsHead = headName.toLowerCase() === 'arrears';
+
+            if (!isArrearsHead) {
+              group.monthlyFees += (sf.finalAmount || 0);
+            }
             group.headwise[headName] = (group.headwise[headName] || 0) + (sf.finalAmount || 0);
             
             group.totalDue += (sf.finalAmount || 0);
             group.totalReceived += (sf.paidAmount || 0);
-            group.totalRemaining += (sf.remainingAmount || 0);
+            group.totalRemaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
           } else if (filters.includePreviousBalance) {
             // For previous months, only count the REMAINING balance as Arrears
-            const unpaidPrev = sf.remainingAmount || 0;
+            const unpaidPrev = sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0);
             if (unpaidPrev > 0) {
               group.headwise['Arrears'] = (group.headwise['Arrears'] || 0) + unpaidPrev;
               group.totalDue += unpaidPrev;
