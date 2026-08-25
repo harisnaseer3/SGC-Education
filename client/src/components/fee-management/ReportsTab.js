@@ -5,9 +5,7 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActions,
   Button,
-  Divider,
   IconButton
 } from '@mui/material';
 import {
@@ -15,7 +13,8 @@ import {
   Receipt,
   Search,
   Visibility,
-  ArrowBack
+  ArrowBack,
+  ReceiptLong
 } from '@mui/icons-material';
 import BankReconciliationReport from './reports/BankReconciliationReport';
 import FeeListReport from './reports/FeeListReport';
@@ -45,25 +44,33 @@ const ReportsTab = () => {
       id: 'bank-reconciliation',
       title: 'Bank Reconciliation',
       description: 'Fee Collected in Bank for Reconciliation. Detailed report of all bank-channeled payments.',
-      icon: <AccountBalanceWallet sx={{ fontSize: 40, color: '#667eea' }} />
+      icon: <AccountBalanceWallet sx={{ fontSize: 24, color: '#4f46e5' }} />,
+      bgColor: '#e0e7ff',
+      shadowColor: 'rgba(79, 70, 229, 0.2)'
     },
     {
       id: 'fee-list',
       title: 'Fee List',
       description: 'Comprehensive list of all fees Generated vs Collected for a specific period.',
-      icon: <Receipt sx={{ fontSize: 40, color: '#6c757d' }} />
+      icon: <ReceiptLong sx={{ fontSize: 24, color: '#0284c7' }} />,
+      bgColor: '#e0f2fe',
+      shadowColor: 'rgba(2, 132, 199, 0.2)'
     },
     {
       id: 'remaining-balance',
       title: 'Remaining Balance',
       description: 'Student List with Remaining Balance. Track outstanding dues for all students.',
-      icon: <Search sx={{ fontSize: 40, color: '#f89d13' }} />
+      icon: <Search sx={{ fontSize: 24, color: '#d97706' }} />,
+      bgColor: '#fef3c7',
+      shadowColor: 'rgba(217, 119, 6, 0.2)'
     },
     {
       id: 'bank-vouchers',
       title: 'Bank Vouchers',
       description: 'Detailed report of Bank Vouchers for fee collection.',
-      icon: <Receipt sx={{ fontSize: 40, color: '#4caf50' }} />
+      icon: <Receipt sx={{ fontSize: 24, color: '#16a34a' }} />,
+      bgColor: '#dcfce7',
+      shadowColor: 'rgba(22, 163, 74, 0.2)'
     }
   ];
 
@@ -95,42 +102,78 @@ const ReportsTab = () => {
         </Typography>
       </Box>
 
-      <Grid container spacing={3}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, width: '100%' }}>
         {reports.map((report) => (
-          <Grid item xs={12} md={4} key={report.id}>
+          <Box 
+            key={report.id} 
+            sx={{ 
+              flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 12px)', md: '1 1 calc(50% - 12px)' },
+              maxWidth: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(50% - 12px)' },
+              boxSizing: 'border-box',
+              display: 'flex'
+            }}
+          >
             <Card sx={{ 
-              height: '100%', 
+              width: '100%',
               display: 'flex', 
               flexDirection: 'column', 
-              transition: '0.3s', 
-              '&:hover': { transform: 'translateY(-5px)', boxShadow: 6 } 
+              justifyContent: 'space-between',
+              borderRadius: 3,
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
+              border: '1px solid #eef2f6',
+              transition: 'all 0.3s ease-in-out', 
+              '&:hover': { 
+                transform: 'translateY(-4px)', 
+                boxShadow: '0 8px 24px rgba(102, 126, 234, 0.15)',
+                borderColor: '#667eea'
+              } 
             }}>
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <Box sx={{ mr: 2 }}>{report.icon}</Box>
-                  <Typography variant="h6" fontWeight="bold">
+              <CardContent sx={{ p: 3, flexGrow: 1, display: 'flex', flexDirection: 'column' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: '#2c3e50', fontSize: '1.1rem' }}>
                     {report.title}
                   </Typography>
+                  <Box sx={{ 
+                    width: 48, 
+                    height: 48, 
+                    borderRadius: 2.5, 
+                    bgcolor: report.bgColor, 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: `0 4px 10px ${report.shadowColor}`
+                  }}>
+                    {report.icon}
+                  </Box>
                 </Box>
-                <Typography variant="body2" color="text.secondary">
+                <Typography variant="body2" color="text.secondary" sx={{ flexGrow: 1, lineHeight: 1.6 }}>
                   {report.description}
                 </Typography>
               </CardContent>
-              <Divider />
-              <CardActions sx={{ justifyContent: 'center', p: 2 }}>
+              <Box sx={{ p: 2, pt: 0 }}>
                 <Button 
                   variant="contained" 
-                  sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }} 
+                  fullWidth
+                  sx={{ 
+                    bgcolor: '#667eea', 
+                    color: '#fff',
+                    borderRadius: 2,
+                    py: 1,
+                    fontWeight: 600,
+                    textTransform: 'none',
+                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                    '&:hover': { bgcolor: '#5a6fd6', boxShadow: '0 6px 16px rgba(102, 126, 234, 0.4)' } 
+                  }} 
                   startIcon={<Visibility />}
                   onClick={() => setSelectedReport(report.id)}
                 >
                   View Report
                 </Button>
-              </CardActions>
+              </Box>
             </Card>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
     </Box>
   );
 };
