@@ -168,7 +168,6 @@ const BankVouchersReport = ({ onBack }) => {
 
     const exportData = data.map((item, index) => ({
       'Invoice Number': item.voucherNumber || 'N/A',
-      'Dealer Code': item.dealerCode || '',
       'Invoice Amount': item.amount,
       'AFTER DUEDATE AMOUNT': item.afterDueDateAmount,
       'Invoice Date': formatDate(item.invoiceDate),
@@ -307,7 +306,6 @@ const BankVouchersReport = ({ onBack }) => {
               <TableHead>
                 <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                   <TableCell sx={{ fontWeight: 'bold' }}>Invoice Number</TableCell>
-                  <TableCell sx={{ fontWeight: 'bold' }}>Dealer Code</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Invoice Amount</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>After Due Date Amount</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Invoice Date</TableCell>
@@ -325,7 +323,6 @@ const BankVouchersReport = ({ onBack }) => {
                 {data.map((row, index) => (
                   <TableRow key={index} sx={{ '&:nth-of-type(even)': { bgcolor: '#fafafa' } }}>
                     <TableCell>{row.voucherNumber}</TableCell>
-                    <TableCell>{row.dealerCode}</TableCell>
                     <TableCell>{row.amount.toLocaleString()}</TableCell>
                     <TableCell>{row.afterDueDateAmount.toLocaleString()}</TableCell>
                     <TableCell>{formatDate(row.invoiceDate)}</TableCell>
