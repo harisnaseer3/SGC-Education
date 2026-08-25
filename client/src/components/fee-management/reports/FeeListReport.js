@@ -251,22 +251,6 @@ const FeeListReport = ({ onBack }) => {
               group.totalReceived += (sf.paidAmount || 0);
               group.totalRemaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
             }
-          } else if (filters.includePreviousBalance) {
-            // For strictly previous months, count the unpaid balance as Arrears
-            const isStrictlyPrevious = (sf.vouchers || []).every(v => {
-              const vMonth = Number(v.month);
-              const vYear = Number(v.year);
-              return vYear < targetYear || (vYear === targetYear && vMonth < targetMonth);
-            });
-
-            if (isStrictlyPrevious) {
-              const unpaidPrev = sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0);
-              if (unpaidPrev > 0) {
-                group.headwise['Arrears'] = (group.headwise['Arrears'] || 0) + unpaidPrev;
-                group.totalDue += unpaidPrev;
-                group.totalRemaining += unpaidPrev;
-              }
-            }
           }
         }
       });
