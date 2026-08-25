@@ -187,25 +187,22 @@ const RemainingBalanceReport = ({ onBack }) => {
           );
 
           if (isCurrentMonth) {
-            group.currentBalance += (sf.finalAmount || 0);
+            const headName = sf.feeHead?.name || 'Other';
+            const isArrearsHead = headName.toLowerCase() === 'arrears';
+
+            if (isArrearsHead) {
+              group.previousBalance += (sf.finalAmount || 0);
+              group.receivable += (sf.finalAmount || 0);
+              group.remaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
+            } else {
+              group.currentBalance += (sf.finalAmount || 0);
+              group.receivable += (sf.finalAmount || 0);
+              group.received += (sf.paidAmount || 0);
+              group.remaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
+            }
+
             if (headId) {
               group.heads[headId] = (group.heads[headId] || 0) + (sf.finalAmount || 0);
-            }
-            
-            group.receivable += (sf.finalAmount || 0);
-            group.received += (sf.paidAmount || 0);
-            group.remaining += (sf.remainingAmount || 0);
-          } else {
-            // For previous months, only count the REMAINING balance as Arrears
-            const unpaidPrev = sf.remainingAmount || 0;
-            if (unpaidPrev > 0) {
-              group.previousBalance += unpaidPrev;
-              group.receivable += unpaidPrev;
-              group.remaining += unpaidPrev;
-              // Add arrears to the head as well (or map to a specific Arrears head if needed)
-              if (headId) {
-                group.heads[headId] = (group.heads[headId] || 0) + unpaidPrev;
-              }
             }
           }
         }
