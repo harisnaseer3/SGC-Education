@@ -1639,6 +1639,44 @@ const FeeManagement = () => {
     });
   };
 
+  // Handle Export Vouchers (Excel / CSV)
+  const handleExportVouchers = (format = 'excel') => {
+    const filteredStudents = getFilteredPrintVoucherStudents();
+    if (!filteredStudents || filteredStudents.length === 0) {
+      notifyError('No vouchers to export');
+      return;
+    }
+
+    const exportData = filteredStudents.map((item) => ({
+      'Voucher Number': item.voucherNumber || 'N/A',
+      'Voucher Status': item.voucherStatus === 'Partial' ? 'Partially Paid' : (item.voucherStatus || 'Pending'),
+      'Student ID': item.id || 'N/A',
+      'Roll Number': item.rollNumber || 'N/A',
+      'Student Name': item.name || 'N/A',
+      'Father Name': item.fatherName || 'N/A',
+      'Class': item.class || 'N/A',
+      'Fee Month': formatMonthYear(...Object.values(parseMonthYear(printVoucherFilters.monthYear))),
+      'Voucher Amount (Rs)': item.voucherAmount || 0,
+      'Arrears (Rs)': item.arrears || 0,
+      'Paid Amount (Rs)': item.paidAmount || 0,
+      'Remaining Amount (Rs)': item.remainingAmount || 0
+    }));
+
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Print Vouchers');
+
+    const fileName = `Vouchers_Report_${printVoucherFilters.monthYear}.${format === 'csv' ? 'csv' : 'xlsx'}`;
+
+    if (format === 'csv') {
+      XLSX.writeFile(wb, fileName, { bookType: 'csv' });
+    } else {
+      XLSX.writeFile(wb, fileName);
+    }
+
+    notifySuccess(`Exported ${exportData.length} vouchers to ${fileName}`);
+  };
+
   // Handle generate vouchers button click (opens dialog)
   const handleGenerateVouchers = () => {
     handleOpenFeeHeadSelectionDialog();
@@ -4808,7 +4846,7 @@ const FeeManagement = () => {
                       </Select>
                     </FormControl>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={2}>
                     <Button
                       variant="outlined"
                       fullWidth
@@ -4823,7 +4861,7 @@ const FeeManagement = () => {
                       Clear Filters
                     </Button>
                   </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} md={2}>
                     <Button
                       variant="contained"
                       fullWidth
@@ -4833,6 +4871,30 @@ const FeeManagement = () => {
                       onClick={handleBulkPrintVouchers}
                     >
                       {bulkVoucherLoading ? 'Loading Vouchers...' : 'Print Fee Voucher'}
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      variant="contained"
+                      fullWidth
+                      color="success"
+                      startIcon={<FileDownload />}
+                      disabled={getFilteredPrintVoucherStudents().length === 0}
+                      onClick={() => handleExportVouchers('excel')}
+                    >
+                      Export Excel
+                    </Button>
+                  </Grid>
+                  <Grid item xs={12} md={2}>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      color="success"
+                      startIcon={<FileDownload />}
+                      disabled={getFilteredPrintVoucherStudents().length === 0}
+                      onClick={() => handleExportVouchers('csv')}
+                    >
+                      Export CSV
                     </Button>
                   </Grid>
                   {selectedVoucherIds.length > 0 && (
