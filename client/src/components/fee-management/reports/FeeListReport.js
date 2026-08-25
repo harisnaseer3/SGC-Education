@@ -237,14 +237,20 @@ const FeeListReport = ({ onBack }) => {
             const headName = sf.feeHead?.name || 'Other';
             const isArrearsHead = headName.toLowerCase() === 'arrears';
 
-            if (!isArrearsHead) {
+            if (isArrearsHead) {
+              // Only count Arrears head if user explicitly checked 'Include Previous Balance'
+              if (filters.includePreviousBalance) {
+                group.headwise[headName] = (group.headwise[headName] || 0) + (sf.finalAmount || 0);
+                group.totalDue += (sf.finalAmount || 0);
+                group.totalRemaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
+              }
+            } else {
               group.monthlyFees += (sf.finalAmount || 0);
+              group.headwise[headName] = (group.headwise[headName] || 0) + (sf.finalAmount || 0);
+              group.totalDue += (sf.finalAmount || 0);
+              group.totalReceived += (sf.paidAmount || 0);
+              group.totalRemaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
             }
-            group.headwise[headName] = (group.headwise[headName] || 0) + (sf.finalAmount || 0);
-            
-            group.totalDue += (sf.finalAmount || 0);
-            group.totalReceived += (sf.paidAmount || 0);
-            group.totalRemaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
           } else if (filters.includePreviousBalance) {
             // For strictly previous months, count the unpaid balance as Arrears
             const isStrictlyPrevious = (sf.vouchers || []).every(v => {
