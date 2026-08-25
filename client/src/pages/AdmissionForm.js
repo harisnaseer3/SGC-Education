@@ -998,6 +998,25 @@ const AdmissionForm = () => {
             </Alert>
           )}
 
+          {/* Print-Only Centered Institution Title Header */}
+          <Box 
+            className="print-only-title"
+            sx={{ 
+              display: 'none', 
+              textAlign: 'center', 
+              mb: 3,
+              pb: 2,
+              borderBottom: '2px solid #1e293b'
+            }}
+          >
+            <Typography variant="h3" fontWeight="bold" sx={{ color: '#0f172a', letterSpacing: 1, textTransform: 'uppercase', fontSize: '2rem' }}>
+              SGC Education
+            </Typography>
+            <Typography variant="h6" fontWeight="600" sx={{ color: '#475569', letterSpacing: 2, textTransform: 'uppercase', mt: 0.5 }}>
+              Student Admission Registration Form
+            </Typography>
+          </Box>
+
           <Box component="form" onSubmit={handleSubmit}>
             {/* BASIC INFO Section */}
             <Box 
@@ -1009,8 +1028,9 @@ const AdmissionForm = () => {
                 border: '1px solid #e9ecef',
               }}
             >
-              <Box display="flex" alignItems="center" gap={2} mb={3}>
+              <Box className="print-section-header" display="flex" alignItems="center" gap={2} mb={3}>
                 <Box
+                  className="no-print"
                   sx={{
                     p: 1.5,
                     borderRadius: 2,
@@ -1023,7 +1043,7 @@ const AdmissionForm = () => {
                 >
                   <Person sx={{ fontSize: 28 }} />
                 </Box>
-                <Box>
+                <Box className="print-header-text">
                   <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50' }}>
                     Basic Information
                   </Typography>
@@ -1268,8 +1288,9 @@ const AdmissionForm = () => {
                 border: '1px solid #e9ecef',
               }}
             >
-              <Box display="flex" alignItems="center" gap={2} mb={3}>
+              <Box className="print-section-header" display="flex" alignItems="center" gap={2} mb={3}>
                 <Box
+                  className="no-print"
                   sx={{
                     p: 1.5,
                     borderRadius: 2,
@@ -1282,7 +1303,7 @@ const AdmissionForm = () => {
                 >
                   <LocationOn sx={{ fontSize: 28 }} />
                 </Box>
-                <Box>
+                <Box className="print-header-text">
                   <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50', fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                     Address Information
                   </Typography>
@@ -1498,8 +1519,9 @@ const AdmissionForm = () => {
                 border: '1px solid #e9ecef',
               }}
             >
-              <Box display="flex" alignItems="center" gap={2} mb={3}>
+              <Box className="print-section-header" display="flex" alignItems="center" gap={2} mb={3}>
                 <Box
+                  className="no-print"
                   sx={{
                     p: 1.5,
                     borderRadius: 2,
@@ -1512,7 +1534,7 @@ const AdmissionForm = () => {
                 >
                   <FamilyRestroom sx={{ fontSize: 28 }} />
                 </Box>
-                <Box>
+                <Box className="print-header-text">
                   <Typography variant="h5" fontWeight="bold" sx={{ color: '#2c3e50', fontSize: { xs: '1.25rem', sm: '1.5rem' } }}>
                     Guardian Information
                   </Typography>

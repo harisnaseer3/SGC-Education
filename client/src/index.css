@@ -34,7 +34,11 @@ code {
     max-width: 100% !important;
   }
 
-  /* Force full width on container and papers */
+  /* Force full width on container and papers without overflowing right border */
+  *, *:before, *:after {
+    box-sizing: border-box !important;
+  }
+
   .MuiContainer-root, 
   .MuiPaper-root, 
   .MuiBox-root {
@@ -47,6 +51,7 @@ code {
     margin-right: 0 !important;
     box-shadow: none !important;
     border: none !important;
+    overflow: visible !important;
   }
 
   /* Make inputs look clean and full-width printable */
@@ -56,6 +61,8 @@ code {
 
   .MuiOutlinedInput-root {
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     background-color: #fff !important;
     height: 48px !important;
   }
@@ -97,16 +104,43 @@ code {
     z-index: 2 !important;
   }
 
+  /* Display print-only header block centered at top of paper */
+  .print-only-title {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin-bottom: 25px !important;
+  }
+
+  .print-only-title * {
+    text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+  }
+
   /* Center align section header titles and subtitles in print */
-  .MuiTypography-h5,
-  .MuiTypography-h6 {
+  .print-section-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-align: center !important;
+    width: 100% !important;
+    margin-bottom: 20px !important;
+  }
+
+  .print-header-text {
     text-align: center !important;
     width: 100% !important;
   }
 
-  .MuiBox-root:has(> .MuiTypography-h5) {
-    justify-content: center !important;
+  .print-header-text .MuiTypography-root {
     text-align: center !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
   }
 
   /* Prevent sections from breaking awkwardly and overlapping across page boundaries */
@@ -116,8 +150,26 @@ code {
     break-inside: avoid !important;
   }
 
+  /* Prevent top and bottom text overlap across pages */
+  h1, h2, h3, h4, h5, h6, .MuiTypography-h5, .MuiTypography-h6 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* Make form grid layouts scale cleanly without clipping right edge */
+  .MuiGrid-container,
+  .MuiGrid-root,
+  .MuiGrid-item {
+    box-sizing: border-box !important;
+    max-width: 100% !important;
+  }
+
   @page {
+    margin: 0;
     size: auto;
-    margin: 12mm 10mm;
+  }
+
+  body {
+    padding: 10mm 8mm !important;
   }
 }
