@@ -11,3 +11,113 @@ code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
     monospace;
 }
+
+/* Printable Admission Form & Document Formatting */
+@media print {
+  /* Hide overall App layout elements (Sidebar, Top Header Bar, Nav) */
+  header, 
+  nav, 
+  aside,
+  .MuiDrawer-root,
+  .MuiAppBar-root,
+  button,
+  .MuiButton-root,
+  .no-print {
+    display: none !important;
+  }
+
+  body, #root, main, div {
+    background-color: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Force full width on container and papers */
+  .MuiContainer-root, 
+  .MuiPaper-root, 
+  .MuiBox-root {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  /* Make inputs look clean and full-width printable */
+  .MuiOutlinedInput-notchedOutline {
+    border-color: #64748b !important;
+  }
+
+  .MuiOutlinedInput-root {
+    width: 100% !important;
+    background-color: #fff !important;
+    height: 48px !important;
+  }
+
+  /* Clear all pre-filled input values, selected items, dates, and placeholders during printing */
+  .MuiSelect-select, 
+  .MuiInputBase-input,
+  input,
+  select,
+  textarea,
+  .MuiSelect-nativeInput {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+    opacity: 0 !important;
+  }
+
+  /* Make placeholder text and date formatting hidden */
+  input::placeholder,
+  textarea::placeholder {
+    color: transparent !important;
+    -webkit-text-fill-color: transparent !important;
+  }
+
+  /* Hide dropdown arrow icons and checkbox checkmark icons */
+  .MuiSelect-icon,
+  .MuiSvgIcon-root:not(.keep-print-icon) {
+    display: none !important;
+  }
+
+  /* Keep input floating field labels visible, small, and pinned to top notch border */
+  .MuiInputLabel-root,
+  .MuiFormLabel-root {
+    color: #1e293b !important;
+    font-weight: 700 !important;
+    opacity: 1 !important;
+    transform: translate(14px, -9px) scale(0.75) !important;
+    background-color: #ffffff !important;
+    padding: 0 4px !important;
+    z-index: 2 !important;
+  }
+
+  /* Center align section header titles and subtitles in print */
+  .MuiTypography-h5,
+  .MuiTypography-h6 {
+    text-align: center !important;
+    width: 100% !important;
+  }
+
+  .MuiBox-root:has(> .MuiTypography-h5) {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  /* Prevent sections from breaking awkwardly and overlapping across page boundaries */
+  .MuiBox-root,
+  .MuiPaper-root {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  @page {
+    size: auto;
+    margin: 12mm 10mm;
+  }
+}

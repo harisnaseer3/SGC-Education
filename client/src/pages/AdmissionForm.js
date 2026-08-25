@@ -915,6 +915,7 @@ const AdmissionForm = () => {
         {/* Enhanced Header with Gradient */}
         <Paper 
           elevation={0}
+          className="no-print"
           sx={{ 
             mb: 3,
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
