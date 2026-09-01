@@ -50,10 +50,12 @@ export const updateAdmission = async (id, admissionData) => {
 };
 
 // Update admission status
-export const updateAdmissionStatus = async (id, status, remarks) => {
+export const updateAdmissionStatus = async (id, status, remarks, effectiveDate) => {
+  const body = { status, remarks };
+  if (effectiveDate) body.effectiveDate = effectiveDate;
   const response = await axios.put(
     getApiUrl(`admissions/${id}/status`),
-    { status, remarks },
+    body,
     { headers: getAuthHeader() }
   );
   return response.data;
@@ -155,10 +157,12 @@ export const restoreAdmissions = async (admissionIds) => {
 
 
 // Bulk status update
-export const bulkUpdateStatus = async (admissionIds, status, remarks) => {
+export const bulkUpdateStatus = async (admissionIds, status, remarks, effectiveDate) => {
+  const body = { admissionIds, status, remarks };
+  if (effectiveDate) body.effectiveDate = effectiveDate;
   const response = await axios.post(
     getApiUrl('admissions/bulk-status-update'),
-    { admissionIds, status, remarks },
+    body,
     { headers: getAuthHeader() }
   );
   return response.data;

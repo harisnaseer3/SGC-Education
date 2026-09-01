@@ -105,13 +105,14 @@ const updateAdmission = asyncHandler(async (req, res) => {
  * @access  Private (Admin)
  */
 const updateAdmissionStatus = asyncHandler(async (req, res) => {
-  const { status, remarks } = req.body;
+  const { status, remarks, effectiveDate, statusDate } = req.body;
 
   const admission = await admissionService.updateAdmissionStatus(
     req.params.id,
     status,
     remarks,
-    req.user
+    req.user,
+    effectiveDate || statusDate
   );
 
   res.json({

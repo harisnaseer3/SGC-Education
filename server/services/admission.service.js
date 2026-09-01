@@ -314,7 +314,7 @@ class AdmissionService {
   /**
    * Update admission status
    */
-  async updateAdmissionStatus(admissionId, status, remarks, currentUser) {
+  async updateAdmissionStatus(admissionId, status, remarks, currentUser, effectiveDate) {
     const admission = await Admission.findById(admissionId);
 
     if (!admission) {
@@ -332,18 +332,21 @@ class AdmissionService {
       throw new ApiError(403, 'You can only update admissions in your institution');
     }
 
+    // Resolve effective timestamp - use provided effectiveDate or fall back to now
+    const effectiveTimestamp = effectiveDate ? new Date(effectiveDate).getTime() : Date.now();
+
     // Update status
     const oldStatus = admission.status;
     admission.status = status;
     admission.reviewedBy = currentUser.id;
     admission.reviewedAt = Date.now();
     admission.reviewRemarks = remarks;
-    // Add to status history
+    // Add to status history - use effectiveDate as changedAt so voucher filtering respects it
     const historyEntry = {
       status,
       remarks,
       changedBy: currentUser.id,
-      changedAt: Date.now()
+      changedAt: effectiveTimestamp
     };
 
     await Admission.findByIdAndUpdate(admissionId, {

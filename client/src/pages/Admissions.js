@@ -163,7 +163,7 @@ const Admissions = () => {
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [selectedStatus, setSelectedStatus] = useState(''); // For list page - single status
   const [selectedAdmission, setSelectedAdmission] = useState(null);
-  const [actionDialog, setActionDialog] = useState({ open: false, type: '', remarks: '' });
+  const [actionDialog, setActionDialog] = useState({ open: false, type: '', remarks: '', effectiveDate: new Date().toISOString().split('T')[0] });
   const [anchorEl, setAnchorEl] = useState(null);
   const [modulesAnchorEl, setModulesAnchorEl] = useState(null);
   const [studentMenuAnchor, setStudentMenuAnchor] = useState(null);
@@ -724,10 +724,10 @@ const Admissions = () => {
       } else if (type === 'enroll') {
         await approveAndEnroll(selectedAdmission._id);
       } else if (type === 'struck_off') {
-        await updateAdmissionStatus(selectedAdmission._id, 'struck_off', actionDialog.remarks);
+        await updateAdmissionStatus(selectedAdmission._id, 'struck_off', actionDialog.remarks, actionDialog.effectiveDate);
       }
 
-      setActionDialog({ open: false, type: '', remarks: '' });
+      setActionDialog({ open: false, type: '', remarks: '', effectiveDate: new Date().toISOString().split('T')[0] });
       setSelectedAdmission(null);
       fetchData();
       notifySuccess(`Admission ${type}ed successfully`);
@@ -929,11 +929,13 @@ const Admissions = () => {
   const [bulkStatusDialogOpen, setBulkStatusDialogOpen] = useState(false);
   const [selectedBulkStatus, setSelectedBulkStatus] = useState('');
   const [bulkStatusRemarks, setBulkStatusRemarks] = useState('');
+  const [bulkEffectiveDate, setBulkEffectiveDate] = useState(new Date().toISOString().split('T')[0]);
 
   const handleOpenBulkStatusDialog = () => {
     if (selectedAdmissions.length === 0) return;
     setSelectedBulkStatus('');
     setBulkStatusRemarks('');
+    setBulkEffectiveDate(new Date().toISOString().split('T')[0]);
     setBulkStatusDialogOpen(true);
   };
 
@@ -946,7 +948,8 @@ const Admissions = () => {
     
     try {
       setLoading(true);
-      await bulkUpdateStatus(selectedAdmissions, selectedBulkStatus, bulkStatusRemarks);
+      const isStruckOff = selectedBulkStatus === 'struckoff' || selectedBulkStatus === 'struck_off';
+      await bulkUpdateStatus(selectedAdmissions, selectedBulkStatus, bulkStatusRemarks, isStruckOff ? bulkEffectiveDate : null);
       // Wait a moment for DB propagation
       await new Promise(resolve => setTimeout(resolve, 500));
       
@@ -2803,7 +2806,7 @@ const Admissions = () => {
       )}
 
       {/* Action Dialog */}
-      <Dialog open={actionDialog.open} onClose={() => setActionDialog({ open: false, type: '', remarks: '' })}>
+      <Dialog open={actionDialog.open} onClose={() => setActionDialog({ open: false, type: '', remarks: '', effectiveDate: new Date().toISOString().split('T')[0] })}>
         <DialogTitle>
           {actionDialog.type === 'approve' && 'Approve Admission'}
           {actionDialog.type === 'reject' && 'Reject Admission'}
@@ -2820,9 +2823,22 @@ const Admissions = () => {
             onChange={(e) => setActionDialog({ ...actionDialog, remarks: e.target.value })}
             sx={{ mt: 2 }}
           />
+          {actionDialog.type === 'struck_off' && (
+            <TextField
+              fullWidth
+              type="date"
+              label="Effective Struck-Off Date"
+              value={actionDialog.effectiveDate}
+              onChange={(e) => setActionDialog({ ...actionDialog, effectiveDate: e.target.value })}
+              sx={{ mt: 2 }}
+              InputLabelProps={{ shrink: true }}
+              inputProps={{ max: new Date().toISOString().split('T')[0] }}
+              helperText="Student will not appear in voucher generation from this month onwards"
+            />
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setActionDialog({ open: false, type: '', remarks: '' })}>
+          <Button onClick={() => setActionDialog({ open: false, type: '', remarks: '', effectiveDate: new Date().toISOString().split('T')[0] })}>
             Cancel
           </Button>
           <Button onClick={() => handleAction(actionDialog.type)} variant="contained">
@@ -2858,6 +2874,20 @@ const Admissions = () => {
               placeholder="Reason for status change..."
               size="small"
             />
+            {(selectedBulkStatus === 'struckoff' || selectedBulkStatus === 'struck_off') && (
+              <TextField
+                fullWidth
+                type="date"
+                label="Effective Struck-Off Date"
+                value={bulkEffectiveDate}
+                onChange={(e) => setBulkEffectiveDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                inputProps={{ max: new Date().toISOString().split('T')[0] }}
+                size="small"
+                sx={{ mt: 2 }}
+                helperText="Student(s) will not appear in voucher generation from this month onwards"
+              />
+            )}
           </Box>
         </DialogContent>
         <DialogActions>
