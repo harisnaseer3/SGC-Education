@@ -1162,8 +1162,8 @@ const FeeManagement = () => {
             admissionNo: admission?.applicationNumber || student?.enrollmentNumber || 'N/A',
             name: studentName,
             fatherName: admission?.guardianInfo?.fatherName || 'N/A',
-            class: studentFee.class?.name || admission?.class?.name || 'N/A',
-            classId: studentFee.class?._id || admission?.class?._id || null,
+            class: admission?.class?.name || student?.class?.name || studentFee.class?.name || 'N/A',
+            classId: admission?.class?._id || student?.class?._id || studentFee.class?._id || null,
             section: admission?.section?.name || 'N/A',
             status: (student?.status === 'struck_off' || admission?.status === 'struck_off') ? 'Struck Off' : (student?.status || admission?.status || 'Active').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
             voucherStatus: voucherStatus

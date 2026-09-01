@@ -269,6 +269,14 @@ class AdmissionService {
         }
         if (updateData.academicYear) student.academicYear = updateData.academicYear;
         if (updateData.program) student.program = updateData.program;
+        if (updateData.class && updateData.class.toString() !== student.class?.toString()) {
+          student.class = updateData.class;
+          // Sync existing active StudentFee records to reference the new class
+          await StudentFee.updateMany(
+            { student: student._id, isActive: true },
+            { $set: { class: updateData.class } }
+          );
+        }
         
         // Ensure student status is synced if they were previously struck off
         if (student.status !== 'enrolled' && student.status !== 'passout') {
