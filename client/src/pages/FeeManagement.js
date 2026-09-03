@@ -6888,24 +6888,46 @@ const FeeManagement = () => {
                 <style>
                   {`
                     @media print {
+                      html, body {
+                        height: 100% !important;
+                        max-height: 100% !important;
+                        overflow: hidden !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                      }
                       body * {
-                          visibility: hidden;
+                        visibility: hidden;
                       }
                       #voucher-print-area, #voucher-print-area * {
                         visibility: visible;
                       }
                       #voucher-print-area {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
+                        position: fixed !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        height: 100vh !important;
+                        margin: 0 !important;
+                        padding: 4mm !important;
+                        box-sizing: border-box !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                      }
+                      #voucher-print-area img {
+                        width: 40px !important;
+                        height: 40px !important;
+                        max-width: 40px !important;
+                        max-height: 40px !important;
+                        object-fit: contain !important;
+                        display: block !important;
+                        margin: 0 auto 4px auto !important;
                       }
                       .no-print {
                         display: none !important;
                       }
                       @page {
                         size: landscape;
-                        margin: 10mm;
+                        margin: 0;
                       }
                     }
                   `}
@@ -6916,7 +6938,10 @@ const FeeManagement = () => {
                   display: 'flex', 
                   gap: 2,
                   '@media print': {
-                    gap: '10px'
+                    gap: '10px',
+                    height: '100%',
+                    flex: 1,
+                    alignItems: 'stretch'
                   }
                 }}>
                   {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
@@ -6928,8 +6953,13 @@ const FeeManagement = () => {
                         p: 1.5,
                         fontSize: '0.75rem',
                         '@media print': {
-                          fontSize: '9pt',
-                          padding: '8px'
+                          fontSize: '8.5pt',
+                          padding: '8px 10px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          height: '100%',
+                          boxSizing: 'border-box'
                         }
                       }}
                     >
@@ -7200,6 +7230,11 @@ const FeeManagement = () => {
                 <style>
                   {`
                     @media print {
+                      html, body {
+                        height: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                      }
                       body * {
                         visibility: hidden;
                       }
@@ -7207,16 +7242,32 @@ const FeeManagement = () => {
                         visibility: visible;
                       }
                       #bulk-voucher-print-area {
-                        position: absolute;
-                        left: 0;
-                        top: 0;
-                        width: 100%;
+                        position: absolute !important;
+                        left: 0 !important;
+                        top: 0 !important;
+                        width: 100% !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                      }
+                      #bulk-voucher-print-area img {
+                        width: 40px !important;
+                        height: 40px !important;
+                        max-width: 40px !important;
+                        max-height: 40px !important;
+                        object-fit: contain !important;
+                        display: block !important;
+                        margin: 0 auto 4px auto !important;
                       }
                       .voucher-page {
                         page-break-after: always;
-                        padding: 10px 0;
-                        margin-bottom: 2mm;
-                        border-bottom: 1px dashed #ccc;
+                        page-break-inside: avoid !important;
+                        height: 100vh !important;
+                        box-sizing: border-box !important;
+                        padding: 4mm !important;
+                        margin: 0 !important;
+                        border-bottom: none;
+                        display: flex !important;
+                        flex-direction: column !important;
                       }
                       .voucher-page:last-child {
                         page-break-after: avoid;
@@ -7224,7 +7275,7 @@ const FeeManagement = () => {
                       }
                       @page {
                         size: landscape;
-                        margin: 10mm;
+                        margin: 0;
                       }
                     }
                   `}
@@ -7232,7 +7283,16 @@ const FeeManagement = () => {
                 
                 {bulkVouchersData.map((data, index) => (
                   <Box key={index} className="voucher-page" sx={{ mb: 4 }}>
-                    <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      gap: 2,
+                      '@media print': {
+                        gap: '10px',
+                        height: '100%',
+                        flex: 1,
+                        alignItems: 'stretch'
+                      }
+                    }}>
                       {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
                         <Box 
                           key={copyIndex}
@@ -7240,7 +7300,16 @@ const FeeManagement = () => {
                             flex: 1,
                             border: '2px solid #000',
                             p: 1.5,
-                            fontSize: '0.75rem'
+                            fontSize: '0.75rem',
+                            '@media print': {
+                              fontSize: '8.5pt',
+                              padding: '8px 10px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                              height: '100%',
+                              boxSizing: 'border-box'
+                            }
                           }}
                         >
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #000', pb: 0.5, mb: 1 }}>
