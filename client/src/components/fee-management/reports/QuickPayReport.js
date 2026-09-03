@@ -24,7 +24,7 @@ import { createAxiosConfig, getInstitutionId, parseMonthYear, formatMonthYear, e
 
 const API_URL = getApiBaseUrl();
 
-const BankVouchersReport = ({ onBack }) => {
+const QuickPayReport = ({ onBack }) => {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState([]);
   const [institution, setInstitution] = useState(null);
@@ -59,6 +59,20 @@ const BankVouchersReport = ({ onBack }) => {
     }
   };
 
+  const extractDealerCode = (inst) => {
+    if (inst?.quickPayPrefix) {
+      return inst.quickPayPrefix;
+    }
+    // Fallback: try parsing prefix from voucherNote if available
+    if (inst?.voucherNote) {
+      const match = inst.voucherNote.match(/prefix\s*(\d+)/i);
+      if (match && match[1]) {
+        return match[1];
+      }
+    }
+    return '30050';
+  };
+
   const handleFetchReport = async () => {
     try {
       setLoading(true);
@@ -72,6 +86,8 @@ const BankVouchersReport = ({ onBack }) => {
 
       const targetMonth = Number(month);
       const targetYear = Number(year);
+
+      const dealerCode = extractDealerCode(institution);
 
       // Extract and group vouchers for the target month/year by student
       const vouchersList = [];
@@ -113,19 +129,14 @@ const BankVouchersReport = ({ onBack }) => {
         
         // Sum the amounts
         const totalAmount = studentData.vouchers.reduce((sum, v) => sum + (v.amount || 0), 0);
-        
-        // Late fee is usually handled dynamically, but if it's on the voucher we can use it.
-        // Assuming no late fee logic is explicitly stored in voucher amount unless fine is there.
         const lateFee = firstVoucher.fine || 0; 
         
         const studentObj = studentData.student || {};
         const admission = studentObj.admission || {};
         const className = admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || 'Unassigned';
 
-        let vNo = firstVoucher.voucherNumber;
-        if (vNo && vNo.startsWith('17340-')) {
-          vNo = vNo.replace('17340-', '');
-        }
+        let rawVNo = firstVoucher.voucherNumber || '';
+        let shortVNo = rawVNo.includes('-') ? rawVNo.split('-').pop() : rawVNo;
 
         const studentIdVal = studentObj.enrollmentNumber || 
                              admission.applicationNumber || 
@@ -141,8 +152,9 @@ const BankVouchersReport = ({ onBack }) => {
                                (admission.personalInfo?.firstName ? `${admission.personalInfo.firstName} ${admission.personalInfo.lastName || ''}`.trim() : 'N/A');
 
         vouchersList.push({
-          voucherNumber: vNo,
-          dealerCode: '',
+          voucherNumber: shortVNo,
+          rawVoucherNumber: rawVNo,
+          dealerCode: dealerCode,
           amount: totalAmount,
           afterDueDateAmount: totalAmount + lateFee,
           invoiceDate: firstVoucher.createdAt || firstVoucher.issueDate || new Date(targetYear, targetMonth - 1, 1),
@@ -180,8 +192,9 @@ const BankVouchersReport = ({ onBack }) => {
   const handleExportExcel = () => {
     if (data.length === 0) return;
 
-    const exportData = data.map((item, index) => ({
+    const exportData = data.map((item) => ({
       'Invoice Number': item.voucherNumber || 'N/A',
+      'Dealer Code': item.dealerCode || '',
       'Invoice Amount': item.amount,
       'AFTER DUEDATE AMOUNT': item.afterDueDateAmount,
       'Invoice Date': formatDate(item.invoiceDate),
@@ -195,7 +208,7 @@ const BankVouchersReport = ({ onBack }) => {
       'Reference 6': item.rollNo
     }));
 
-    exportToExcelWithBoldHeaders(XLSX, exportData, 'Bank Vouchers', `Bank_Vouchers_${filters.monthYear}.xlsx`);
+    exportToExcelWithBoldHeaders(XLSX, exportData, 'Quick Pay Report', `Quick_Pay_Report_${filters.monthYear}.xlsx`);
   };
 
   const formatDate = (dateStr) => {
@@ -308,7 +321,7 @@ const BankVouchersReport = ({ onBack }) => {
               {institution?.name || 'SGC Education System'}
             </Typography>
             <Typography variant="h6">
-              Bank Vouchers Report - {formatMonthYear(...Object.values(parseMonthYear(filters.monthYear)))}
+              Quick Pay Report - {formatMonthYear(...Object.values(parseMonthYear(filters.monthYear)))}
             </Typography>
           </Box>
 
@@ -317,6 +330,7 @@ const BankVouchersReport = ({ onBack }) => {
               <TableHead>
                 <TableRow sx={{ bgcolor: '#f5f5f5' }}>
                   <TableCell sx={{ fontWeight: 'bold' }}>Invoice Number</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Dealer Code</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Invoice Amount</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>After Due Date Amount</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>Invoice Date</TableCell>
@@ -334,6 +348,7 @@ const BankVouchersReport = ({ onBack }) => {
                 {data.map((row, index) => (
                   <TableRow key={index} sx={{ '&:nth-of-type(even)': { bgcolor: '#fafafa' } }}>
                     <TableCell>{row.voucherNumber}</TableCell>
+                    <TableCell>{row.dealerCode}</TableCell>
                     <TableCell>{row.amount.toLocaleString()}</TableCell>
                     <TableCell>{row.afterDueDateAmount.toLocaleString()}</TableCell>
                     <TableCell>{formatDate(row.invoiceDate)}</TableCell>
@@ -362,4 +377,4 @@ const BankVouchersReport = ({ onBack }) => {
   );
 };
 
-export default BankVouchersReport;
+export default QuickPayReport;

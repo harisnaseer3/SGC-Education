@@ -26,7 +26,7 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { notifyError } from '../../../utils/notify';
-import { createAxiosConfig, getInstitutionId } from '../../../utils/feeUtils';
+import { createAxiosConfig, getInstitutionId, exportToExcelWithBoldHeaders } from '../../../utils/feeUtils';
 
 const API_URL = getApiBaseUrl();
 
@@ -160,10 +160,7 @@ const BankReconciliationReport = ({ onBack }) => {
       'Amount': item.amount
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Bank Reconciliation');
-    XLSX.writeFile(wb, `Bank_Reconciliation_${filters.dateFrom}_to_${filters.dateTo}.xlsx`);
+    exportToExcelWithBoldHeaders(XLSX, exportData, 'Bank Reconciliation', `Bank_Reconciliation_${filters.dateFrom}_to_${filters.dateTo}.xlsx`);
   };
 
   const formatDate = (dateStr) => {

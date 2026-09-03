@@ -65,6 +65,11 @@ const institutionSchema = new mongoose.Schema({
     trim: true,
     default: 'A fine of Rs. 200 will be charged if the fee is not paid by the due date.\nA fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.\nThe fee may be deposited at any branch of the designated bank(s) using the prescribed challan form.'
   },
+  quickPayPrefix: {
+    type: String,
+    trim: true,
+    default: '30050'
+  },
   settings: {
     academicYearStart: {
       type: Number,

@@ -41,7 +41,8 @@ import {
   createAxiosConfig, 
   parseMonthYear, 
   formatCurrency, 
-  formatMonthYear 
+  formatMonthYear,
+  exportToExcelWithBoldHeaders
 } from '../../../utils/feeUtils';
 import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { notifyError, notifySuccess } from '../../../utils/notify';
@@ -339,10 +340,7 @@ const FeeListReport = ({ onBack }) => {
       return row;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Fee List');
-    XLSX.writeFile(workbook, `FeeList_${filters.monthYear}.xlsx`);
+    exportToExcelWithBoldHeaders(XLSX, exportData, 'Fee List', `FeeList_${filters.monthYear}.xlsx`);
   };
 
   return (

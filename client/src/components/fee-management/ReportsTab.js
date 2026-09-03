@@ -20,6 +20,7 @@ import BankReconciliationReport from './reports/BankReconciliationReport';
 import FeeListReport from './reports/FeeListReport';
 import RemainingBalanceReport from './reports/RemainingBalanceReport';
 import BankVouchersReport from './reports/BankVouchersReport';
+import QuickPayReport from './reports/QuickPayReport';
 
 const ReportsTab = () => {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -34,6 +35,8 @@ const ReportsTab = () => {
         return <RemainingBalanceReport onBack={() => setSelectedReport(null)} />;
       case 'bank-vouchers':
         return <BankVouchersReport onBack={() => setSelectedReport(null)} />;
+      case 'quick-pay':
+        return <QuickPayReport onBack={() => setSelectedReport(null)} />;
       default:
         return null;
     }
@@ -71,6 +74,14 @@ const ReportsTab = () => {
       icon: <Receipt sx={{ fontSize: 24, color: '#16a34a' }} />,
       bgColor: '#dcfce7',
       shadowColor: 'rgba(22, 163, 74, 0.2)'
+    },
+    {
+      id: 'quick-pay',
+      title: 'Quick Pay Report',
+      description: 'Quick Pay fee collection report with campus Dealer Code and short voucher numbers.',
+      icon: <ReceiptLong sx={{ fontSize: 24, color: '#8b5cf6' }} />,
+      bgColor: '#f3e8ff',
+      shadowColor: 'rgba(139, 92, 246, 0.2)'
     }
   ];
 

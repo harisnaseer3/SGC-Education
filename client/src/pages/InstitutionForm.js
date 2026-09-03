@@ -92,7 +92,8 @@ const InstitutionForm = () => {
     establishedYear: new Date().getFullYear(),
     website: '',
     logo: '',
-    voucherNote: ''
+    voucherNote: '',
+    quickPayPrefix: '30050'
   });
 
   // Check if user is super admin
@@ -887,7 +888,18 @@ const InstitutionForm = () => {
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={3}>
-                <Grid item xs={12}>
+                <Grid item xs={12} sm={4}>
+                  <TextField
+                    fullWidth
+                    label="Quick Pay Prefix / Dealer Code"
+                    name="quickPayPrefix"
+                    value={formData.quickPayPrefix || '30050'}
+                    onChange={handleChange}
+                    placeholder="e.g. 30050"
+                    helperText="Prefix code used for Quick Pay reports (e.g. 30050)"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={8}>
                   <TextField
                     fullWidth
                     multiline

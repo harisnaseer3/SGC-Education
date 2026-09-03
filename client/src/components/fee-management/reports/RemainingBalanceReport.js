@@ -38,7 +38,8 @@ import {
   getInstitutionId, 
   createAxiosConfig,
   parseMonthYear,
-  formatMonthYear
+  formatMonthYear,
+  exportToExcelWithBoldHeaders
 } from '../../../utils/feeUtils';
 
 const API_URL = getApiBaseUrl();
@@ -280,10 +281,7 @@ const RemainingBalanceReport = ({ onBack }) => {
       return exportRow;
     });
 
-    const worksheet = XLSX.utils.json_to_sheet(exportData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Remaining Balance');
-    XLSX.writeFile(workbook, `Remaining_Balance_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+    exportToExcelWithBoldHeaders(XLSX, exportData, 'Remaining Balance', `Remaining_Balance_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
 
   const handlePrint = () => {

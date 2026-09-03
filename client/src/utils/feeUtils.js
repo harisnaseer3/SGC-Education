@@ -253,3 +253,39 @@ export const matchesVoucherMonthYear = (voucher, month, year) => {
   return vMonth === Number(month) && vYear === Number(year);
 };
 
+/**
+ * Export data array to Excel with bold headers and auto-fitted column widths
+ * @param {Object} XLSXLib - XLSX module reference
+ * @param {Array<Object>} exportData - Array of objects to export
+ * @param {string} sheetName - Worksheet tab name
+ * @param {string} fileName - File name to save (.xlsx)
+ */
+export const exportToExcelWithBoldHeaders = (XLSXLib, exportData, sheetName, fileName) => {
+  if (!exportData || exportData.length === 0) return;
+
+  const ws = XLSXLib.utils.json_to_sheet(exportData);
+  const headers = Object.keys(exportData[0] || {});
+
+  // Set column widths so header and data cells fit cleanly
+  ws['!cols'] = headers.map(h => ({
+    wch: Math.max(h.toString().length + 5, 14)
+  }));
+
+  // Apply bold font and header background styling to row 0 (A1, B1, C1...)
+  headers.forEach((_, colIndex) => {
+    const cellRef = XLSXLib.utils.encode_cell({ r: 0, c: colIndex });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        font: { bold: true, sz: 11, name: 'Calibri' },
+        fill: { fgColor: { rgb: 'E2E8F0' } },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+  });
+
+  const wb = XLSXLib.utils.book_new();
+  XLSXLib.utils.book_append_sheet(wb, ws, sheetName);
+  XLSXLib.writeFile(wb, fileName, { cellStyles: true });
+};
+
+
