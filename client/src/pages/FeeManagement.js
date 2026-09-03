@@ -6894,24 +6894,30 @@ const FeeManagement = () => {
                         overflow: hidden !important;
                         margin: 0 !important;
                         padding: 0 !important;
+                        background: #fff !important;
                       }
                       body * {
-                        visibility: hidden;
+                        visibility: hidden !important;
                       }
                       #voucher-print-area, #voucher-print-area * {
-                        visibility: visible;
+                        visibility: visible !important;
                       }
                       #voucher-print-area {
                         position: fixed !important;
                         left: 0 !important;
                         top: 0 !important;
                         width: 100% !important;
-                        height: 100vh !important;
+                        height: 195mm !important;
+                        max-height: 195mm !important;
                         margin: 0 !important;
-                        padding: 4mm !important;
+                        padding: 0 !important;
                         box-sizing: border-box !important;
                         display: flex !important;
                         flex-direction: column !important;
+                        overflow: hidden !important;
+                        page-break-after: avoid !important;
+                        page-break-before: avoid !important;
+                        page-break-inside: avoid !important;
                       }
                       #voucher-print-area img {
                         width: 40px !important;
@@ -7237,14 +7243,17 @@ const FeeManagement = () => {
                     @media print {
                       html, body {
                         height: 100% !important;
+                        max-height: 100% !important;
+                        overflow: hidden !important;
                         margin: 0 !important;
                         padding: 0 !important;
+                        background: #fff !important;
                       }
                       body * {
-                        visibility: hidden;
+                        visibility: hidden !important;
                       }
                       #bulk-voucher-print-area, #bulk-voucher-print-area * {
-                        visibility: visible;
+                        visibility: visible !important;
                       }
                       #bulk-voucher-print-area {
                         position: absolute !important;
@@ -7264,19 +7273,23 @@ const FeeManagement = () => {
                         margin: 0 auto 4px auto !important;
                       }
                       .voucher-page {
-                        page-break-after: always;
+                        page-break-after: always !important;
                         page-break-inside: avoid !important;
-                        height: 100vh !important;
+                        height: 195mm !important;
+                        max-height: 195mm !important;
                         box-sizing: border-box !important;
-                        padding: 4mm !important;
+                        padding: 0 !important;
                         margin: 0 !important;
-                        border-bottom: none;
+                        border-bottom: none !important;
                         display: flex !important;
                         flex-direction: column !important;
+                        overflow: hidden !important;
                       }
-                      .voucher-page:last-child {
-                        page-break-after: avoid;
-                        border-bottom: none;
+                      .voucher-page:last-child,
+                      .voucher-page:last-of-type {
+                        page-break-after: avoid !important;
+                        page-break-before: avoid !important;
+                        border-bottom: none !important;
                       }
                       .voucher-copy-box {
                         border: 2px solid #000 !important;
