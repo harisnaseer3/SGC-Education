@@ -36,6 +36,7 @@ import {
   School,
   Add,
   Close,
+  Description,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -90,7 +91,8 @@ const InstitutionForm = () => {
     },
     establishedYear: new Date().getFullYear(),
     website: '',
-    logo: ''
+    logo: '',
+    voucherNote: ''
   });
 
   // Check if user is super admin
@@ -851,6 +853,51 @@ const InstitutionForm = () => {
                         </InputAdornment>
                       ),
                     }}
+                  />
+                </Grid>
+              </Grid>
+            </CardContent>
+          </Card>
+
+          {/* Voucher Note / Payment Terms Card */}
+          <Card elevation={0} sx={{ mb: 3, borderRadius: 4, border: '1px solid #edf2f7' }}>
+            <CardContent sx={{ p: { xs: 3, sm: 4 } }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    bgcolor: '#8b5cf615',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Description sx={{ color: '#8b5cf6', fontSize: 24 }} />
+                </Box>
+                <Box>
+                  <Typography variant="h6" fontWeight="800" sx={{ color: '#8b5cf6' }}>
+                    Voucher Note / Payment Terms
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Configure campus-specific payment terms and notes displayed on student fee vouchers
+                  </Typography>
+                </Box>
+              </Box>
+              <Divider sx={{ mb: 3 }} />
+
+              <Grid container spacing={3}>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    multiline
+                    rows={4}
+                    label="Voucher Note / Payment Terms"
+                    name="voucherNote"
+                    value={formData.voucherNote || ''}
+                    onChange={handleChange}
+                    placeholder="Enter each note/term line on a new line..."
+                    helperText="Enter payment terms or instructions for student fee vouchers (each line will appear separately on printed vouchers)"
                   />
                 </Grid>
               </Grid>

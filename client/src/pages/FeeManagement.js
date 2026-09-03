@@ -7090,15 +7090,18 @@ const FeeManagement = () => {
                       <Box sx={{ mb: 1, fontSize: '0.55rem', lineHeight: 1.3 }}>
                         <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', mb: 0.5 }}>Note:</Typography>
                         <Typography sx={{ fontSize: '0.55rem', mb: 0.3 }}>Payment Terms</Typography>
-                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
-                          A fine of Rs. 200 will be charged if the fee is not paid by the due date.
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
-                          A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.
-                        </Typography>
-                        <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
-                          The fee may be deposited at any branch of the designated bank(s) using the prescribed challan form.
-                        </Typography>
+                        {(voucherData.institution?.voucherNote 
+                          ? voucherData.institution.voucherNote.split('\n') 
+                          : [
+                              'A fine of Rs. 200 will be charged if the fee is not paid by the due date.',
+                              'A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.',
+                              'The fee may be deposited at any branch of the designated bank(s) using the prescribed challan form.'
+                            ]
+                        ).map((noteLine, idx) => (
+                          <Typography key={idx} sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                            {noteLine}
+                          </Typography>
+                        ))}
                       </Box>
 
                       {/* Bank Details */}
@@ -7372,15 +7375,18 @@ const FeeManagement = () => {
                           <Box sx={{ mb: 1, fontSize: '0.55rem', lineHeight: 1.3 }}>
                             <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', mb: 0.5 }}>Note:</Typography>
                             <Typography sx={{ fontSize: '0.55rem', mb: 0.3 }}>Payment Terms</Typography>
-                            <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
-                              A fine of Rs. 200 will be charged if the fee is not paid by the due date.
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
-                              A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.
-                            </Typography>
-                            <Typography sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
-                              The fee may be deposited at any branch of the designated bank(s) using the prescribed challan form.
-                            </Typography>
+                            {(data.institution?.voucherNote 
+                              ? data.institution.voucherNote.split('\n') 
+                              : [
+                                  'A fine of Rs. 200 will be charged if the fee is not paid by the due date.',
+                                  'A fine of Rs. 500 will be applicable if the payment remains unpaid in the following month.',
+                                  'The fee may be deposited at any branch of the designated bank(s) using the prescribed challan form.'
+                                ]
+                            ).map((noteLine, idx) => (
+                              <Typography key={idx} sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                                {noteLine}
+                              </Typography>
+                            ))}
                           </Box>
 
                           {/* Bank Details */}
