@@ -6925,9 +6925,13 @@ const FeeManagement = () => {
                       .no-print {
                         display: none !important;
                       }
+                      .voucher-copy-box {
+                        border: 2px solid #000 !important;
+                        box-sizing: border-box !important;
+                      }
                       @page {
                         size: landscape;
-                        margin: 0;
+                        margin: 4mm;
                       }
                     }
                   `}
@@ -6947,6 +6951,7 @@ const FeeManagement = () => {
                   {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
                     <Box 
                       key={copyIndex}
+                      className="voucher-copy-box"
                       sx={{ 
                         flex: 1,
                         border: '2px solid #000',
@@ -7273,9 +7278,13 @@ const FeeManagement = () => {
                         page-break-after: avoid;
                         border-bottom: none;
                       }
+                      .voucher-copy-box {
+                        border: 2px solid #000 !important;
+                        box-sizing: border-box !important;
+                      }
                       @page {
                         size: landscape;
-                        margin: 0;
+                        margin: 4mm;
                       }
                     }
                   `}
@@ -7296,6 +7305,7 @@ const FeeManagement = () => {
                       {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
                         <Box 
                           key={copyIndex}
+                          className="voucher-copy-box"
                           sx={{ 
                             flex: 1,
                             border: '2px solid #000',
