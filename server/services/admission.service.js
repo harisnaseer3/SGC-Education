@@ -87,8 +87,10 @@ class AdmissionService {
     if (filters.search) {
       query.$or = [
         { applicationNumber: { $regex: filters.search, $options: 'i' } },
-        { 'personalInfo.name': { $regex: filters.search, $options: 'i' } },
-        { 'contactInfo.email': { $regex: filters.search, $options: 'i' } }
+        { 'personalDetails.name': { $regex: filters.search, $options: 'i' } },
+        { 'personalInfo.name': { $regex: filters.search, $options: 'i' } }, // Legacy fallback
+        { 'contactDetails.email': { $regex: filters.search, $options: 'i' } },
+        { 'contactInfo.email': { $regex: filters.search, $options: 'i' } } // Legacy fallback
       ];
     }
 

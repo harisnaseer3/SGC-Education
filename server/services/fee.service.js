@@ -1482,11 +1482,11 @@ class FeeService {
         studentIds.push(...students.map(s => s._id));
       }
 
-      // Search in Student collection for student name (if Student model has name field)
+      // Search in Student collection for student name using the correct field path
       if (filters.studentName) {
         const studentNameQuery = {
           institution: institutionId,
-          name: { $regex: filters.studentName, $options: 'i' }
+          'personalDetails.name': { $regex: filters.studentName, $options: 'i' }
         };
         const studentsByName = await Student.find(studentNameQuery).select('_id');
         studentIds.push(...studentsByName.map(s => s._id));

@@ -8374,34 +8374,43 @@ const FeeManagement = () => {
                       <TableRow>
                         <TableCell>Voucher #</TableCell>
                         <TableCell>Fee Head</TableCell>
+                        <TableCell>Month</TableCell>
                         <TableCell>Remaining</TableCell>
                         <TableCell>Action</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {loadingOutstandingFees ? (
-                        <TableRow><TableCell colSpan={4} align="center"><CircularProgress /></TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} align="center"><CircularProgress /></TableCell></TableRow>
                       ) : outstandingFees.length === 0 ? (
-                        <TableRow><TableCell colSpan={4} align="center">No outstanding fees</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} align="center">No outstanding fees</TableCell></TableRow>
                       ) : (
-                        outstandingFees.map((fee) => (
-                          <TableRow key={fee._id}>
-                            <TableCell>{fee.vouchers?.[0]?.voucherNumber}</TableCell>
-                            <TableCell>{fee.feeHead?.name}</TableCell>
-                            <TableCell>Rs. {(fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0))).toLocaleString()}</TableCell>
-                            <TableCell>
-                              <Button 
-                                variant="contained" 
-                                color="success" 
-                                size="small"
-                                onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, fee._id)}
-                                disabled={reconciling}
-                              >
-                                Apply Fund
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        outstandingFees.map((fee) => {
+                          const voucher = fee.vouchers && fee.vouchers.length > 0 ? fee.vouchers[0] : null;
+                          const monthDisplay = voucher 
+                            ? formatMonthYear(voucher.month, voucher.year) 
+                            : (fee.month && fee.year ? formatMonthYear(fee.month, fee.year) : '-');
+
+                          return (
+                            <TableRow key={fee._id}>
+                              <TableCell>{fee.vouchers?.[0]?.voucherNumber}</TableCell>
+                              <TableCell>{fee.feeHead?.name}</TableCell>
+                              <TableCell>{monthDisplay}</TableCell>
+                              <TableCell>Rs. {(fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0))).toLocaleString()}</TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="contained" 
+                                  color="success" 
+                                  size="small"
+                                  onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, fee._id)}
+                                  disabled={reconciling}
+                                >
+                                  Apply Fund
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       )}
                     </TableBody>
                   </Table>

@@ -151,10 +151,10 @@ const BankReconciliationReport = ({ onBack }) => {
       'Sr #': index + 1,
       'Std.ID': item.student?.enrollmentNumber || 'N/A',
       'Roll NO': item.student?.rollNumber || 'N/A',
-      'Adm #': item.student?.admission?.applicationNumber || 'N/A',
-      'Name': item.studentName || item.student?.name || item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A',
-      'Class': item.student?.admission?.class?.name || 'N/S',
-      'Section': item.student?.admission?.section?.name || 'N/S',
+      'Name': item.studentName || item.student?.personalDetails?.name || 'N/A',
+      'Father Name': item.fatherName || item.student?.guardianInfo?.fatherName || 'N/A',
+      'Class': item.student?.admission?.class?.name || item.student?.class?.name || 'N/S',
+      'Transaction ID': item.transactionId || '-',
       'Bank.Dep.Date': new Date(item.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       'Fine': 0,
       'Amount': item.amount
@@ -351,10 +351,10 @@ const BankReconciliationReport = ({ onBack }) => {
                       <TableCell>Sr #</TableCell>
                       <TableCell>Std.ID</TableCell>
                       <TableCell>Roll NO</TableCell>
-                      <TableCell>Adm #</TableCell>
                       <TableCell>Name</TableCell>
+                      <TableCell>Father Name</TableCell>
                       <TableCell>Class</TableCell>
-                      <TableCell>Section</TableCell>
+                      <TableCell>Transaction ID</TableCell>
                       <TableCell>Bank.Dep.Date</TableCell>
                       <TableCell align="right">Fine</TableCell>
                       <TableCell align="right">Amount</TableCell>
@@ -367,10 +367,10 @@ const BankReconciliationReport = ({ onBack }) => {
                         <TableCell>{index + 1}</TableCell>
                         <TableCell>{row.student?.enrollmentNumber || '-'}</TableCell>
                         <TableCell>{row.student?.rollNumber || '-'}</TableCell>
-                        <TableCell>{row.student?.admission?.applicationNumber || '-'}</TableCell>
-                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.studentName || row.student?.name || row.student?.user?.name || row.student?.admission?.personalInfo?.name || '-'}</TableCell>
-                        <TableCell>{row.student?.admission?.class?.name || '-'}</TableCell>
-                        <TableCell>{row.student?.admission?.section?.name || '-'}</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.studentName || row.student?.personalDetails?.name || '-'}</TableCell>
+                        <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.fatherName || row.student?.guardianInfo?.fatherName || '-'}</TableCell>
+                        <TableCell>{row.student?.class?.name || row.student?.admission?.class?.name || '-'}</TableCell>
+                        <TableCell>{row.transactionId || '-'}</TableCell>
                         <TableCell>{formatDate(row.paymentDate)}</TableCell>
                         <TableCell align="right">0</TableCell>
                         <TableCell align="right">{row.amount.toLocaleString()}</TableCell>
