@@ -200,6 +200,7 @@ const getPayments = asyncHandler(async (req, res) => {
     rollNumber: req.query.rollNumber,
     studentName: req.query.studentName,
     receiptNumber: req.query.receiptNumber,
+    transactionId: req.query.transactionId,
     startDate: req.query.startDate,
     endDate: req.query.endDate
   };

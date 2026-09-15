@@ -1431,9 +1431,13 @@ class FeeService {
       institution: institutionId
     };
 
-    // Filter by receipt number
-    if (filters.receiptNumber) {
-      query.receiptNumber = { $regex: filters.receiptNumber, $options: 'i' };
+    // Filter by receipt number or transaction ID
+    if (filters.receiptNumber || filters.transactionId) {
+      const searchTerm = (filters.receiptNumber || filters.transactionId).trim();
+      query.$or = [
+        { receiptNumber: { $regex: searchTerm, $options: 'i' } },
+        { transactionId: { $regex: searchTerm, $options: 'i' } }
+      ];
     }
 
     // Filter by date range

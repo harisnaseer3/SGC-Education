@@ -143,6 +143,67 @@ const BankReconciliationReport = ({ onBack }) => {
     window.print();
   };
 
+  const getBankShortName = (name) => {
+    if (!name) return '';
+    const clean = name.trim().toUpperCase();
+    if (clean.includes('MEEZAN')) return 'MBL';
+    if (clean.includes('HABIB') || clean.includes('HBL')) return 'HBL';
+    if (clean.includes('UNITED') || clean.includes('UBL')) return 'UBL';
+    if (clean.includes('NATIONAL') || clean.includes('NBP')) return 'NBP';
+    if (clean.includes('ALLIED') || clean.includes('ABL')) return 'ABL';
+    if (clean.includes('ASKARI') || clean.includes('AKBL')) return 'AKBL';
+    if (clean.includes('ALFALAH') || clean.includes('BAFL')) return 'BAFL';
+    if (clean.includes('FAYSAL') || clean.includes('FBL')) return 'FBL';
+    if (clean.includes('PUNJAB') || clean.includes('BOP')) return 'BOP';
+    if (clean.includes('MCB')) return 'MCB';
+    if (clean.includes('JS BANK') || clean.includes('JSB')) return 'JSB';
+    if (clean.includes('DUBAI') || clean.includes('DIB')) return 'DIB';
+    if (clean.includes('STANDARD') || clean.includes('SCB')) return 'SCB';
+    if (clean.includes('SONERI')) return 'SBL';
+    if (clean.includes('ISLAMI')) return 'BIPL';
+
+    const words = clean.split(/\s+/);
+    if (words.length > 1) {
+      return words.map(w => w[0]).join('');
+    }
+    return clean.substring(0, 4);
+  };
+
+  const getBankDisplay = (item) => {
+    let matchedBank = null;
+    if (item.bankAccount) {
+      matchedBank = bankAccounts.find(b => b._id === (item.bankAccount._id || item.bankAccount));
+    }
+    if (!matchedBank && item.bankName) {
+      matchedBank = bankAccounts.find(b => 
+        b.bankName.toLowerCase().includes(item.bankName.toLowerCase()) ||
+        item.bankName.toLowerCase().includes(b.bankName.toLowerCase())
+      );
+    }
+    if (!matchedBank && item.remarks) {
+      matchedBank = bankAccounts.find(b => 
+        item.remarks.toLowerCase().includes(b.bankName.toLowerCase())
+      );
+    }
+    if (!matchedBank && filters.bankAccount) {
+      matchedBank = bankAccounts.find(b => b._id === filters.bankAccount);
+    }
+    if (!matchedBank && bankAccounts.length === 1) {
+      matchedBank = bankAccounts[0];
+    }
+
+    const rawBankName = matchedBank ? matchedBank.bankName : (item.bankName || '');
+    const shortName = getBankShortName(rawBankName);
+    
+    const accNum = matchedBank ? matchedBank.accountNumber : '';
+    const last3 = accNum && accNum.length >= 3 ? accNum.slice(-3) : accNum;
+
+    if (shortName && last3) {
+      return `${shortName}-${last3}`;
+    }
+    return shortName || last3 || '-';
+  };
+
   const handleExportExcel = () => {
     if (data.length === 0) return;
 
@@ -154,6 +215,7 @@ const BankReconciliationReport = ({ onBack }) => {
       'Name': item.studentName || item.student?.personalDetails?.name || 'N/A',
       'Father Name': item.fatherName || item.student?.guardianInfo?.fatherName || 'N/A',
       'Class': item.student?.admission?.class?.name || item.student?.class?.name || 'N/S',
+      'Bank': getBankDisplay(item),
       'Transaction ID': item.transactionId || '-',
       'Bank.Dep.Date': new Date(item.paymentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
       'Fine': 0,
@@ -354,6 +416,7 @@ const BankReconciliationReport = ({ onBack }) => {
                       <TableCell>Name</TableCell>
                       <TableCell>Father Name</TableCell>
                       <TableCell>Class</TableCell>
+                      <TableCell>Bank</TableCell>
                       <TableCell>Transaction ID</TableCell>
                       <TableCell>Bank.Dep.Date</TableCell>
                       <TableCell align="right">Fine</TableCell>
@@ -370,6 +433,7 @@ const BankReconciliationReport = ({ onBack }) => {
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.studentName || row.student?.personalDetails?.name || '-'}</TableCell>
                         <TableCell sx={{ whiteSpace: 'nowrap' }}>{row.fatherName || row.student?.guardianInfo?.fatherName || '-'}</TableCell>
                         <TableCell>{row.student?.class?.name || row.student?.admission?.class?.name || '-'}</TableCell>
+                        <TableCell>{getBankDisplay(row)}</TableCell>
                         <TableCell>{row.transactionId || '-'}</TableCell>
                         <TableCell>{formatDate(row.paymentDate)}</TableCell>
                         <TableCell align="right">0</TableCell>

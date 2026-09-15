@@ -384,6 +384,7 @@ const FeeManagement = () => {
     return {
       searchTerm: '',
       receiptNumber: '',
+      transactionId: '',
       startDate: defaultDates.startDate,
       endDate: defaultDates.endDate
     };
@@ -2501,6 +2502,9 @@ const FeeManagement = () => {
         }
         if (receiptSearch.receiptNumber) {
           params.receiptNumber = receiptSearch.receiptNumber.trim();
+        }
+        if (receiptSearch.transactionId) {
+          params.transactionId = receiptSearch.transactionId.trim();
         }
         if (receiptSearch.startDate) {
           params.startDate = receiptSearch.startDate;
@@ -5683,7 +5687,7 @@ const FeeManagement = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Grid container spacing={2}>
-                  <Grid item xs={12} sm={12} md={12} lg={6}>
+                  <Grid item xs={12} sm={12} md={12} lg={4}>
                     <TextField
                       fullWidth
                       size="small"
@@ -5693,14 +5697,14 @@ const FeeManagement = () => {
                       placeholder="Search by name, roll no, ID, admission no..."
                     />
                   </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
+                  <Grid item xs={12} sm={6} md={4} lg={4}>
                     <TextField
                       fullWidth
                       size="small"
-                      label="Receipt Number"
+                      label="Receipt / Transaction ID"
                       value={receiptSearch.receiptNumber}
                       onChange={(e) => setReceiptSearch({ ...receiptSearch, receiptNumber: e.target.value })}
-                      placeholder="Enter receipt number"
+                      placeholder="Enter receipt no or transaction ID..."
                     />
                   </Grid>
                   <Grid item xs={12} sm={6} md={4} lg={2}>
@@ -8277,12 +8281,21 @@ const FeeManagement = () => {
                 />
               </Grid>
               <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Bank Name"
-                  value={suspenseFormData.bankName}
-                  onChange={(e) => setSuspenseFormData({ ...suspenseFormData, bankName: e.target.value })}
-                />
+                <FormControl fullWidth>
+                  <InputLabel>Bank Name</InputLabel>
+                  <Select
+                    value={suspenseFormData.bankName}
+                    label="Bank Name"
+                    onChange={(e) => setSuspenseFormData({ ...suspenseFormData, bankName: e.target.value })}
+                  >
+                    <MenuItem value="">Select Bank</MenuItem>
+                    {bankAccounts.map((account) => (
+                      <MenuItem key={account._id} value={account.bankName}>
+                        {account.bankName} {account.accountNumber ? `(${account.accountNumber})` : ''}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Grid>
               <Grid item xs={12}>
                 <TextField
