@@ -17,6 +17,7 @@ import {
   ReceiptLong
 } from '@mui/icons-material';
 import BankReconciliationReport from './reports/BankReconciliationReport';
+import BankStatementReport from './reports/BankStatementReport';
 import FeeListReport from './reports/FeeListReport';
 import RemainingBalanceReport from './reports/RemainingBalanceReport';
 import BankVouchersReport from './reports/BankVouchersReport';
@@ -29,6 +30,8 @@ const ReportsTab = () => {
     switch (selectedReport) {
       case 'bank-reconciliation':
         return <BankReconciliationReport onBack={() => setSelectedReport(null)} />;
+      case 'bank-statement':
+        return <BankStatementReport onBack={() => setSelectedReport(null)} />;
       case 'fee-list':
         return <FeeListReport onBack={() => setSelectedReport(null)} />;
       case 'remaining-balance':
@@ -50,6 +53,14 @@ const ReportsTab = () => {
       icon: <AccountBalanceWallet sx={{ fontSize: 24, color: '#4f46e5' }} />,
       bgColor: '#e0e7ff',
       shadowColor: 'rgba(79, 70, 229, 0.2)'
+    },
+    {
+      id: 'bank-statement',
+      title: 'Bank Statement Report',
+      description: 'Complete transaction report for selected bank showing Date, Amount, Transaction ID, Bank, and Status (Reconciled / Suspense).',
+      icon: <AccountBalanceWallet sx={{ fontSize: 24, color: '#0d9488' }} />,
+      bgColor: '#ccfbf1',
+      shadowColor: 'rgba(13, 148, 136, 0.2)'
     },
     {
       id: 'fee-list',
