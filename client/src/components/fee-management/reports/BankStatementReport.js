@@ -543,7 +543,7 @@ const BankStatementReport = ({ onBack }) => {
                 <TableRow>
                   <TableCell sx={{ width: '50px' }}>Sr #</TableCell>
                   <TableCell>Date</TableCell>
-                  <TableCell>Fee Month</TableCell>
+                  <TableCell>Transection Month</TableCell>
                   <TableCell align="right">Amount (PKR)</TableCell>
                   <TableCell>Transaction ID</TableCell>
                   <TableCell>Bank</TableCell>
