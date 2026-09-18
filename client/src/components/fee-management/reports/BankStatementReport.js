@@ -175,14 +175,14 @@ const BankStatementReport = ({ onBack }) => {
       // Filter Fee Payments by bank and completion status
       rawPayments = rawPayments.filter(p => p.status === 'completed');
       if (filters.bankAccount) {
-        rawPayments = rawPayments.filter(p => 
+        // When a specific bank is selected, ONLY include payments that match by bankName or remarks
+        rawPayments = rawPayments.filter(p =>
           (p.bankName && p.bankName.toLowerCase().includes(bankKey)) ||
-          (p.remarks && p.remarks.toLowerCase().includes(bankKey)) ||
-          (['bank_transfer', 'online', 'cheque'].includes(p.paymentMethod))
+          (p.remarks && p.remarks.toLowerCase().includes(bankKey))
         );
       } else {
-        // Show bank-related payments if no specific bank selected
-        rawPayments = rawPayments.filter(p => 
+        // When no bank is selected, show all bank-related payments (bank_transfer, online, cheque)
+        rawPayments = rawPayments.filter(p =>
           ['bank_transfer', 'online', 'cheque'].includes(p.paymentMethod) || p.bankName
         );
       }
@@ -207,20 +207,51 @@ const BankStatementReport = ({ onBack }) => {
         );
       }
 
-      // Normalize Fee Payments into transaction objects
-      const paymentTxns = rawPayments.map(p => ({
-        _id: p._id,
-        date: p.paymentDate || p.createdAt,
-        amount: p.amount,
-        transactionId: p.transactionId || '-',
-        bankName: p.bankName || (selectedBankObj ? selectedBankObj.bankName : 'Bank'),
-        bankAccount: p.bankAccount,
-        status: 'reconciled',
-        statusLabel: 'Reconciled',
-        details: p.studentName || p.student?.personalDetails?.name || `Receipt: ${p.receiptNumber || 'N/A'}`,
-        studentRoll: p.student?.rollNumber || '-',
-        voucherNumber: p.voucherNumber || '-'
-      }));
+      // Normalize Fee Payments into transaction objects, grouped by transactionId+student
+      // One bank transaction (same transactionId) covers multiple fee heads — merge them into one row
+      const txnMap = {};
+      rawPayments.forEach(p => {
+        const studentName = p.studentName || p.student?.personalDetails?.name || `Receipt: ${p.receiptNumber || 'N/A'}`;
+        // Group by transactionId if available, fallback to voucherNumber+student, then receiptNumber
+        const groupKey = p.transactionId
+          ? `${p.transactionId}__${studentName}`
+          : p.voucherNumber
+            ? `VCH__${p.voucherNumber}__${studentName}`
+            : p._id;
+
+        // Get fee month from studentFee.vouchers
+        let feeMonth = '';
+        if (p.studentFee && p.studentFee.vouchers && p.studentFee.vouchers.length > 0) {
+          const v = p.studentFee.vouchers[0];
+          if (v && v.month && v.year) {
+            feeMonth = new Date(v.year, v.month - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+          }
+        }
+
+        if (txnMap[groupKey]) {
+          txnMap[groupKey].amount += p.amount;
+          // Keep the earliest feeMonth if we have multiple fee heads
+          if (!txnMap[groupKey].feeMonth && feeMonth) {
+            txnMap[groupKey].feeMonth = feeMonth;
+          }
+        } else {
+          txnMap[groupKey] = {
+            _id: p._id,
+            date: p.paymentDate || p.createdAt,
+            amount: p.amount,
+            transactionId: p.transactionId || '-',
+            bankName: p.bankName || (selectedBankObj ? selectedBankObj.bankName : 'Bank'),
+            bankAccount: p.bankAccount,
+            status: 'reconciled',
+            statusLabel: 'Reconciled',
+            details: studentName,
+            studentRoll: p.student?.rollNumber || '-',
+            voucherNumber: p.voucherNumber || '-',
+            feeMonth
+          };
+        }
+      });
+      const paymentTxns = Object.values(txnMap);
 
       // Normalize Suspense Entries into transaction objects
       const suspenseTxns = rawSuspense.map(s => ({
@@ -512,6 +543,7 @@ const BankStatementReport = ({ onBack }) => {
                 <TableRow>
                   <TableCell sx={{ width: '50px' }}>Sr #</TableCell>
                   <TableCell>Date</TableCell>
+                  <TableCell>Fee Month</TableCell>
                   <TableCell align="right">Amount (PKR)</TableCell>
                   <TableCell>Transaction ID</TableCell>
                   <TableCell>Bank</TableCell>
@@ -524,6 +556,7 @@ const BankStatementReport = ({ onBack }) => {
                   <TableRow key={row._id + '-' + index}>
                     <TableCell>{index + 1}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(row.date)}</TableCell>
+                    <TableCell sx={{ whiteSpace: 'nowrap', color: '#7c3aed', fontWeight: 600 }}>{row.feeMonth || '-'}</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>
                       {row.amount.toLocaleString()}
                     </TableCell>
