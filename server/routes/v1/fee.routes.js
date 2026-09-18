@@ -4,6 +4,29 @@ const feeController = require('../../controllers/fee.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
 const { isAdmin, hasPermission, hasAnyPermission } = require('../../middleware/rbac.middleware');
 const { PERMISSIONS } = require('../../utils/constants');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Ensure uploads directory exists
+const reconDir = 'public/uploads/reconciliations';
+if (!fs.existsSync(reconDir)) {
+  fs.mkdirSync(reconDir, { recursive: true });
+}
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, reconDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'recon-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 /**
  * Fee Routes - API v1
@@ -41,5 +64,11 @@ router.get('/suspense', hasAnyPermission(PERMISSIONS.FEES.VIEW, PERMISSIONS.FEES
 router.post('/suspense', hasAnyPermission(PERMISSIONS.FEES.MANAGE), feeController.recordSuspenseEntry);
 router.post('/suspense/reconcile', hasAnyPermission(PERMISSIONS.FEES.MANAGE), feeController.reconcileSuspenseEntry);
 router.delete('/suspense/:id', hasAnyPermission(PERMISSIONS.FEES.DELETE, PERMISSIONS.FEES.DELETE_VOUCHER), feeController.deleteSuspenseEntry);
+
+// Monthly Reconciliation routes
+router.get('/monthly-reconciliations', hasAnyPermission(PERMISSIONS.FEES.VIEW, PERMISSIONS.FEES.MANAGE), feeController.getMonthlyReconciliations);
+router.post('/monthly-reconciliations', hasAnyPermission(PERMISSIONS.FEES.MANAGE), feeController.saveMonthlyReconciliation);
+router.post('/monthly-reconciliations/:monthKey/attachment', hasAnyPermission(PERMISSIONS.FEES.MANAGE), upload.single('attachment'), feeController.uploadReconciliationAttachment);
+router.delete('/monthly-reconciliations/:monthKey/attachment', hasAnyPermission(PERMISSIONS.FEES.MANAGE), feeController.removeReconciliationAttachment);
 
 module.exports = router;

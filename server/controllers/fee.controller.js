@@ -317,6 +317,61 @@ const bulkReversePayments = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/v1/fees/monthly-reconciliations
+ * @desc    Get monthly reconciliations
+ * @access  Private
+ */
+const getMonthlyReconciliations = asyncHandler(async (req, res) => {
+  const records = await feeService.getMonthlyReconciliations(req.query, req.user);
+  res.json({ success: true, data: records });
+});
+
+/**
+ * @route   POST /api/v1/fees/monthly-reconciliations
+ * @desc    Save monthly reconciliation
+ * @access  Private
+ */
+const saveMonthlyReconciliation = asyncHandler(async (req, res) => {
+  const record = await feeService.saveMonthlyReconciliation(req.body, req.user);
+  res.json({ success: true, message: 'Saved successfully', data: record });
+});
+
+/**
+ * @route   POST /api/v1/fees/monthly-reconciliations/:monthKey/attachment
+ * @desc    Upload reconciliation attachment
+ * @access  Private
+ */
+const uploadReconciliationAttachment = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, message: 'No file uploaded' });
+  }
+  const filePath = `/uploads/reconciliations/${req.file.filename}`;
+  const record = await feeService.uploadReconciliationAttachment(
+    req.params.monthKey, 
+    filePath, 
+    req.user, 
+    req.body.bankAccount,
+    req.body.institution
+  );
+  res.json({ success: true, message: 'File uploaded successfully', data: record });
+});
+
+/**
+ * @route   DELETE /api/v1/fees/monthly-reconciliations/:monthKey/attachment
+ * @desc    Remove reconciliation attachment
+ * @access  Private
+ */
+const removeReconciliationAttachment = asyncHandler(async (req, res) => {
+  const record = await feeService.removeReconciliationAttachment(
+    req.params.monthKey, 
+    req.user, 
+    req.body.bankAccount || req.query.bankAccount,
+    req.body.institution || req.query.institution
+  );
+  res.json({ success: true, message: 'Attachment removed successfully', data: record });
+});
+
 module.exports = {
   getFeeStructureMatrix,
   getFeeStructureByClass,
@@ -336,5 +391,9 @@ module.exports = {
   deleteSuspenseEntry,
   reversePayment,
   bulkReversePayments,
-  bulkUpdateStudentFees
+  bulkUpdateStudentFees,
+  getMonthlyReconciliations,
+  saveMonthlyReconciliation,
+  uploadReconciliationAttachment,
+  removeReconciliationAttachment
 };

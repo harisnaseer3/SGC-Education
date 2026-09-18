@@ -22,6 +22,7 @@ import FeeListReport from './reports/FeeListReport';
 import RemainingBalanceReport from './reports/RemainingBalanceReport';
 import BankVouchersReport from './reports/BankVouchersReport';
 import QuickPayReport from './reports/QuickPayReport';
+import MonthWiseReconciliationReport from './reports/MonthWiseReconciliationReport';
 
 const ReportsTab = () => {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -40,6 +41,8 @@ const ReportsTab = () => {
         return <BankVouchersReport onBack={() => setSelectedReport(null)} />;
       case 'quick-pay':
         return <QuickPayReport onBack={() => setSelectedReport(null)} />;
+      case 'month-wise-reconciliation':
+        return <MonthWiseReconciliationReport onBack={() => setSelectedReport(null)} />;
       default:
         return null;
     }
@@ -93,6 +96,14 @@ const ReportsTab = () => {
       icon: <ReceiptLong sx={{ fontSize: 24, color: '#8b5cf6' }} />,
       bgColor: '#f3e8ff',
       shadowColor: 'rgba(139, 92, 246, 0.2)'
+    },
+    {
+      id: 'month-wise-reconciliation',
+      title: 'Month-wise Reconciliation',
+      description: 'Reconcile total monthly collection (Deposit + Suspense) with bank amounts and attach proofs.',
+      icon: <AccountBalanceWallet sx={{ fontSize: 24, color: '#ec4899' }} />,
+      bgColor: '#fce7f3',
+      shadowColor: 'rgba(236, 72, 153, 0.2)'
     }
   ];
 

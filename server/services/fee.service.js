@@ -11,6 +11,7 @@ const User = require('../models/User');
 const { ApiError } = require('../middleware/error.middleware');
 const { getInstitutionId, extractInstitutionId } = require('../utils/userUtils');
 const { generateReceiptNumber } = require('../utils/receiptUtils');
+const MonthReconciliation = require('../models/MonthReconciliation');
 
 /**
  * Fee Service - Handles fee-related business logic
@@ -2251,7 +2252,141 @@ class FeeService {
       totalSelected: studentIds.length
     };
   }
-}
 
+  /**
+   * Get monthly reconciliations for a given date range
+   */
+  async getMonthlyReconciliations(filters = {}, currentUser) {
+    let institutionId;
+    if (currentUser.role !== 'super_admin') {
+      institutionId = getInstitutionId(currentUser);
+      if (!institutionId) throw new ApiError(400, 'Institution not found for user');
+    } else if (filters.institution) {
+      institutionId = extractInstitutionId(filters.institution);
+    } else {
+      throw new ApiError(400, 'Institution is required');
+    }
+    
+    // Build query for MonthReconciliation
+    const query = { institution: institutionId };
+    if (filters.bankAccount) {
+      query.bankAccount = filters.bankAccount;
+    } else {
+      query.bankAccount = null; // Default to 'All Banks' if not specified
+    }
+    
+    const records = await MonthReconciliation.find(query).lean();
+    return records;
+  }
+
+  /**
+   * Save or Update a Monthly Reconciliation amount
+   */
+  async saveMonthlyReconciliation(data, currentUser) {
+    let institutionId;
+    if (currentUser.role !== 'super_admin') {
+      institutionId = getInstitutionId(currentUser);
+    } else if (data.institution) {
+      institutionId = extractInstitutionId(data.institution);
+    }
+    if (!institutionId) throw new ApiError(400, 'Institution is required');
+
+    const { monthKey, year, month, reconcileAmount, bankAccount } = data;
+    if (!monthKey || !year || !month) throw new ApiError(400, 'Month details required');
+
+    let record = await MonthReconciliation.findOne({ 
+      institution: institutionId, 
+      monthKey,
+      bankAccount: bankAccount || null
+    });
+    
+    if (record) {
+      record.reconcileAmount = reconcileAmount;
+      record.updatedBy = currentUser._id;
+      record.updatedAt = new Date();
+      await record.save();
+    } else {
+      record = await MonthReconciliation.create({
+        institution: institutionId,
+        monthKey,
+        year,
+        month,
+        bankAccount: bankAccount || null,
+        reconcileAmount,
+        createdBy: currentUser._id,
+        updatedBy: currentUser._id
+      });
+    }
+
+    return record;
+  }
+
+  /**
+   * Save Attachment path for a monthly reconciliation
+   */
+  async uploadReconciliationAttachment(monthKey, filePath, currentUser, bankAccount = null, institutionFromRequest = null) {
+    let institutionId;
+    if (currentUser.role !== 'super_admin') {
+      institutionId = getInstitutionId(currentUser);
+    } else if (institutionFromRequest) {
+      institutionId = extractInstitutionId(institutionFromRequest);
+    }
+    if (!institutionId) throw new ApiError(400, 'Institution is required');
+
+    let record = await MonthReconciliation.findOne({ 
+      institution: institutionId, 
+      monthKey,
+      bankAccount: bankAccount || null
+    });
+    if (!record) {
+      // Auto-create it with 0 reconcileAmount if balance was naturally 0
+      record = await MonthReconciliation.create({
+        institution: institutionId,
+        monthKey,
+        year: parseInt(monthKey.split('-')[0]),
+        month: parseInt(monthKey.split('-')[1]),
+        bankAccount: bankAccount || null,
+        reconcileAmount: 0,
+        createdBy: currentUser._id,
+        updatedBy: currentUser._id
+      });
+    }
+
+    record.attachment = filePath;
+    record.updatedBy = currentUser._id;
+    record.updatedAt = new Date();
+    await record.save();
+
+    return record;
+  }
+
+  /**
+   * Remove Attachment path for a monthly reconciliation
+   */
+  async removeReconciliationAttachment(monthKey, currentUser, bankAccount = null, institutionFromRequest = null) {
+    let institutionId;
+    if (currentUser.role !== 'super_admin') {
+      institutionId = getInstitutionId(currentUser);
+    } else if (institutionFromRequest) {
+      institutionId = extractInstitutionId(institutionFromRequest);
+    }
+    if (!institutionId) throw new ApiError(400, 'Institution is required');
+
+    let record = await MonthReconciliation.findOne({ 
+      institution: institutionId, 
+      monthKey,
+      bankAccount: bankAccount || null
+    });
+    
+    if (record) {
+      record.attachment = null;
+      record.updatedBy = currentUser._id;
+      record.updatedAt = new Date();
+      await record.save();
+    }
+
+    return record;
+  }
+}
 
 module.exports = new FeeService();
