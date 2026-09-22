@@ -2756,7 +2756,6 @@ const FeeManagement = () => {
     });
   };
 
-  // Handle reconciliation
   const handleReconcile = async (studentId, studentFeeId) => {
     try {
       setReconciling(true);
@@ -2771,8 +2770,10 @@ const FeeManagement = () => {
 
       await axios.post(`${API_URL}/fees/suspense/reconcile`, payload, createAxiosConfig());
       notifySuccess('Payment reconciled successfully');
-      resetReconciliationDialog();
+      
+      // Fetch updated data while keeping dialog open
       fetchSuspenseEntries();
+      await fetchOutstandingFees(studentId);
     } catch (err) {
       notifyError(err.response?.data?.message || 'Failed to reconcile payment');
     } finally {
