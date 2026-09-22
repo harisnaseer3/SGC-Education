@@ -390,7 +390,7 @@ export default function ActivityLogs() {
       </Card>
 
       {/* Logs Table */}
-      <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflow: 'hidden' }}>
+      <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
         <Table sx={{ minWidth: 700 }}>
           <TableHead sx={{ bgcolor: 'rgba(244, 246, 248, 0.8)' }}>
             <TableRow>

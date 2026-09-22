@@ -58,6 +58,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Global Activity Logging
+const { globalActivityLogger } = require('./middleware/activityLog.middleware');
+app.use(globalActivityLogger);
+
 // Request logging in development
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {

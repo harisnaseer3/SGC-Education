@@ -1716,6 +1716,8 @@ class FeeService {
     let totalDeletedVouchers = 0;
     let totalReversedPayments = 0;
     let totalReversedAmount = 0;
+    let deletedStudentNames = [];
+    let deletedVoucherNumbers = [];
 
     const Admission = require('../models/Student');
     const FeePayment = require('../models/FeePayment');
@@ -1855,9 +1857,21 @@ class FeeService {
       }
 
       // Delete vouchers from all StudentFee records
+      let deletedForThisStudent = false;
       for (const fee of feesWithVoucher) {
         if (fee.vouchers && Array.isArray(fee.vouchers)) {
           const originalLength = fee.vouchers.length;
+          
+          // Capture voucher numbers before deleting
+          const vouchersToDelete = fee.vouchers.filter(v => 
+            (v && Number(v.month) === Number(month) && Number(v.year) === Number(year))
+          );
+          vouchersToDelete.forEach(v => {
+            if (v.voucherNumber && !deletedVoucherNumbers.includes(v.voucherNumber)) {
+              deletedVoucherNumbers.push(v.voucherNumber);
+            }
+          });
+
           fee.vouchers = fee.vouchers.filter(v => 
             !(v && Number(v.month) === Number(month) && Number(v.year) === Number(year))
           );
@@ -1865,8 +1879,16 @@ class FeeService {
           if (fee.vouchers.length < originalLength) {
             fee.markModified('vouchers');
             await fee.save();
-            totalDeletedVouchers++;
+            totalDeletedVouchers += (originalLength - fee.vouchers.length);
+            deletedForThisStudent = true;
           }
+        }
+      }
+      
+      if (deletedForThisStudent && student) {
+        const sName = student.name || student.personalDetails?.name || student.firstName || 'Unknown Student';
+        if (!deletedStudentNames.includes(sName)) {
+           deletedStudentNames.push(sName);
         }
       }
     }
@@ -1878,7 +1900,9 @@ class FeeService {
         : `No matching vouchers found to delete for the selected student(s).`,
       totalDeletedVouchers,
       totalReversedPayments,
-      totalReversedAmount
+      totalReversedAmount,
+      deletedStudentNames,
+      deletedVoucherNumbers
     };
   }
 

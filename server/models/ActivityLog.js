@@ -9,25 +9,13 @@ const activityLogSchema = new mongoose.Schema({
   action: {
     type: String,
     required: true,
-    enum: [
-      'create',
-      'update',
-      'delete',
-      'login',
-      'logout',
-      'activate',
-      'deactivate',
-      'toggle_status',
-      'change_password',
-      'bulk_import',
-      'bulk_export',
-      'other'
-    ]
+    lowercase: true,
+    trim: true
   },
   resource: {
     type: String,
     required: true,
-    enum: ['user', 'institution', 'department', 'course', 'student', 'teacher', 'admin', 'setting', 'other']
+    trim: true
   },
   resourceId: {
     type: mongoose.Schema.Types.ObjectId
