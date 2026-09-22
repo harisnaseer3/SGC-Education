@@ -1,3 +1,5 @@
+import * as XLSXStyle from 'xlsx-js-style';
+
 /**
  * Fee Management Utility Functions
  * Centralized utilities to eliminate duplicate code in FeeManagement component
@@ -260,10 +262,52 @@ export const matchesVoucherMonthYear = (voucher, month, year) => {
  * @param {string} sheetName - Worksheet tab name
  * @param {string} fileName - File name to save (.xlsx)
  */
-export const exportToExcelWithBoldHeaders = (XLSXLib, exportData, sheetName, fileName) => {
+export const exportToExcelWithBoldHeaders = (originalXlsxLib, exportData, sheetName, fileName, customHeaderInfo = null) => {
+  const XLSXLib = XLSXStyle;
   if (!exportData || exportData.length === 0) return;
 
-  const ws = XLSXLib.utils.json_to_sheet(exportData);
+  // Retrieve generic institution data for header
+  const getInstitutionData = () => {
+    try {
+      const data = localStorage.getItem('selectedInstitution');
+      if (data) return JSON.parse(data);
+    } catch(e) {}
+    return null;
+  };
+
+  const inst = getInstitutionData();
+  const instName = inst?.name || 'SGC Education System';
+  const instCity = inst?.address?.city || '';
+  const printDate = `${new Date().toLocaleDateString('en-GB')} ${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+
+  let headerRows = [];
+  if (Array.isArray(customHeaderInfo)) {
+    headerRows = customHeaderInfo;
+  } else {
+    headerRows.push([instName]);
+    if (instCity) headerRows.push([instCity]);
+    headerRows.push([sheetName]); 
+    headerRows.push([]); // spacer
+
+    if (customHeaderInfo && typeof customHeaderInfo === 'object') {
+      const filterLabels = Object.entries(customHeaderInfo).map(([key, value]) => `${key}: ${value}`);
+      if (filterLabels.length > 0) {
+        headerRows.push([filterLabels.join('      ')]);
+      }
+    }
+    
+    headerRows.push([`Print Date: ${printDate}`]);
+    headerRows.push([]); // spacer
+  }
+
+  const dataStartRow = headerRows.length;
+  const originRow = XLSXLib.utils.encode_cell({ r: dataStartRow, c: 0 });
+  const ws = XLSXLib.utils.json_to_sheet(exportData, { origin: originRow });
+
+  if (headerRows.length > 0) {
+    XLSXLib.utils.sheet_add_aoa(ws, headerRows, { origin: "A1" });
+  }
+
   const headers = Object.keys(exportData[0] || {});
 
   // Set column widths so header and data cells fit cleanly
@@ -271,12 +315,42 @@ export const exportToExcelWithBoldHeaders = (XLSXLib, exportData, sheetName, fil
     wch: Math.max(h.toString().length + 5, 14)
   }));
 
-  // Apply bold font and header background styling to row 0 (A1, B1, C1...)
+  // Apply merging and styling to the top corporate headers
+  if (!ws['!merges']) ws['!merges'] = [];
+  for (let i = 0; i < headerRows.length; i++) {
+    // Only merge rows that have exactly 1 item in the array to ensure we don't merge rows meant to have separate columns
+    if (headerRows[i] && headerRows[i].length === 1 && headerRows[i][0]) {
+      ws['!merges'].push({ s: { r: i, c: 0 }, e: { r: i, c: Math.max(headers.length - 1, 0) } });
+      
+      const cellRef = XLSXLib.utils.encode_cell({ r: i, c: 0 });
+      if (ws[cellRef]) {
+        let fontSize = 11;
+        let isBold = false;
+        
+        // Differentiate style levels if it's the standard auto-generated corporate block
+        if (!Array.isArray(customHeaderInfo)) {
+          if (i === 0) { fontSize = 16; isBold = true; } // Institution Name
+          else if (i === 1) { fontSize = 13; isBold = false; } // City
+          else if (i === 2) { fontSize = 15; isBold = true; } // Report Name
+        } else {
+          isBold = true; 
+          fontSize = 12;
+        }
+
+        ws[cellRef].s = {
+          font: { bold: isBold, sz: fontSize, name: 'Calibri' },
+          alignment: { horizontal: 'center', vertical: 'center' }
+        };
+      }
+    }
+  }
+
+  // Style the column headers of the data block
   headers.forEach((_, colIndex) => {
-    const cellRef = XLSXLib.utils.encode_cell({ r: 0, c: colIndex });
+    const cellRef = XLSXLib.utils.encode_cell({ r: dataStartRow, c: colIndex });
     if (ws[cellRef]) {
       ws[cellRef].s = {
-        font: { bold: true, sz: 11, name: 'Calibri' },
+        font: { bold: true, sz: 12, name: 'Calibri' },
         fill: { fgColor: { rgb: 'E2E8F0' } },
         alignment: { horizontal: 'center', vertical: 'center' }
       };

@@ -222,7 +222,17 @@ const BankReconciliationReport = ({ onBack }) => {
       'Amount': item.amount
     }));
 
-    exportToExcelWithBoldHeaders(XLSX, exportData, 'Bank Reconciliation', `Bank_Reconciliation_${filters.dateFrom}_to_${filters.dateTo}.xlsx`);
+    exportToExcelWithBoldHeaders(
+      XLSX,
+      exportData,
+      'Fee Collected in Bank',
+      `Bank_Reconciliation_${filters.dateFrom}_to_${filters.dateTo}.xlsx`,
+      {
+        'From': formatDate(filters.dateFrom),
+        'To': formatDate(filters.dateTo),
+        'Account.#': filters.bankAccount ? bankAccounts.find(b => b._id === filters.bankAccount)?.accountNumber : 'All Accounts'
+      }
+    );
   };
 
   const formatDate = (dateStr) => {
