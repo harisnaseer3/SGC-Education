@@ -102,6 +102,7 @@ import {
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAllAdmissions, getAdmissionStats, updateAdmissionStatus, approveAndEnroll, rejectAdmission, deleteAdmission, bulkSoftDeleteAdmissions, restoreAdmissions, bulkUpdateStatus, permanentlyDeleteAdmission, bulkPermanentlyDeleteAdmissions } from '../services/admissionService';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import { getApiUrl } from '../config/api';
 import { getAvailableModules } from '../config/modules';
 import AdmissionCharts from '../components/admissions/AdmissionCharts';
@@ -921,8 +922,82 @@ const Admissions = () => {
   };
 
   const handleExport = () => {
-    // TODO: Implement export functionality
-    notifyInfo('Export functionality coming soon!');
+    let dataToExport = sortedRegisterAdmissions;
+    if (selectedAdmissions && selectedAdmissions.length > 0) {
+      dataToExport = sortedRegisterAdmissions.filter(admission => selectedAdmissions.includes(admission._id));
+    }
+
+    if (!dataToExport || dataToExport.length === 0) {
+      notifyInfo('No records to export');
+      return;
+    }
+
+    const exportData = dataToExport.map((admission, index) => {
+      const studentName = admission.personalInfo?.name || admission.name || admission.studentName || admission.firstName || '';
+      const rawDob = admission.personalInfo?.dateOfBirth || admission.dateOfBirth || admission.dob;
+      const dateOfBirth = rawDob 
+        ? new Date(rawDob).toLocaleDateString('en-GB')
+        : 'N/A';
+      
+      const ageYears = rawDob
+        ? Math.floor((new Date().getTime() - new Date(rawDob).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        : null;
+
+      const dateOfAdmissionRaw = admission.admissionDate || admission.createdAt;
+      const admissionDate = dateOfAdmissionRaw 
+        ? new Date(dateOfAdmissionRaw).toLocaleDateString('en-GB')
+        : 'N/A';
+      
+      const className = admission.class?.name || admission.className || admission.program || '';
+      const sectionName = admission.section?.name || '';
+      const groupName = admission.group?.name || '';
+      
+      const appNumber = admission.applicationNumber || admission.admissionNo || admission.admissionNumber || '';
+      const rollNumber = admission.studentId?.rollNumber || admission.rollNumber || '';
+      const sectionRollNumber = admission.sectionRollNumber || '';
+      
+      const phone = admission.contactInfo?.phone || 
+                    admission.contactDetails?.phone || 
+                    admission.contactInfo?.alternatePhone || 
+                    admission.guardianInfo?.father?.mobileNumber || 
+                    admission.guardianInfo?.mother?.mobileNumber || 
+                    admission.guardianInfo?.mobileNumber || 
+                    admission.phone || 
+                    admission.mobileNumber || 
+                    '';
+
+      const gender = admission.personalInfo?.gender
+          ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1)
+          : '';
+
+      return {
+        'Sr No': index + 1,
+        'Date Of Admission': admissionDate,
+        'Admission No': appNumber,
+        'Roll No': rollNumber,
+        'Section Roll No': sectionRollNumber,
+        'Student Name': studentName || 'N/A',
+        'Gender': gender,
+        'Date Of Birth': dateOfBirth,
+        'Age (Years)': ageYears !== null ? ageYears : '',
+        'Blood Group': admission.personalInfo?.bloodGroup || '',
+        'Category': admission.personalInfo?.category || '',
+        'Family Number': admission.familyNumber || '',
+        'Father Name': admission.guardianInfo?.fatherName || admission.fatherName || 'N/A',
+        'Mother Name': admission.guardianInfo?.motherName || '',
+        'Phone No': phone,
+        'Class': className,
+        'Section': sectionName,
+        'Group': groupName,
+        'Status': (admission.status || 'pending').replace('_', ' ').toUpperCase()
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Admissions');
+    XLSX.writeFile(workbook, 'Admissions_Register.xlsx');
+    notifySuccess('Exported successfully');
   };
 
   // Bulk Status Update State & Handlers
@@ -2390,7 +2465,26 @@ const Admissions = () => {
                   </Button>
                 )}
 
-
+                {/* Export Button */}
+                {selectedAdmissions.length > 0 && (
+                  <Button
+                    variant="outlined"
+                    color="success"
+                    startIcon={<Download />}
+                    onClick={handleExport}
+                    sx={{
+                      borderColor: '#2e7d32',
+                      color: '#2e7d32',
+                      '&:hover': {
+                        borderColor: '#1b5e20',
+                        bgcolor: '#2e7d3215',
+                      },
+                      textTransform: 'none',
+                    }}
+                  >
+                    Export to Excel
+                  </Button>
+                )}
               </Box>
             </Box>
 
