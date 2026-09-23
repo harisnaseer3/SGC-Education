@@ -298,7 +298,8 @@ const FeeManagement = () => {
   const [suspenseFilters, setSuspenseFilters] = useState({
     date: '',
     amount: '',
-    transactionId: ''
+    transactionId: '',
+    bank: ''
   });
 
   // Assign Fee Structure
@@ -6534,7 +6535,7 @@ const FeeManagement = () => {
 
             {/* Suspense Filters */}
             <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} sm={3}>
+              <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   fullWidth
                   size="small"
@@ -6545,7 +6546,7 @@ const FeeManagement = () => {
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-              <Grid item xs={12} sm={3}>
+              <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   fullWidth
                   size="small"
@@ -6556,7 +6557,7 @@ const FeeManagement = () => {
                   placeholder="Enter exact amount"
                 />
               </Grid>
-              <Grid item xs={12} sm={3}>
+              <Grid item xs={12} sm={6} md={3}>
                 <TextField
                   fullWidth
                   size="small"
@@ -6566,12 +6567,32 @@ const FeeManagement = () => {
                   placeholder="Search TID..."
                 />
               </Grid>
-              <Grid item xs={12} sm={3} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel id="suspense-bank-filter-label">Filter by Bank</InputLabel>
+                  <Select
+                    labelId="suspense-bank-filter-label"
+                    value={suspenseFilters.bank}
+                    onChange={(e) => setSuspenseFilters({ ...suspenseFilters, bank: e.target.value })}
+                    label="Filter by Bank"
+                  >
+                    <MenuItem value="">
+                      <em>All Banks</em>
+                    </MenuItem>
+                    {bankAccounts.map((account) => (
+                      <MenuItem key={account._id} value={account.bankName}>
+                        {account.bankName} ({account.accountNumber})
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={12} md={2} sx={{ display: 'flex', alignItems: 'center' }}>
                 <Button 
                   variant="outlined" 
                   size="small" 
-                  onClick={() => setSuspenseFilters({ date: '', amount: '', transactionId: '' })}
-                  disabled={!suspenseFilters.date && !suspenseFilters.amount && !suspenseFilters.transactionId}
+                  onClick={() => setSuspenseFilters({ date: '', amount: '', transactionId: '', bank: '' })}
+                  disabled={!suspenseFilters.date && !suspenseFilters.amount && !suspenseFilters.transactionId && !suspenseFilters.bank}
                 >
                   Clear Filters
                 </Button>
@@ -6593,6 +6614,11 @@ const FeeManagement = () => {
                 
                 // Transaction ID filter (partial match)
                 if (suspenseFilters.transactionId && !entry.transactionId?.toLowerCase().includes(suspenseFilters.transactionId.toLowerCase())) {
+                  return false;
+                }
+                
+                // Bank filter
+                if (suspenseFilters.bank && entry.bankName !== suspenseFilters.bank) {
                   return false;
                 }
                 
