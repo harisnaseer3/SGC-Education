@@ -93,7 +93,11 @@ const InstitutionForm = () => {
     website: '',
     logo: '',
     voucherNote: '',
-    quickPayPrefix: '30050'
+    quickPayPrefix: '30050',
+    settings: {
+      lateFeeAmount: 200,
+      lateFeeNextMonthAmount: 500
+    }
   });
 
   // Check if user is super admin
@@ -239,6 +243,15 @@ const InstitutionForm = () => {
         principal: {
           ...formData.principal,
           [principalField]: value
+        }
+      });
+    } else if (name.startsWith('settings.')) {
+      const settingsField = name.split('.')[1];
+      setFormData({
+        ...formData,
+        settings: {
+          ...formData.settings,
+          [settingsField]: Number(value)
         }
       });
     } else {
@@ -888,6 +901,28 @@ const InstitutionForm = () => {
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Current Month Late Fee (Rs.)"
+                    name="settings.lateFeeAmount"
+                    type="number"
+                    value={formData.settings?.lateFeeAmount ?? 200}
+                    onChange={handleChange}
+                    helperText="Fine applied after due date in current month (e.g. 200)"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Following Month Late Fee (Rs.)"
+                    name="settings.lateFeeNextMonthAmount"
+                    type="number"
+                    value={formData.settings?.lateFeeNextMonthAmount ?? 500}
+                    onChange={handleChange}
+                    helperText="Additional fine if unpaid in following month (e.g. 500)"
+                  />
+                </Grid>
                 <Grid item xs={12} sm={4}>
                   <TextField
                     fullWidth

@@ -2967,8 +2967,13 @@ const FeeManagement = () => {
           // Calculate late fee fine if due date has passed
           const now = new Date();
           if (dueDate < now) {
-            // Apply flat late fee of Rs. 200 after due date
-            lateFeeFine = 200;
+            // Read from institution settings
+            const instSettings = institutionData?.settings || {};
+            const lateFeeAmt = instSettings.lateFeeAmount !== undefined ? Number(instSettings.lateFeeAmount) : 200;
+            const lateFeeNextMonthAmt = instSettings.lateFeeNextMonthAmount !== undefined ? Number(instSettings.lateFeeNextMonthAmount) : 500;
+            
+            // Apply flat late fee after due date
+            lateFeeFine = lateFeeAmt;
             
             // Check if payment is unpaid into the next month
             const dueMonth = dueDate.getMonth();
@@ -2979,8 +2984,8 @@ const FeeManagement = () => {
             // If we're in a different month than the due date month (and it's later)
             const monthsDiff = (currentYear - dueYear) * 12 + (currentMonth - dueMonth);
             if (monthsDiff >= 1) {
-              // Add Rs. 500 fine for unpaid into next month
-              lateFeeFine += 500;
+              // Add fine for unpaid into next month
+              lateFeeFine += lateFeeNextMonthAmt;
             }
           }
 

@@ -90,6 +90,16 @@ const institutionSchema = new mongoose.Schema({
     timezone: {
       type: String,
       default: 'Asia/Kolkata'
+    },
+    lateFeeAmount: {
+      type: Number,
+      default: 200,
+      min: 0
+    },
+    lateFeeNextMonthAmount: {
+      type: Number,
+      default: 500,
+      min: 0
     }
   },
   stats: {
