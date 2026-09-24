@@ -23,6 +23,7 @@ import RemainingBalanceReport from './reports/RemainingBalanceReport';
 import BankVouchersReport from './reports/BankVouchersReport';
 import QuickPayReport from './reports/QuickPayReport';
 import MonthWiseReconciliationReport from './reports/MonthWiseReconciliationReport';
+import StudentLedgerReport from './reports/StudentLedgerReport';
 
 const ReportsTab = () => {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -43,6 +44,8 @@ const ReportsTab = () => {
         return <QuickPayReport onBack={() => setSelectedReport(null)} />;
       case 'month-wise-reconciliation':
         return <MonthWiseReconciliationReport onBack={() => setSelectedReport(null)} />;
+      case 'student-ledger':
+        return <StudentLedgerReport onBack={() => setSelectedReport(null)} />;
       default:
         return null;
     }
@@ -104,6 +107,14 @@ const ReportsTab = () => {
       icon: <AccountBalanceWallet sx={{ fontSize: 24, color: '#ec4899' }} />,
       bgColor: '#fce7f3',
       shadowColor: 'rgba(236, 72, 153, 0.2)'
+    },
+    {
+      id: 'student-ledger',
+      title: 'Student Ledger',
+      description: 'Detailed chronological history of fee charges and payments for a specific student.',
+      icon: <ReceiptLong sx={{ fontSize: 24, color: '#f59e0b' }} />,
+      bgColor: '#fef3c7',
+      shadowColor: 'rgba(245, 158, 11, 0.2)'
     }
   ];
 

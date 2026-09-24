@@ -490,11 +490,11 @@ const BankStatementReport = ({ onBack }) => {
       ) : data.length > 0 ? (
         <Box id="report-print-area">
           <Box className="no-print" sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 2 }}>
-            <Button variant="outlined" startIcon={<Print />} onClick={handlePrint}>
-              Print
+            <Button variant="outlined" color="primary" startIcon={<Print />} onClick={handlePrint} sx={{ textTransform: 'uppercase', fontWeight: 600 }}>
+              PRINT
             </Button>
-            <Button variant="outlined" startIcon={<FileDownload />} onClick={handleExportExcel} color="success">
-              Export
+            <Button variant="outlined" startIcon={<FileDownload />} onClick={handleExportExcel} color="success" sx={{ textTransform: 'uppercase', fontWeight: 600 }}>
+              EXPORT
             </Button>
           </Box>
 

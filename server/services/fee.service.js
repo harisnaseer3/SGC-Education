@@ -5,6 +5,7 @@ const Class = require('../models/Class');
 const Student = require('../models/Student');
 const StudentFee = require('../models/StudentFee');
 const Admission = require('../models/Student');
+const FeeVoucher = require('../models/FeeVoucher');
 const FeePayment = require('../models/FeePayment');
 const SuspenseEntry = require('../models/SuspenseEntry');
 const User = require('../models/User');
@@ -656,6 +657,115 @@ class FeeService {
     };
   }
 
+
+  /**
+   * Get Student Ledger (chronological history of charges and payments)
+   */
+  async getStudentLedger(studentId, filters = {}, currentUser) {
+    if (!studentId) {
+      throw new ApiError(400, 'Student ID is required');
+    }
+
+    const { startDate, endDate, institution } = filters;
+    
+    let institutionId;
+    if (currentUser.role !== 'super_admin') {
+      institutionId = getInstitutionId(currentUser);
+      if (!institutionId) {
+        throw new ApiError(400, 'Institution not found for user');
+      }
+    } else if (institution) {
+      institutionId = extractInstitutionId(institution);
+    }
+
+    const student = await Student.findById(studentId)
+      .populate('class')
+      .populate('section');
+      
+    if (!student) {
+      throw new ApiError(404, 'Student not found');
+    }
+    
+    // Fetch Vouchers (Charges) - using currentMonthAmount to avoid double counting arrears
+    const voucherQuery = { student: studentId };
+    if (startDate || endDate) {
+      voucherQuery.generatedAt = {};
+      if (startDate) voucherQuery.generatedAt.$gte = new Date(startDate);
+      if (endDate) voucherQuery.generatedAt.$lte = new Date(endDate);
+    }
+    const vouchers = await FeeVoucher.find(voucherQuery).sort({ generatedAt: 1 });
+
+    // Fetch Payments (Receipts) - excluding failed or refunded for balance purpose? 
+    // Actually showing refunded could be good too, but usually a ledger balances active payments.
+    const paymentQuery = { student: studentId, status: 'completed' };
+    if (startDate || endDate) {
+      paymentQuery.paymentDate = {};
+      if (startDate) paymentQuery.paymentDate.$gte = new Date(startDate);
+      if (endDate) paymentQuery.paymentDate.$lte = new Date(endDate);
+    }
+    const payments = await FeePayment.find(paymentQuery).sort({ paymentDate: 1 });
+
+    // Compile Transactions
+    const transactions = [];
+
+    vouchers.forEach(v => {
+      transactions.push({
+        id: v._id,
+        date: v.generatedAt || v.createdAt,
+        type: 'charge',
+        description: `Fee Voucher Generated (${v.month}/${v.year})`,
+        reference: v.voucherNumber,
+        debit: v.currentMonthAmount || 0,
+        credit: 0
+      });
+    });
+
+    payments.forEach(p => {
+      transactions.push({
+        id: p._id,
+        date: p.paymentDate,
+        type: 'payment',
+        description: `Payment Received (${p.paymentMethod})`,
+        reference: p.receiptNumber,
+        debit: 0,
+        credit: p.amount || 0
+      });
+    });
+
+    // Sort chronologically
+    transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Calculate Running Balance
+    let balance = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    transactions.forEach(t => {
+      balance += t.debit;
+      balance -= t.credit;
+      t.balance = balance;
+      totalDebit += t.debit;
+      totalCredit += t.credit;
+    });
+
+    return {
+      student: {
+        id: student._id,
+        name: student.name || student.personalDetails?.name || student.firstName || '',
+        enrollmentNumber: student.enrollmentNumber || '',
+        rollNumber: student.rollNumber || '',
+        admissionNumber: student.applicationNumber || student.admissionNo || student.admissionNumber || '',
+        class: student.class?.name || '',
+        section: student.section?.name || ''
+      },
+      summary: {
+        totalCharges: totalDebit,
+        totalPayments: totalCredit,
+        currentBalance: balance
+      },
+      transactions
+    };
+  }
 
   /**
    * Get student fees (students with assigned fee structures)

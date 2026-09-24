@@ -47,6 +47,7 @@ router.get('/students/without-fee-structure', hasAnyPermission(PERMISSIONS.FEES.
 router.post('/assign-structure', hasAnyPermission(PERMISSIONS.FEES.MANAGE, PERMISSIONS.FEES.EDIT_VOUCHER), feeController.assignFeeStructure);
 router.put('/update-structure', hasAnyPermission(PERMISSIONS.FEES.MANAGE, PERMISSIONS.FEES.EDIT_VOUCHER), feeController.updateFeeStructure);
 router.get('/student-fees', hasAnyPermission(PERMISSIONS.FEES.VIEW, PERMISSIONS.FEES.MANAGE, PERMISSIONS.FEES.VIEW_VOUCHER, PERMISSIONS.FEES.PRINT_VOUCHER), feeController.getStudentFees);
+router.get('/student-ledger/:studentId', hasAnyPermission(PERMISSIONS.FEES.VIEW, PERMISSIONS.FEES.MANAGE, PERMISSIONS.FEES.VIEW_VOUCHER, PERMISSIONS.FEES.PRINT_VOUCHER), feeController.getStudentLedger);
 router.post('/generate-vouchers', hasAnyPermission(PERMISSIONS.FEES.MANAGE, PERMISSIONS.FEES.GENERATE_VOUCHER), feeController.generateVouchers);
 
 // Payment routes

@@ -77,6 +77,7 @@ class AdmissionService {
     if (filters.status) query.status = filters.status;
     if (filters.academicYear) query.academicYear = filters.academicYear;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
+    if (filters.class) query.class = filters.class;
 
     // Ensure all passout and struckoff admission records have isActive: true (so they are not treated as soft-deleted)
     await Admission.updateMany(
@@ -85,12 +86,22 @@ class AdmissionService {
     );
 
     if (filters.search) {
+      const searchRegex = new RegExp(filters.search, 'i');
       query.$or = [
-        { applicationNumber: { $regex: filters.search, $options: 'i' } },
-        { 'personalDetails.name': { $regex: filters.search, $options: 'i' } },
-        { 'personalInfo.name': { $regex: filters.search, $options: 'i' } }, // Legacy fallback
-        { 'contactDetails.email': { $regex: filters.search, $options: 'i' } },
-        { 'contactInfo.email': { $regex: filters.search, $options: 'i' } } // Legacy fallback
+        { rollNumber: { $regex: searchRegex } },
+        { admissionNo: { $regex: searchRegex } },
+        { admissionNumber: { $regex: searchRegex } },
+        { enrollmentNumber: { $regex: searchRegex } },
+        { applicationNumber: { $regex: searchRegex } },
+        { name: { $regex: searchRegex } },
+        { firstName: { $regex: searchRegex } },
+        { lastName: { $regex: searchRegex } },
+        { 'personalDetails.name': { $regex: searchRegex } },
+        { 'personalDetails.firstName': { $regex: searchRegex } },
+        { 'personalDetails.lastName': { $regex: searchRegex } },
+        { 'personalInfo.name': { $regex: searchRegex } },
+        { 'contactDetails.email': { $regex: searchRegex } },
+        { 'contactInfo.email': { $regex: searchRegex } }
       ];
     }
 

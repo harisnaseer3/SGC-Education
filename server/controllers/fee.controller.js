@@ -123,6 +123,27 @@ const getStudentFees = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @route   GET /api/v1/fees/student-ledger/:studentId
+ * @desc    Get detailed fee ledger for a specific student
+ * @access  Private
+ */
+const getStudentLedger = asyncHandler(async (req, res) => {
+  const { studentId } = req.params;
+  const filters = {
+    institution: req.query.institution,
+    startDate: req.query.startDate,
+    endDate: req.query.endDate
+  };
+
+  const ledger = await feeService.getStudentLedger(studentId, filters, req.user);
+
+  res.json({
+    success: true,
+    data: ledger
+  });
+});
+
+/**
  * @route   POST /api/v1/fees/generate-vouchers
  * @desc    Generate vouchers for selected students
  * @access  Private (Admin)
@@ -380,6 +401,7 @@ module.exports = {
   assignFeeStructure,
   updateFeeStructure,
   getStudentFees,
+  getStudentLedger,
   generateVouchers,
   recordPayment,
   getOutstandingBalances,

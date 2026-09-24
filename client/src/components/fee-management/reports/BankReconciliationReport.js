@@ -348,18 +348,21 @@ const BankReconciliationReport = ({ onBack }) => {
           <Box className="no-print" sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mb: 2 }}>
             <Button
               variant="outlined"
+              color="primary"
               startIcon={<Print />}
               onClick={handlePrint}
+              sx={{ textTransform: 'uppercase', fontWeight: 600 }}
             >
-              Print
+              PRINT
             </Button>
             <Button
               variant="outlined"
+              color="success"
               startIcon={<FileDownload />}
               onClick={handleExportExcel}
-              color="success"
+              sx={{ textTransform: 'uppercase', fontWeight: 600 }}
             >
-              Export
+              EXPORT
             </Button>
           </Box>
 

@@ -562,13 +562,25 @@ const RemainingBalanceReport = ({ onBack }) => {
                   Search
                 </Button>
                 {reportData && (
-                  <Box sx={{ display: 'flex', gap: 1 }}>
-                    <IconButton onClick={handlePrint} color="primary" title="Print">
-                      <PrintIcon />
-                    </IconButton>
-                    <IconButton onClick={handleExportExcel} color="success" title="Export Excel">
-                      <DownloadIcon />
-                    </IconButton>
+                  <Box sx={{ display: 'flex', gap: 2 }}>
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      startIcon={<PrintIcon />}
+                      onClick={handlePrint}
+                      sx={{ textTransform: 'uppercase', fontWeight: 600 }}
+                    >
+                      PRINT
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      color="success"
+                      startIcon={<DownloadIcon />}
+                      onClick={handleExportExcel}
+                      sx={{ textTransform: 'uppercase', fontWeight: 600 }}
+                    >
+                      EXPORT
+                    </Button>
                   </Box>
                 )}
               </Grid>
