@@ -85,6 +85,47 @@ const BankStatementReport = ({ onBack }) => {
     fetchBankAccounts();
   }, []);
 
+  const resolveBankAccount = (item) => {
+    if (item.bankAccount) {
+      const bId = item.bankAccount._id || item.bankAccount;
+      const b = bankAccounts.find(x => x._id === bId);
+      if (b) return b;
+    }
+    
+    if (item.bankName) {
+      const pName = item.bankName.toLowerCase().trim();
+      let exact = bankAccounts.find(b => b.bankName.toLowerCase().trim() === pName);
+      if (exact) return exact;
+      
+      let bestMatch = null, maxLen = 0;
+      for (const b of bankAccounts) {
+        const bName = b.bankName.toLowerCase().trim();
+        if (bName.includes(pName) || pName.includes(bName)) {
+          const matchLen = Math.min(bName.length, pName.length);
+          if (matchLen > maxLen) {
+            maxLen = matchLen;
+            bestMatch = b;
+          }
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+    
+    if (item.remarks) {
+      const rName = item.remarks.toLowerCase().trim();
+      let bestMatch = null, maxLen = 0;
+      for (const b of bankAccounts) {
+        const bName = b.bankName.toLowerCase().trim();
+        if (rName.includes(bName) && bName.length > maxLen) {
+          maxLen = bName.length;
+          bestMatch = b;
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+    return null;
+  };
+
   const getBankShortName = (name) => {
     if (!name) return '';
     const clean = name.trim().toUpperCase();
@@ -112,21 +153,8 @@ const BankStatementReport = ({ onBack }) => {
   };
 
   const getBankDisplay = (item) => {
-    let matchedBank = null;
-    if (item.bankAccount) {
-      matchedBank = bankAccounts.find(b => b._id === (item.bankAccount._id || item.bankAccount));
-    }
-    if (!matchedBank && item.bankName) {
-      matchedBank = bankAccounts.find(b => 
-        b.bankName.toLowerCase().includes(item.bankName.toLowerCase()) ||
-        item.bankName.toLowerCase().includes(b.bankName.toLowerCase())
-      );
-    }
-    if (!matchedBank && item.remarks) {
-      matchedBank = bankAccounts.find(b => 
-        item.remarks.toLowerCase().includes(b.bankName.toLowerCase())
-      );
-    }
+    let matchedBank = resolveBankAccount(item);
+    
     if (!matchedBank && filters.bankAccount) {
       matchedBank = bankAccounts.find(b => b._id === filters.bankAccount);
     }
@@ -175,11 +203,10 @@ const BankStatementReport = ({ onBack }) => {
       // Filter Fee Payments by bank and completion status
       rawPayments = rawPayments.filter(p => p.status === 'completed');
       if (filters.bankAccount) {
-        // When a specific bank is selected, ONLY include payments that match by bankName or remarks
-        rawPayments = rawPayments.filter(p =>
-          (p.bankName && p.bankName.toLowerCase().includes(bankKey)) ||
-          (p.remarks && p.remarks.toLowerCase().includes(bankKey))
-        );
+        rawPayments = rawPayments.filter(p => {
+          const resolved = resolveBankAccount(p);
+          return resolved && resolved._id === filters.bankAccount;
+        });
       } else {
         // When no bank is selected, show all bank-related payments (bank_transfer, online, cheque)
         rawPayments = rawPayments.filter(p =>
@@ -202,9 +229,10 @@ const BankStatementReport = ({ onBack }) => {
       }
 
       if (filters.bankAccount) {
-        rawSuspense = rawSuspense.filter(s => 
-          s.bankName && s.bankName.toLowerCase().includes(bankKey)
-        );
+        rawSuspense = rawSuspense.filter(s => {
+          const resolved = resolveBankAccount(s);
+          return resolved && resolved._id === filters.bankAccount;
+        });
       }
 
       // Normalize Fee Payments into transaction objects, grouped by transactionId+student

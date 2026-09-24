@@ -84,6 +84,47 @@ const BankReconciliationReport = ({ onBack }) => {
     }
   }, []);
 
+  const resolveBankAccount = (item) => {
+    if (item.bankAccount) {
+      const bId = item.bankAccount._id || item.bankAccount;
+      const b = bankAccounts.find(x => x._id === bId);
+      if (b) return b;
+    }
+    
+    if (item.bankName) {
+      const pName = item.bankName.toLowerCase().trim();
+      let exact = bankAccounts.find(b => b.bankName.toLowerCase().trim() === pName);
+      if (exact) return exact;
+      
+      let bestMatch = null, maxLen = 0;
+      for (const b of bankAccounts) {
+        const bName = b.bankName.toLowerCase().trim();
+        if (bName.includes(pName) || pName.includes(bName)) {
+          const matchLen = Math.min(bName.length, pName.length);
+          if (matchLen > maxLen) {
+            maxLen = matchLen;
+            bestMatch = b;
+          }
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+    
+    if (item.remarks) {
+      const rName = item.remarks.toLowerCase().trim();
+      let bestMatch = null, maxLen = 0;
+      for (const b of bankAccounts) {
+        const bName = b.bankName.toLowerCase().trim();
+        if (rName.includes(bName) && bName.length > maxLen) {
+          maxLen = bName.length;
+          bestMatch = b;
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+    return null;
+  };
+
   const handleFetchReport = async () => {
     try {
       setLoading(true);
@@ -104,14 +145,11 @@ const BankReconciliationReport = ({ onBack }) => {
       
       // Filter by bank if selected
       if (filters.bankAccount) {
-        const selectedBank = bankAccounts.find(b => b._id === filters.bankAccount);
-        // Find by partial match of the name
-        const bankKey = selectedBank ? selectedBank.bankName : '';
-        filteredData = filteredData.filter(p => 
-          (p.bankName?.toLowerCase().includes(bankKey.toLowerCase()) ||
-          p.remarks?.toLowerCase().includes(bankKey.toLowerCase())) &&
-          p.status === 'completed'
-        );
+        filteredData = filteredData.filter(p => {
+          if (p.status !== 'completed') return false;
+          const resolved = resolveBankAccount(p);
+          return resolved && resolved._id === filters.bankAccount;
+        });
       } else {
         // Show only bank-related payments for this report if no bank selected
         filteredData = filteredData.filter(p => 
@@ -170,21 +208,8 @@ const BankReconciliationReport = ({ onBack }) => {
   };
 
   const getBankDisplay = (item) => {
-    let matchedBank = null;
-    if (item.bankAccount) {
-      matchedBank = bankAccounts.find(b => b._id === (item.bankAccount._id || item.bankAccount));
-    }
-    if (!matchedBank && item.bankName) {
-      matchedBank = bankAccounts.find(b => 
-        b.bankName.toLowerCase().includes(item.bankName.toLowerCase()) ||
-        item.bankName.toLowerCase().includes(b.bankName.toLowerCase())
-      );
-    }
-    if (!matchedBank && item.remarks) {
-      matchedBank = bankAccounts.find(b => 
-        item.remarks.toLowerCase().includes(b.bankName.toLowerCase())
-      );
-    }
+    let matchedBank = resolveBankAccount(item);
+    
     if (!matchedBank && filters.bankAccount) {
       matchedBank = bankAccounts.find(b => b._id === filters.bankAccount);
     }

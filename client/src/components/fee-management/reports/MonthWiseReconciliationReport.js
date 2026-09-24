@@ -134,12 +134,50 @@ const MonthWiseReconciliationReport = ({ onBack }) => {
       // Filter by bank if selected
       if (filters.bankAccount) {
         const selectedBank = bankAccounts.find(b => b._id === filters.bankAccount);
-        const bankKey = selectedBank ? selectedBank.bankName : '';
+        const resolveBankAccount = (item) => {
+          if (item.bankAccount) {
+            const bId = item.bankAccount._id || item.bankAccount;
+            const b = bankAccounts.find(x => x._id === bId);
+            if (b) return b;
+          }
+          
+          if (item.bankName) {
+            const pName = item.bankName.toLowerCase().trim();
+            let exact = bankAccounts.find(b => b.bankName.toLowerCase().trim() === pName);
+            if (exact) return exact;
+            
+            let bestMatch = null, maxLen = 0;
+            for (const b of bankAccounts) {
+              const bName = b.bankName.toLowerCase().trim();
+              if (bName.includes(pName) || pName.includes(bName)) {
+                const matchLen = Math.min(bName.length, pName.length);
+                if (matchLen > maxLen) {
+                  maxLen = matchLen;
+                  bestMatch = b;
+                }
+              }
+            }
+            if (bestMatch) return bestMatch;
+          }
+          
+          if (item.remarks) {
+            const rName = item.remarks.toLowerCase().trim();
+            let bestMatch = null, maxLen = 0;
+            for (const b of bankAccounts) {
+              const bName = b.bankName.toLowerCase().trim();
+              if (rName.includes(bName) && bName.length > maxLen) {
+                maxLen = bName.length;
+                bestMatch = b;
+              }
+            }
+            if (bestMatch) return bestMatch;
+          }
+          return null;
+        };
+
         const bankCheck = (item) => {
-          if (item.bankAccount && (item.bankAccount === filters.bankAccount || item.bankAccount._id === filters.bankAccount)) return true;
-          if (item.bankName?.toLowerCase().includes(bankKey.toLowerCase())) return true;
-          if (item.remarks?.toLowerCase().includes(bankKey.toLowerCase())) return true;
-          return false;
+          const resolved = resolveBankAccount(item);
+          return resolved && resolved._id === filters.bankAccount;
         };
         rawPayments = rawPayments.filter(bankCheck);
         rawSuspense = rawSuspense.filter(bankCheck);
