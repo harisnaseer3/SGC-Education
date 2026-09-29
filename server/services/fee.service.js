@@ -1258,6 +1258,7 @@ class FeeService {
              // So we iterate ALL.
              
              for (const fee of fees) {
+               if (!fee.isActive) continue; // Only attach voucher to active non-monthly fee records
                if (!fee.vouchers) fee.vouchers = [];
                fee.vouchers.push({
                  month, year, generatedAt: new Date(), generatedBy: currentUser._id, voucherNumber
