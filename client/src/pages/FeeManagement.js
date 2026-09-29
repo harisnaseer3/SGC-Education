@@ -949,6 +949,7 @@ const FeeManagement = () => {
         // Get voucher number and calculate total voucher amount for the selected month/year
         let voucherNumber = 'N/A';
         let voucherAmount = 0;
+        let voucherGeneratedDate = null;
         
         // Find voucher for the selected month/year - all fees should have the same voucher number
         for (const sf of studentFees) {
@@ -965,6 +966,9 @@ const FeeManagement = () => {
                 vNo = vNo.split('-').pop();
               }
               voucherNumber = vNo;
+              if (voucher.generatedAt && !voucherGeneratedDate) {
+                voucherGeneratedDate = new Date(voucher.generatedAt);
+              }
               break; // Use the first voucher number found (they should all be the same)
             }
           }
@@ -1069,7 +1073,8 @@ const FeeManagement = () => {
           voucherAmount: voucherAmount,
           arrears: calculatedArrears,
           paidAmount: displayPaidAmount,
-          remainingAmount: displayedRemaining
+          remainingAmount: displayedRemaining,
+          generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null
         });
       });
 
