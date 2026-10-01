@@ -366,6 +366,90 @@ const FeeManagement = () => {
     transactionId: ''
   });
   const [recordingPayment, setRecordingPayment] = useState(false);
+  const [selectedDepositVoucherRowIds, setSelectedDepositVoucherRowIds] = useState([]);
+  const [deletingDepositVouchers, setDeletingDepositVouchers] = useState(false);
+
+  // Handle Bulk Delete for Deposit Vouchers
+  const handleBulkDeleteDepositVouchers = async () => {
+    if (selectedDepositVoucherRowIds.length === 0) {
+      notifyError('Please select at least one unpaid voucher to delete.');
+      return;
+    }
+
+    const selectedRows = manualDepositStudents.filter(s => selectedDepositVoucherRowIds.includes(s._id));
+    if (selectedRows.length === 0) return;
+
+    if (!window.confirm(`Are you sure you want to delete ${selectedRows.length} selected unpaid voucher(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      setDeletingDepositVouchers(true);
+
+      // Group selected rows by Month and Year
+      // Row voucherMonth format is e.g. "Oct 2026" or "Feb 2026"
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      // Group: key -> { month, year, studentIds: [] }
+      const groups = {};
+
+      selectedRows.forEach(row => {
+        if (!row.voucherMonth || row.voucherMonth === 'N/A') return;
+        const parts = row.voucherMonth.split(' ');
+        if (parts.length < 2) return;
+        
+        const mStr = parts[0];
+        const yStr = parts[1];
+        const month = monthNames.indexOf(mStr) + 1;
+        const year = parseInt(yStr, 10);
+        
+        if (!month || isNaN(year)) return;
+
+        const studentId = row.studentId || row.originalAdmissionId || row._id;
+        const key = `${month}-${year}`;
+
+        if (!groups[key]) {
+          groups[key] = { month, year, studentIds: [] };
+        }
+        if (!groups[key].studentIds.includes(studentId)) {
+          groups[key].studentIds.push(studentId);
+        }
+      });
+
+      const groupKeys = Object.keys(groups);
+      if (groupKeys.length === 0) {
+        notifyError('Could not parse month/year for selected vouchers.');
+        setDeletingDepositVouchers(false);
+        return;
+      }
+
+      let totalDeleted = 0;
+      for (const key of groupKeys) {
+        const { month, year, studentIds } = groups[key];
+        const response = await axios.delete(`${API_URL}/fees/vouchers`, createAxiosConfig({
+          data: {
+            studentIds,
+            month,
+            year
+          }
+        }));
+        if (response.data?.success) {
+          totalDeleted += (response.data.data?.totalDeletedVouchers || 1);
+        }
+      }
+
+      notifySuccess(`Successfully deleted ${totalDeleted} voucher(s).`);
+      setSelectedDepositVoucherRowIds([]);
+      
+      // Refresh list
+      await fetchManualDepositStudents();
+    } catch (err) {
+      console.error('Error deleting selected vouchers:', err);
+      notifyError(err.response?.data?.message || 'Failed to delete selected vouchers.');
+    } finally {
+      setDeletingDepositVouchers(false);
+    }
+  };
 
   // Receipt
   // Initialize receipt search with default dates (one month before today to today)
@@ -5282,11 +5366,26 @@ const FeeManagement = () => {
                   <Card sx={{ mb: 3 }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
-                          Student List
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea' }}>
+                            Student List
+                          </Typography>
+                          {selectedDepositVoucherRowIds.length > 0 && (
+                            <Button
+                              variant="contained"
+                              color="error"
+                              size="small"
+                              startIcon={<Delete />}
+                              onClick={handleBulkDeleteDepositVouchers}
+                              disabled={deletingDepositVouchers}
+                              sx={{ borderRadius: 1 }}
+                            >
+                              {deletingDepositVouchers ? 'Deleting...' : `Delete Selected Vouchers (${selectedDepositVoucherRowIds.length})`}
+                            </Button>
+                          )}
+                        </Box>
                         <Typography variant="body2" color="textSecondary" sx={{ fontStyle: 'italic' }}>
-                          *Click on student row to select
+                          *Click on student row to select for payment
                         </Typography>
                       </Box>
 
@@ -5294,6 +5393,28 @@ const FeeManagement = () => {
                       <Table sx={{ minWidth: 650 }}>
                         <TableHead>
                           <TableRow sx={{ bgcolor: '#667eea', '& .MuiTableCell-head': { color: 'white', fontWeight: 'bold' } }}>
+                            <TableCell padding="checkbox">
+                              {(() => {
+                                const unpaidRows = manualDepositStudents.filter(s => s.voucherStatus === 'Unpaid' || s.voucherStatus === 'Partial');
+                                const allUnpaidSelected = unpaidRows.length > 0 && unpaidRows.every(s => selectedDepositVoucherRowIds.includes(s._id));
+                                const someUnpaidSelected = unpaidRows.some(s => selectedDepositVoucherRowIds.includes(s._id));
+                                return (
+                                  <Checkbox
+                                    size="small"
+                                    indeterminate={someUnpaidSelected && !allUnpaidSelected}
+                                    checked={allUnpaidSelected}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedDepositVoucherRowIds(unpaidRows.map(s => s._id));
+                                      } else {
+                                        setSelectedDepositVoucherRowIds([]);
+                                      }
+                                    }}
+                                    sx={{ color: 'white', '&.Mui-checked': { color: 'white' }, '&.MuiCheckbox-indeterminate': { color: 'white' } }}
+                                  />
+                                );
+                              })()}
+                            </TableCell>
                             <TableCell>ID</TableCell>
                             <TableCell>Roll #</TableCell>
                             <TableCell>Name</TableCell>
@@ -5312,13 +5433,13 @@ const FeeManagement = () => {
                         <TableBody>
                           {loading ? (
                             <TableRow>
-                              <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={14} align="center" sx={{ py: 4 }}>
                                 <CircularProgress />
                               </TableCell>
                             </TableRow>
                           ) : manualDepositStudents.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={14} align="center" sx={{ py: 4 }}>
                                 <Typography variant="body2" color="textSecondary">
                                   No data found. Please search for students.
                                 </Typography>
@@ -5327,7 +5448,9 @@ const FeeManagement = () => {
                           ) : (
                             getPaginatedData(manualDepositStudents, 'feeDeposit').map((student) => {
                               const isPaid = student.voucherStatus === 'Paid';
+                              const isUnpaidOrPartial = student.voucherStatus === 'Unpaid' || student.voucherStatus === 'Partial';
                               const isSelectable = !isPaid;
+                              const isRowChecked = selectedDepositVoucherRowIds.includes(student._id);
                               return (
                               <TableRow
                                 key={student._id}
@@ -5349,6 +5472,20 @@ const FeeManagement = () => {
                                   }
                                 }}
                               >
+                                <TableCell padding="checkbox" onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox
+                                    size="small"
+                                    disabled={!isUnpaidOrPartial}
+                                    checked={isRowChecked}
+                                    onChange={(e) => {
+                                      if (e.target.checked) {
+                                        setSelectedDepositVoucherRowIds(prev => [...prev, student._id]);
+                                      } else {
+                                        setSelectedDepositVoucherRowIds(prev => prev.filter(id => id !== student._id));
+                                      }
+                                    }}
+                                  />
+                                </TableCell>
                                 <TableCell>{student.id || 'N/A'}</TableCell>
                                 <TableCell>{student.rollNumber || 'N/A'}</TableCell>
                                 <TableCell sx={{ fontWeight: selectedManualDepositStudent?._id === student._id ? 'bold' : 'normal' }}>
