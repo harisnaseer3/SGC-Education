@@ -1339,6 +1339,37 @@ class FeeService {
       throw new ApiError(400, `Payment amount (${amount}) exceeds remaining amount (${remainingAmount})`);
     }
 
+    // Validate transactionId uniqueness across system if provided
+    if (transactionId && typeof transactionId === 'string' && transactionId.trim() !== '') {
+      const trimmedTid = transactionId.trim();
+      const escapedTid = trimmedTid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const tidRegex = new RegExp(`^${escapedTid}$`, 'i');
+      const instId = studentFee.institution?._id || studentFee.institution;
+      const studentObjId = studentFee.student?._id || studentFee.student;
+
+      const SuspenseEntry = require('../models/SuspenseEntry');
+      const existingSuspense = await SuspenseEntry.findOne({
+        transactionId: { $regex: tidRegex },
+        ...(instId ? { institution: instId } : {})
+      });
+      if (existingSuspense) {
+        throw new ApiError(400, `Transaction ID "${trimmedTid}" already exists in Suspense entries.`);
+      }
+
+      const tenSecondsAgo = new Date(Date.now() - 10000);
+      const existingPayment = await FeePayment.findOne({
+        transactionId: { $regex: tidRegex },
+        ...(instId ? { institution: instId } : {}),
+        $or: [
+          { student: { $ne: studentObjId } },
+          { createdAt: { $lt: tenSecondsAgo } }
+        ]
+      });
+      if (existingPayment) {
+        throw new ApiError(400, `Transaction ID "${trimmedTid}" already exists.`);
+      }
+    }
+
     // Determine voucher number if not provided
     let finalVoucherNumber = voucherNumber || null;
     

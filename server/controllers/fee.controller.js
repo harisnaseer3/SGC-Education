@@ -24,6 +24,46 @@ const getFeeStructureMatrix = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @route   GET /api/v1/fees/check-transaction/:transactionId
+ * @desc    Check whether a transaction ID already exists in the system
+ * @access  Private
+ */
+const checkTransactionId = asyncHandler(async (req, res) => {
+  const rawTid = req.params.transactionId ? req.params.transactionId.trim() : '';
+  if (!rawTid) {
+    return res.json({ success: true, message: 'Transaction ID is empty' });
+  }
+
+  const FeePayment = require('../models/FeePayment');
+  const SuspenseEntry = require('../models/SuspenseEntry');
+  const { getInstitutionId } = require('../utils/userUtils');
+  
+  let instId;
+  if (req.user.role !== 'super_admin') {
+    instId = getInstitutionId(req.user);
+  } else if (req.query.institution) {
+    instId = req.query.institution;
+  }
+  
+  const escapedTid = rawTid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const query = { transactionId: { $regex: new RegExp(`^${escapedTid}$`, 'i') } };
+  if (instId) {
+    query.institution = instId;
+  }
+  
+  const existingPayment = await FeePayment.findOne(query);
+  const existingSuspense = await SuspenseEntry.findOne(query);
+  
+  if (existingPayment || existingSuspense) {
+    return res.status(400).json({ 
+      success: false, 
+      message: `Transaction ID "${rawTid}" already exists.` 
+    });
+  }
+  return res.json({ success: true, message: 'Transaction ID is unique' });
+});
+
+/**
  * @route   GET /api/v1/fees/structures/class/:classId
  * @desc    Get fee structure by class ID
  * @access  Private
@@ -417,5 +457,6 @@ module.exports = {
   getMonthlyReconciliations,
   saveMonthlyReconciliation,
   uploadReconciliationAttachment,
-  removeReconciliationAttachment
+  removeReconciliationAttachment,
+  checkTransactionId
 };

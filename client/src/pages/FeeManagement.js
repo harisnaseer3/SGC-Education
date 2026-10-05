@@ -2444,6 +2444,22 @@ const FeeManagement = () => {
 
     try {
       setRecordingPayment(true);
+      
+      // Check for transaction ID uniqueness
+      try {
+        const encodedTid = encodeURIComponent(manualDepositForm.transactionId.trim());
+        const checkRes = await axios.get(`${API_URL}/fees/check-transaction/${encodedTid}`, createAxiosConfig());
+        if (!checkRes.data.success) {
+          notifyError(checkRes.data.message || 'Transaction ID already exists');
+          setRecordingPayment(false);
+          return;
+        }
+      } catch (err) {
+        const errMsg = err.response?.data?.message || 'Transaction ID already exists or validation failed.';
+        notifyError(errMsg);
+        setRecordingPayment(false);
+        return;
+      }
 
       // Get student ID
       // Use originalAdmissionId if available (for voucher rows), otherwise use _id
@@ -2766,10 +2782,28 @@ const FeeManagement = () => {
     }
   };
 
-  // Handle suspense save
   const handleSuspenseSave = async () => {
     try {
       setSavingSuspense(true);
+      
+      // Check for transaction ID uniqueness if one is provided
+      if (suspenseFormData.transactionId && suspenseFormData.transactionId.trim() !== '') {
+        try {
+          const encodedTid = encodeURIComponent(suspenseFormData.transactionId.trim());
+          const checkRes = await axios.get(`${API_URL}/fees/check-transaction/${encodedTid}`, createAxiosConfig());
+          if (!checkRes.data.success) {
+            notifyError(checkRes.data.message || 'Transaction ID already exists');
+            setSavingSuspense(false);
+            return;
+          }
+        } catch (err) {
+          const errMsg = err.response?.data?.message || 'Transaction ID already exists or validation failed.';
+          notifyError(errMsg);
+          setSavingSuspense(false);
+          return;
+        }
+      }
+
       const institutionId = getInstitutionId();
       const payload = {
         ...suspenseFormData,
