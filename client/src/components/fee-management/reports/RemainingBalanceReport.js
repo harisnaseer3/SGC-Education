@@ -304,7 +304,19 @@ const RemainingBalanceReport = ({ onBack }) => {
       return exportRow;
     });
 
-    exportToExcelWithBoldHeaders(XLSX, exportData, 'Remaining Balance', `Remaining_Balance_${format(new Date(), 'yyyyMMdd')}.xlsx`);
+    const selectedClass = classes.find(c => c._id === filters.classId);
+
+    exportToExcelWithBoldHeaders(
+      XLSX, 
+      exportData, 
+      'Remaining Balance', 
+      `Remaining_Balance_${format(new Date(), 'yyyyMMdd')}.xlsx`,
+      {
+        'Month': formatMonthYear(...Object.values(parseMonthYear(filters.monthYear))),
+        'Class': selectedClass ? selectedClass.name : 'All Classes',
+        'Payment Status': filters.paymentStatus
+      }
+    );
   };
 
   const handlePrint = () => {

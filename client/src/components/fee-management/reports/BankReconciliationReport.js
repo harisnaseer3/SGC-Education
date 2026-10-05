@@ -247,6 +247,11 @@ const BankReconciliationReport = ({ onBack }) => {
       'Amount': item.amount
     }));
 
+    const selectedBankObj = bankAccounts.find(b => b._id === filters.bankAccount);
+    const bankTitle = selectedBankObj 
+      ? `${selectedBankObj.bankName} (${selectedBankObj.accountNumber})` 
+      : 'All Accounts';
+
     exportToExcelWithBoldHeaders(
       XLSX,
       exportData,
@@ -255,7 +260,7 @@ const BankReconciliationReport = ({ onBack }) => {
       {
         'From': formatDate(filters.dateFrom),
         'To': formatDate(filters.dateTo),
-        'Account.#': filters.bankAccount ? bankAccounts.find(b => b._id === filters.bankAccount)?.accountNumber : 'All Accounts'
+        'Bank Title': bankTitle
       }
     );
   };

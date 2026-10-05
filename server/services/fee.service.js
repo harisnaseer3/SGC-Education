@@ -2102,11 +2102,10 @@ class FeeService {
   // Suspense Management - Reconcile unidentified payment to a student
   async reconcileSuspenseEntry(reconciliationData, currentUser) {
     const { suspenseEntryId, studentId, studentFeeId, remarks } = reconciliationData;
-    const institutionId = reconciliationData.institution || getInstitutionId(currentUser);
 
+    // Find suspense entry by ID and unidentified status (global lookup across campuses)
     const suspenseEntry = await SuspenseEntry.findOne({
       _id: suspenseEntryId,
-      institution: institutionId,
       status: 'unidentified'
     });
 
@@ -2114,10 +2113,13 @@ class FeeService {
       throw new ApiError(404, 'Unidentified payment entry not found or already reconciled');
     }
 
-    const student = await Student.findOne({ _id: studentId, institution: institutionId });
+    // Find student by ID (global lookup across campuses)
+    const student = await Student.findById(studentId);
     if (!student) {
       throw new ApiError(404, 'Student not found');
     }
+
+    const institutionId = student.institution || reconciliationData.institution || suspenseEntry.institution;
 
     const studentFee = await StudentFee.findById(studentFeeId);
     if (!studentFee) throw new ApiError(404, 'Student fee not found');

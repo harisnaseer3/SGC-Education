@@ -366,7 +366,17 @@ const FeeListReport = ({ onBack }) => {
       return row;
     });
 
-    exportToExcelWithBoldHeaders(XLSX, exportData, 'Fee List', `FeeList_${filters.monthYear}.xlsx`);
+    exportToExcelWithBoldHeaders(
+      XLSX, 
+      exportData, 
+      'Fee List', 
+      `FeeList_${filters.monthYear}.xlsx`,
+      {
+        'Month': formatMonthYear(...Object.values(parseMonthYear(filters.monthYear))),
+        'Class': filters.className === 'All' ? 'All Classes' : filters.className,
+        'Status': filters.statuses.join(', ')
+      }
+    );
   };
 
   return (

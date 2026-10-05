@@ -38,6 +38,7 @@ const BankStatementReport = ({ onBack }) => {
   const [institution, setInstitution] = useState(null);
   const [user, setUser] = useState(null);
   const [bankAccounts, setBankAccounts] = useState([]);
+  const [institutionsMap, setInstitutionsMap] = useState({});
   const [filters, setFilters] = useState({
     dateFrom: new Date().toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0],
@@ -57,7 +58,15 @@ const BankStatementReport = ({ onBack }) => {
     const savedUser = localStorage.getItem('user');
     if (savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const u = JSON.parse(savedUser);
+        setUser(u);
+        const isSuperAdmin = u?.role === 'super_admin';
+        const institutionId = getInstitutionId(u, isSuperAdmin);
+        if (institutionId) {
+          axios.get(`${API_URL}/institutions/${institutionId}`, createAxiosConfig())
+            .then(res => { if (res.data?.data) setInstitution(res.data.data); })
+            .catch(e => console.error('Error fetching institution details:', e));
+        }
       } catch (e) {
         console.error('Error parsing user data');
       }
@@ -65,7 +74,7 @@ const BankStatementReport = ({ onBack }) => {
   }, []);
 
   useEffect(() => {
-    const fetchBankAccounts = async () => {
+    const fetchInitialData = async () => {
       try {
         const savedUser = JSON.parse(localStorage.getItem('user') || '{}');
         const isSuperAdmin = savedUser?.role === 'super_admin';
@@ -76,13 +85,24 @@ const BankStatementReport = ({ onBack }) => {
           params.institution = institutionId;
         }
 
-        const response = await axios.get(`${API_URL}/bank-accounts`, createAxiosConfig({ params }));
-        setBankAccounts(response.data.data || []);
+        const [bankRes, instRes] = await Promise.all([
+          axios.get(`${API_URL}/bank-accounts`, createAxiosConfig({ params })),
+          axios.get(`${API_URL}/institutions`, createAxiosConfig()).catch(() => ({ data: { data: [] } }))
+        ]);
+
+        setBankAccounts(bankRes.data.data || []);
+        
+        const instList = instRes.data.data || [];
+        const map = {};
+        instList.forEach(inst => {
+          if (inst && inst._id) map[inst._id.toString()] = inst;
+        });
+        setInstitutionsMap(map);
       } catch (err) {
-        console.error('Error fetching bank accounts:', err);
+        console.error('Error fetching bank accounts/institutions:', err);
       }
     };
-    fetchBankAccounts();
+    fetchInitialData();
   }, []);
 
   const resolveBankAccount = (item) => {
@@ -174,6 +194,59 @@ const BankStatementReport = ({ onBack }) => {
     return shortName || last3 || item.bankName || '-';
   };
 
+  const getCampusShortForm = (itemInst, globalInst, instMap = {}) => {
+    let instObj = itemInst;
+
+    if (typeof instObj === 'string') {
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(instObj);
+      if (isObjectId) {
+        if (instMap[instObj]) {
+          instObj = instMap[instObj];
+        } else {
+          instObj = globalInst;
+        }
+      }
+    }
+
+    if (!instObj) instObj = globalInst;
+
+    let rawName = '';
+    if (typeof instObj === 'string') {
+      if (/^[0-9a-fA-F]{24}$/.test(instObj)) {
+        rawName = globalInst?.name || 'Taj';
+      } else {
+        rawName = instObj;
+      }
+    } else if (instObj && typeof instObj === 'object') {
+      rawName = instObj.name || instObj.address?.city || globalInst?.name || 'Taj';
+    }
+
+    if (!rawName || /^[0-9a-fA-F]{24}$/.test(rawName)) {
+      rawName = globalInst?.name || 'Taj';
+    }
+
+    let name = rawName.trim();
+
+    // If contains hyphen like "TIGES - TAJ CAMPUS", take the portion after "-"
+    if (name.includes('-')) {
+      const parts = name.split('-');
+      name = parts[parts.length - 1].trim();
+    }
+
+    // Remove trailing "Campus" or "CAMPUS" if present
+    name = name.replace(/\b(campus|CAMPUS|Campus)\b/gi, '').trim();
+
+    // Remove common organization prefixes if present
+    name = name.replace(/^(SGC|TIGES|ERP)\s+/gi, '').trim();
+
+    if (!name || /^[0-9a-fA-F]{24}$/.test(name)) {
+      name = 'Taj';
+    }
+
+    // Capitalize neatly (e.g. "TAJ" -> "Taj", "MUZAFFARABAD" -> "Muzaffarabad")
+    return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
+  };
+
   const handleFetchReport = async () => {
     try {
       setLoading(true);
@@ -218,12 +291,14 @@ const BankStatementReport = ({ onBack }) => {
       if (filters.dateFrom || filters.dateTo) {
         const fromDate = filters.dateFrom ? new Date(filters.dateFrom) : null;
         const toDate = filters.dateTo ? new Date(filters.dateTo) : null;
+
+        if (fromDate) fromDate.setHours(0, 0, 0, 0);
         if (toDate) toDate.setHours(23, 59, 59, 999);
 
         rawSuspense = rawSuspense.filter(s => {
-          const entryDate = new Date(s.paymentDate || s.createdAt);
-          if (fromDate && entryDate < fromDate) return false;
-          if (toDate && entryDate > toDate) return false;
+          const pDate = new Date(s.paymentDate || s.createdAt);
+          if (fromDate && pDate < fromDate) return false;
+          if (toDate && pDate > toDate) return false;
           return true;
         });
       }
@@ -275,7 +350,8 @@ const BankStatementReport = ({ onBack }) => {
             details: studentName,
             studentRoll: p.student?.rollNumber || '-',
             voucherNumber: p.voucherNumber || '-',
-            feeMonth
+            feeMonth,
+            campusCode: getCampusShortForm(p.institution || p.student?.institution, institution, institutionsMap)
           };
         }
       });
@@ -292,7 +368,8 @@ const BankStatementReport = ({ onBack }) => {
         statusLabel: s.status === 'reconciled' ? 'Reconciled Suspense' : 'Suspense',
         details: s.remarks || 'Suspense Entry',
         studentRoll: '-',
-        voucherNumber: '-'
+        voucherNumber: '-',
+        campusCode: getCampusShortForm(s.institution, institution, institutionsMap)
       }));
 
       // Combine and filter by status option
@@ -323,7 +400,9 @@ const BankStatementReport = ({ onBack }) => {
 
     const exportData = data.map((item, index) => ({
       'Sr #': index + 1,
+      'Campus': item.campusCode || 'Taj',
       'Date': formatDate(item.date),
+      'Transection Month': item.feeMonth || '-',
       'Amount': item.amount,
       'Transaction ID': item.transactionId,
       'Bank': getBankDisplay(item),
@@ -331,11 +410,21 @@ const BankStatementReport = ({ onBack }) => {
       'Details / Student': item.details
     }));
 
+    const selectedBankObj = bankAccounts.find(b => b._id === filters.bankAccount);
+    const bankTitle = selectedBankObj 
+      ? `${selectedBankObj.bankName} (${selectedBankObj.accountNumber})` 
+      : 'All Accounts';
+
     exportToExcelWithBoldHeaders(
       XLSX,
       exportData,
       'Bank Transactions Report',
-      `Bank_Transactions_${filters.dateFrom}_to_${filters.dateTo}.xlsx`
+      `Bank_Transactions_${filters.dateFrom}_to_${filters.dateTo}.xlsx`,
+      {
+        'From': formatDate(filters.dateFrom),
+        'To': formatDate(filters.dateTo),
+        'Bank Title': bankTitle
+      }
     );
   };
 
@@ -570,6 +659,7 @@ const BankStatementReport = ({ onBack }) => {
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ width: '50px' }}>Sr #</TableCell>
+                  <TableCell sx={{ fontWeight: 'bold' }}>Campus</TableCell>
                   <TableCell>Date</TableCell>
                   <TableCell>Transection Month</TableCell>
                   <TableCell align="right">Amount (PKR)</TableCell>
@@ -583,6 +673,7 @@ const BankStatementReport = ({ onBack }) => {
                 {data.map((row, index) => (
                   <TableRow key={row._id + '-' + index}>
                     <TableCell>{index + 1}</TableCell>
+                    <TableCell sx={{ fontWeight: 'bold', color: '#1e293b' }}>{row.campusCode}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap' }}>{formatDate(row.date)}</TableCell>
                     <TableCell sx={{ whiteSpace: 'nowrap', color: '#7c3aed', fontWeight: 600 }}>{row.feeMonth || '-'}</TableCell>
                     <TableCell align="right" sx={{ fontWeight: 'bold' }}>

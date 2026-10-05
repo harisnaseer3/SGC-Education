@@ -226,7 +226,16 @@ const BankVouchersReport = ({ onBack }) => {
       'Reference 6': item.rollNo
     }));
 
-    exportToExcelWithBoldHeaders(XLSX, exportData, 'Bank Vouchers', `Bank_Vouchers_${filters.monthYear}.xlsx`);
+    exportToExcelWithBoldHeaders(
+      XLSX, 
+      exportData, 
+      'Bank Vouchers', 
+      `Bank_Vouchers_${filters.monthYear}.xlsx`,
+      {
+        'Month': formatMonthYear(...Object.values(parseMonthYear(filters.monthYear))),
+        'Bank Title': institution?.name || 'Bank Vouchers'
+      }
+    );
   };
 
   const formatDate = (dateStr) => {

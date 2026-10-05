@@ -239,7 +239,18 @@ const QuickPayReport = ({ onBack }) => {
       'Reference 6': item.rollNo
     }));
 
-    exportToExcelWithBoldHeaders(XLSX, exportData, 'Quick Pay Report', `Quick_Pay_Report_${filters.monthYear}.xlsx`);
+    const firstDealerCode = data[0]?.dealerCode || '30050';
+
+    exportToExcelWithBoldHeaders(
+      XLSX, 
+      exportData, 
+      'Quick Pay Report', 
+      `Quick_Pay_Report_${filters.monthYear}.xlsx`,
+      {
+        'Month': formatMonthYear(...Object.values(parseMonthYear(filters.monthYear))),
+        'Bank Title / Dealer Code': `Kuickpay (${firstDealerCode})`
+      }
+    );
   };
 
   const formatDate = (dateStr) => {

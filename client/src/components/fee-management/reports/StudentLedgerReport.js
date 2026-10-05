@@ -200,7 +200,13 @@ const StudentLedgerReport = ({ onBack }) => {
         XLSX, 
         exportData, 
         'Student Ledger', 
-        `Student_Ledger_${student.enrollmentNumber}_${format(new Date(), 'yyyyMMdd')}.xlsx`
+        `Student_Ledger_${student.enrollmentNumber}_${format(new Date(), 'yyyyMMdd')}.xlsx`,
+        {
+          'Student Name': student.name || 'N/A',
+          'Roll No': student.rollNumber || 'N/A',
+          'Class': student.className || 'N/A',
+          'Enrollment No': student.enrollmentNumber || 'N/A'
+        }
     );
   };
 

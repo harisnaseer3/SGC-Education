@@ -528,6 +528,7 @@ const FeeManagement = () => {
   // Reconciliation
   const [reconciliationDialogOpen, setReconciliationDialogOpen] = useState(false);
   const [selectedSuspenseEntry, setSelectedSuspenseEntry] = useState(null);
+  const [reconciliationCampus, setReconciliationCampus] = useState('');
   const [reconciliationSearch, setReconciliationSearch] = useState({
     id: '',
     rollNumber: '',
@@ -639,18 +640,16 @@ const FeeManagement = () => {
 
   // Fetch institutions
   useEffect(() => {
-    if (isSuperAdmin) {
-      const fetchInstitutions = async () => {
-        try {
-          const response = await axios.get(`${API_URL}/institutions`, createAxiosConfig());
-          setInstitutions(response.data.data || []);
-        } catch (err) {
-          console.error('Error fetching institutions:', err);
-        }
-      };
-      fetchInstitutions();
-    }
-  }, [isSuperAdmin]);
+    const fetchInstitutions = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/institutions`, createAxiosConfig());
+        setInstitutions(response.data.data || []);
+      } catch (err) {
+        console.error('Error fetching institutions:', err);
+      }
+    };
+    fetchInstitutions();
+  }, []);
 
   // Handle auto-fetch for Print Voucher when month selection changes
   useEffect(() => {
@@ -2845,12 +2844,13 @@ const FeeManagement = () => {
   };
 
   // Reconciliation students search
-  const fetchReconciliationStudents = async () => {
+  const fetchReconciliationStudents = async (campusIdOverride = null) => {
     try {
       setSearchingReconciliationStudents(true);
-      const institutionId = getInstitutionId();
+      const targetCampus = campusIdOverride || reconciliationCampus || getInstitutionId();
       
-      const params = { institution: institutionId };
+      const params = {};
+      if (targetCampus) params.institution = targetCampus;
       if (reconciliationSearch.id) params.studentId = reconciliationSearch.id;
       if (reconciliationSearch.rollNumber) params.rollNumber = reconciliationSearch.rollNumber;
       if (reconciliationSearch.studentName) params.search = reconciliationSearch.studentName;
@@ -2873,6 +2873,7 @@ const FeeManagement = () => {
     setSelectedReconciliationStudent(null);
     setReconciliationStudents([]);
     setOutstandingFees([]);
+    setReconciliationCampus('');
     setReconciliationSearch({
       id: '',
       rollNumber: '',
@@ -2883,13 +2884,13 @@ const FeeManagement = () => {
   const handleReconcile = async (studentId, studentFeeId) => {
     try {
       setReconciling(true);
-      const institutionId = getInstitutionId();
+      const targetCampus = reconciliationCampus || selectedReconciliationStudent?.studentId?.institution || getInstitutionId();
       const payload = {
         suspenseEntryId: selectedSuspenseEntry._id,
         studentId,
         studentFeeId,
         remarks: 'Reconciled from Suspense Dialog',
-        institution: institutionId
+        institution: targetCampus
       };
 
       await axios.post(`${API_URL}/fees/suspense/reconcile`, payload, createAxiosConfig());
@@ -5597,77 +5598,73 @@ const FeeManagement = () => {
                       </Box>
 
                       <Grid container spacing={3}>
-                        {/* Payment Method & Date */}
-                        <Grid item xs={12} md={6}>
+                        {/* Payment Method Details */}
+                        <Grid item xs={12} md={12}>
                           <FormLabel component="legend" sx={{ mb: 1, fontWeight: 'bold' }}>Payment Method</FormLabel>
                           <Typography variant="body2" sx={{ mb: 1 }}>Bank payment</Typography>
-                          <FormControl fullWidth required sx={{ mt: 1 }}>
-                            <InputLabel>Select Bank Account *</InputLabel>
-                            <Select
-                              value={manualDepositForm.bankAccount}
-                              onChange={(e) => {
-                                const accountId = e.target.value;
-                                const selectedBank = bankAccounts.find(b => b._id === accountId);
-                                setManualDepositForm({ 
-                                  ...manualDepositForm, 
-                                  bankAccount: accountId, 
-                                  bankName: selectedBank ? selectedBank.bankName : '' 
-                                });
-                              }}
-                              label="Select Bank Account *"
-                              error={!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === ''}
-                            >
-                              <MenuItem value="">Select Bank Account</MenuItem>
-                              {bankAccounts.map((bank) => (
-                                <MenuItem key={bank._id} value={bank._id}>
-                                  {bank.bankName} - {bank.accountNumber}
-                                </MenuItem>
-                              ))}
-                            </Select>
-                            {(!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === '') && (
-                              <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
-                                Bank account is required
-                              </Typography>
-                            )}
-                          </FormControl>
-                          <TextField
-                            fullWidth
-                            sx={{ mt: 2 }}
-                            label="Bank Name"
-                            value={manualDepositForm.bankName}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankName: e.target.value })}
-                            placeholder="Enter bank name"
-                          />
-                          <TextField
-                            fullWidth
-                            sx={{ mt: 2 }}
-                            label="Cheque Number (if applicable)"
-                            value={manualDepositForm.chequeNumber}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, chequeNumber: e.target.value })}
-                            placeholder="Enter cheque number"
-                          />
-                          <TextField
-                            fullWidth
-                            required
-                            sx={{ mt: 2 }}
-                            label="Transaction ID *"
-                            value={manualDepositForm.transactionId}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, transactionId: e.target.value })}
-                            placeholder="Enter transaction ID"
-                            error={!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === ''}
-                            helperText={(!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === '') ? 'Transaction ID is required' : ''}
-                          />
-                        </Grid>
-
-                        <Grid item xs={12} md={6}>
-                          <TextField
-                            fullWidth
-                            label="Payment Date"
-                            type="date"
-                            value={manualDepositForm.paymentDate}
-                            onChange={(e) => setManualDepositForm({ ...manualDepositForm, paymentDate: e.target.value })}
-                            InputLabelProps={{ shrink: true }}
-                          />
+                          <Grid container spacing={2}>
+                            <Grid item xs={12} md={6}>
+                              <FormControl fullWidth required>
+                                <InputLabel>Select Bank Account *</InputLabel>
+                                <Select
+                                  value={manualDepositForm.bankAccount}
+                                  onChange={(e) => {
+                                    const accountId = e.target.value;
+                                    const selectedBank = bankAccounts.find(b => b._id === accountId);
+                                    setManualDepositForm({ 
+                                      ...manualDepositForm, 
+                                      bankAccount: accountId, 
+                                      bankName: selectedBank ? selectedBank.bankName : '' 
+                                    });
+                                  }}
+                                  label="Select Bank Account *"
+                                  error={!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === ''}
+                                >
+                                  <MenuItem value="">Select Bank Account</MenuItem>
+                                  {bankAccounts.map((bank) => (
+                                    <MenuItem key={bank._id} value={bank._id}>
+                                      {bank.bankName} - {bank.accountNumber}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                                {(!manualDepositForm.bankAccount || manualDepositForm.bankAccount.trim() === '') && (
+                                  <Typography variant="caption" color="error" sx={{ mt: 0.5, ml: 1.75 }}>
+                                    Bank account is required
+                                  </Typography>
+                                )}
+                              </FormControl>
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                              <TextField
+                                fullWidth
+                                label="Bank Name"
+                                value={manualDepositForm.bankName}
+                                onChange={(e) => setManualDepositForm({ ...manualDepositForm, bankName: e.target.value })}
+                                placeholder="Enter bank name"
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                              <TextField
+                                fullWidth
+                                label="Cheque Number (if applicable)"
+                                value={manualDepositForm.chequeNumber}
+                                onChange={(e) => setManualDepositForm({ ...manualDepositForm, chequeNumber: e.target.value })}
+                                placeholder="Enter cheque number"
+                              />
+                            </Grid>
+                            <Grid item xs={12} md={6}>
+                              <TextField
+                                fullWidth
+                                required
+                                label="Transaction ID *"
+                                value={manualDepositForm.transactionId}
+                                onChange={(e) => setManualDepositForm({ ...manualDepositForm, transactionId: e.target.value })}
+                                placeholder="Enter transaction ID"
+                                error={!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === ''}
+                                helperText={(!manualDepositForm.transactionId || manualDepositForm.transactionId.trim() === '') ? 'Transaction ID is required' : ''}
+                              />
+                            </Grid>
+                          </Grid>
                         </Grid>
 
                         {/* Outstanding Fees Section */}
@@ -5773,7 +5770,7 @@ const FeeManagement = () => {
                           )}
                         </Grid>
 
-                        {/* Total Amount Display */}
+                        {/* Total Amount, Payment Date & Action Buttons Display */}
                         <Grid item xs={12}>
                           <Box sx={{ 
                             p: 2, 
@@ -5781,62 +5778,65 @@ const FeeManagement = () => {
                             borderRadius: 1,
                             border: '1px solid #4caf50'
                           }}>
-                            <Grid container spacing={2}>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="body2" color="textSecondary">
-                                  Fee Payments: Rs. {Object.values(selectedFeePayments).reduce((sum, amount) => sum + (parseFloat(amount) || 0), 0).toLocaleString()}
-                                </Typography>
+                            <Grid container spacing={2} alignItems="center">
+                              <Grid item xs={12} sm={4} md={4}>
+                                <TextField
+                                  fullWidth
+                                  size="small"
+                                  label="Payment Date *"
+                                  type="date"
+                                  value={manualDepositForm.paymentDate}
+                                  onChange={(e) => setManualDepositForm({ ...manualDepositForm, paymentDate: e.target.value })}
+                                  InputLabelProps={{ shrink: true }}
+                                  sx={{ bgcolor: '#ffffff', borderRadius: 1 }}
+                                />
                               </Grid>
-                              <Grid item xs={12} md={6}>
-                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32', textAlign: { xs: 'left', md: 'right' } }}>
+                              <Grid item xs={12} sm={4} md={4}>
+                                <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#2e7d32', textAlign: { xs: 'left', sm: 'center' } }}>
                                   Total Amount: Rs. {calculateTotalPayment().toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Typography>
                               </Grid>
+                              <Grid item xs={12} sm={4} md={4}>
+                                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: { xs: 'flex-start', sm: 'flex-end' }, alignItems: 'center' }}>
+                                  <Button
+                                    variant="outlined"
+                                    onClick={() => {
+                                      setManualDepositForm({
+                                        paymentMethod: 'bank',
+                                        bankAccount: '',
+                                        paymentDate: new Date().toISOString().split('T')[0],
+                                        feeAmount: '',
+                                        remarks: '',
+                                        chequeNumber: '',
+                                        bankName: '',
+                                        transactionId: ''
+                                      });
+                                      setSelectedManualDepositStudent(null);
+                                      setOutstandingFees([]);
+                                      setSelectedFeePayments({});
+                                    }}
+                                  >
+                                    Reset
+                                  </Button>
+                                  <Button
+                                    variant="contained"
+                                    size="large"
+                                    sx={{ bgcolor: '#667eea', minWidth: 140 }}
+                                    onClick={handleSavePayment}
+                                    disabled={
+                                      recordingPayment || 
+                                      calculateTotalPayment() <= 0 ||
+                                      !manualDepositForm.bankAccount || 
+                                      manualDepositForm.bankAccount.trim() === '' ||
+                                      !manualDepositForm.transactionId || 
+                                      manualDepositForm.transactionId.trim() === ''
+                                    }
+                                  >
+                                    {recordingPayment ? <CircularProgress size={24} /> : 'Save Payment'}
+                                  </Button>
+                                </Box>
+                              </Grid>
                             </Grid>
-                          </Box>
-                        </Grid>
-
-
-
-                        {/* Action Buttons */}
-                        <Grid item xs={12}>
-                          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', pt: 2 }}>
-                              <Button
-                                variant="outlined"
-                                onClick={() => {
-                                  setManualDepositForm({
-                                    paymentMethod: 'bank',
-                                    bankAccount: '',
-                                    paymentDate: new Date().toISOString().split('T')[0],
-                                    feeAmount: '',
-                                    remarks: '',
-                                    chequeNumber: '',
-                                    bankName: '',
-                                    transactionId: ''
-                                  });
-                                  setSelectedManualDepositStudent(null);
-                                  setOutstandingFees([]);
-                                  setSelectedFeePayments({});
-                                }}
-                              >
-                              Reset
-                            </Button>
-                            <Button
-                              variant="contained"
-                              size="large"
-                              sx={{ bgcolor: '#667eea', minWidth: 150 }}
-                              onClick={handleSavePayment}
-                              disabled={
-                                recordingPayment || 
-                                calculateTotalPayment() <= 0 ||
-                                !manualDepositForm.bankAccount || 
-                                manualDepositForm.bankAccount.trim() === '' ||
-                                !manualDepositForm.transactionId || 
-                                manualDepositForm.transactionId.trim() === ''
-                              }
-                            >
-                              {recordingPayment ? <CircularProgress size={24} /> : 'Save Payment'}
-                            </Button>
                           </Box>
                         </Grid>
                       </Grid>
@@ -6837,7 +6837,9 @@ const FeeManagement = () => {
                                       size="small"
                                       variant="outlined"
                                       onClick={() => {
+                                        const defaultCampus = entry.institution?._id || entry.institution || getInstitutionId();
                                         setSelectedSuspenseEntry(entry);
+                                        setReconciliationCampus(defaultCampus);
                                         setReconciliationDialogOpen(true);
                                       }}
                                     >
@@ -8532,35 +8534,69 @@ const FeeManagement = () => {
 
         {/* Reconciliation Dialog */}
         <Dialog open={reconciliationDialogOpen} onClose={resetReconciliationDialog} maxWidth="md" fullWidth>
-          <DialogTitle>Reconcile Payment: Rs. {selectedSuspenseEntry?.amount.toLocaleString()}</DialogTitle>
+          <DialogTitle sx={{ pb: 1 }}>
+            Reconcile Payment: Rs. {selectedSuspenseEntry?.amount?.toLocaleString()}
+          </DialogTitle>
           <DialogContent>
             <Box sx={{ mb: 2, mt: 1 }}>
-              <Grid container spacing={1}>
-                <Grid item xs={4}>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={3}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="reconcile-campus-label">Select Campus</InputLabel>
+                    <Select
+                      labelId="reconcile-campus-label"
+                      value={reconciliationCampus || ''}
+                      onChange={(e) => {
+                        const newCampus = e.target.value;
+                        setReconciliationCampus(newCampus);
+                        setSelectedReconciliationStudent(null);
+                        setReconciliationStudents([]);
+                        setOutstandingFees([]);
+                        fetchReconciliationStudents(newCampus);
+                      }}
+                      label="Select Campus"
+                    >
+                      {institutions.map((inst) => (
+                        <MenuItem key={inst._id} value={inst._id}>
+                          {inst.name || inst.code}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={12} sm={3}>
                   <TextField 
                     fullWidth size="small" label="Name" 
                     value={reconciliationSearch.studentName}
                     onChange={(e) => setReconciliationSearch({ ...reconciliationSearch, studentName: e.target.value })}
                   />
                 </Grid>
-                <Grid item xs={4}>
+                <Grid item xs={12} sm={3}>
                   <TextField 
                     fullWidth size="small" label="Roll #" 
                     value={reconciliationSearch.rollNumber}
                     onChange={(e) => setReconciliationSearch({ ...reconciliationSearch, rollNumber: e.target.value })}
                   />
                 </Grid>
-                <Grid item xs={4}>
-                  <Button variant="contained" fullWidth onClick={fetchReconciliationStudents} disabled={searchingReconciliationStudents}>
-                    Search
+                <Grid item xs={12} sm={3}>
+                  <Button variant="contained" fullWidth onClick={() => fetchReconciliationStudents()} disabled={searchingReconciliationStudents} sx={{ bgcolor: '#667eea' }}>
+                    {searchingReconciliationStudents ? <CircularProgress size={20} color="inherit" /> : 'Search'}
                   </Button>
                 </Grid>
               </Grid>
             </Box>
 
             {reconciliationStudents.length > 0 && !selectedReconciliationStudent && (
-              <TableContainer sx={{ maxHeight: 300 }}>
+              <TableContainer sx={{ maxHeight: 250, border: '1px solid #e0e0e0', borderRadius: 1 }}>
                 <Table stickyHeader size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Student Name</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Roll #</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Class</TableCell>
+                      <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
+                    </TableRow>
+                  </TableHead>
                   <TableBody>
                     {reconciliationStudents.filter((s) => {
                       const nameMatch = !reconciliationSearch.studentName || 
@@ -8569,14 +8605,23 @@ const FeeManagement = () => {
                         s.rollNumber?.toLowerCase().includes(reconciliationSearch.rollNumber.toLowerCase());
                       return nameMatch && rollMatch;
                     }).map((s) => (
-                      <TableRow key={s._id} hover onClick={() => {
-                          setSelectedReconciliationStudent(s);
-                          const studentId = s.studentId?._id || s.studentId;
-                          if (studentId) fetchOutstandingFees(studentId);
-                      }} sx={{ cursor: 'pointer' }}>
+                      <TableRow key={s._id} hover sx={{ cursor: 'pointer' }}>
                         <TableCell>{s.name}</TableCell>
                         <TableCell>{s.rollNumber}</TableCell>
                         <TableCell>{s.class}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => {
+                              setSelectedReconciliationStudent(s);
+                              const studentId = s.studentId?._id || s.studentId;
+                              if (studentId) fetchOutstandingFees(studentId);
+                            }}
+                          >
+                            Select Student
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -8586,25 +8631,35 @@ const FeeManagement = () => {
 
             {selectedReconciliationStudent && (
               <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle1" fontWeight="bold">
-                  Outstanding Fees for {selectedReconciliationStudent.name}
-                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, p: 1.5, bgcolor: '#f0f4fe', borderRadius: 1 }}>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight="bold">
+                      Student: {selectedReconciliationStudent.name} (Roll #: {selectedReconciliationStudent.rollNumber || 'N/A'})
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Class: {selectedReconciliationStudent.class || 'N/A'} | Campus: {institutions.find(i => i._id === reconciliationCampus)?.name || 'Selected Campus'}
+                    </Typography>
+                  </Box>
+                  <Button size="small" variant="text" onClick={() => setSelectedReconciliationStudent(null)}>
+                    Change Student
+                  </Button>
+                </Box>
                 <TableContainer sx={{ maxHeight: 300 }}>
                   <Table size="small">
-                    <TableHead>
+                    <TableHead sx={{ bgcolor: '#f8f9fa' }}>
                       <TableRow>
-                        <TableCell>Voucher #</TableCell>
-                        <TableCell>Fee Head</TableCell>
-                        <TableCell>Month</TableCell>
-                        <TableCell>Remaining</TableCell>
-                        <TableCell>Action</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Voucher #</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Fee Head</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Month</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Remaining</TableCell>
+                        <TableCell sx={{ fontWeight: 'bold' }}>Action</TableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {loadingOutstandingFees ? (
                         <TableRow><TableCell colSpan={5} align="center"><CircularProgress /></TableCell></TableRow>
                       ) : outstandingFees.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} align="center">No outstanding fees</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={5} align="center">No outstanding fees found for this student</TableCell></TableRow>
                       ) : (
                         outstandingFees.map((fee) => {
                           const voucher = fee.vouchers && fee.vouchers.length > 0 ? fee.vouchers[0] : null;
@@ -8614,8 +8669,8 @@ const FeeManagement = () => {
 
                           return (
                             <TableRow key={fee._id}>
-                              <TableCell>{fee.vouchers?.[0]?.voucherNumber}</TableCell>
-                              <TableCell>{fee.feeHead?.name}</TableCell>
+                              <TableCell>{fee.vouchers?.[0]?.voucherNumber || '-'}</TableCell>
+                              <TableCell>{fee.feeHead?.name || '-'}</TableCell>
                               <TableCell>{monthDisplay}</TableCell>
                               <TableCell>Rs. {(fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0))).toLocaleString()}</TableCell>
                               <TableCell>
@@ -8626,7 +8681,7 @@ const FeeManagement = () => {
                                   onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, fee._id)}
                                   disabled={reconciling}
                                 >
-                                  Apply Fund
+                                  {reconciling ? <CircularProgress size={16} color="inherit" /> : 'Apply Fund'}
                                 </Button>
                               </TableCell>
                             </TableRow>
