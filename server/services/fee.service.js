@@ -1359,6 +1359,7 @@ class FeeService {
       const tenSecondsAgo = new Date(Date.now() - 10000);
       const existingPayment = await FeePayment.findOne({
         transactionId: { $regex: tidRegex },
+        status: { $ne: 'refunded' },
         ...(instId ? { institution: instId } : {}),
         $or: [
           { student: { $ne: studentObjId } },

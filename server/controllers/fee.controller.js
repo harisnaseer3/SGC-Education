@@ -46,13 +46,21 @@ const checkTransactionId = asyncHandler(async (req, res) => {
   }
   
   const escapedTid = rawTid.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const query = { transactionId: { $regex: new RegExp(`^${escapedTid}$`, 'i') } };
+  const paymentQuery = { 
+    transactionId: { $regex: new RegExp(`^${escapedTid}$`, 'i') },
+    status: { $ne: 'refunded' }
+  };
+  const suspenseQuery = { 
+    transactionId: { $regex: new RegExp(`^${escapedTid}$`, 'i') } 
+  };
+  
   if (instId) {
-    query.institution = instId;
+    paymentQuery.institution = instId;
+    suspenseQuery.institution = instId;
   }
   
-  const existingPayment = await FeePayment.findOne(query);
-  const existingSuspense = await SuspenseEntry.findOne(query);
+  const existingPayment = await FeePayment.findOne(paymentQuery);
+  const existingSuspense = await SuspenseEntry.findOne(suspenseQuery);
   
   if (existingPayment || existingSuspense) {
     return res.status(400).json({ 
