@@ -1811,9 +1811,36 @@ class FeeService {
       // Build return object with flattened fields at the root
       const cashierName = payment.collectedBy?.name || payment.cashierName || 'N/A';
       
+      // Compute Fee Month
+      let feeMonth = 'N/A';
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      if (payment.studentFee && payment.studentFee.vouchers && payment.studentFee.vouchers.length > 0) {
+        let matchingV = null;
+        if (voucherNumber) {
+          matchingV = payment.studentFee.vouchers.find(v => v.voucherNumber === voucherNumber);
+        }
+        if (!matchingV && payment.paymentDate) {
+          const pd = new Date(payment.paymentDate);
+          matchingV = payment.studentFee.vouchers.find(v => v.month === (pd.getMonth() + 1) && v.year === pd.getFullYear());
+        }
+        if (!matchingV) {
+          matchingV = payment.studentFee.vouchers[0];
+        }
+        if (matchingV && matchingV.month && matchingV.year) {
+          feeMonth = `${monthNames[matchingV.month - 1]} ${matchingV.year}`;
+        }
+      }
+      
+      if (feeMonth === 'N/A' && payment.paymentDate) {
+        const pd = new Date(payment.paymentDate);
+        feeMonth = `${monthNames[pd.getMonth()]} ${pd.getFullYear()}`;
+      }
+
       return {
         ...payment,
         voucherNumber,
+        feeMonth,
         studentName,
         fatherName: possibleFatherName,
         cashierName

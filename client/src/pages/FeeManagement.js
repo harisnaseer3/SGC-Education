@@ -2703,6 +2703,7 @@ const FeeManagement = () => {
       const excelData = receiptsToExport.map(r => ({
         'Receipt Number': r.receiptNumber || 'N/A',
         'Voucher Number': r.voucherNumber || 'N/A',
+        'Fee Month': r.feeMonth || (r.paymentDate ? formatMonthYear(new Date(r.paymentDate).getMonth() + 1, new Date(r.paymentDate).getFullYear()) : 'N/A'),
         'Payment Date': r.paymentDate ? new Date(r.paymentDate).toLocaleDateString('en-GB') : 'N/A',
         'Student ID': r.studentId || 'N/A',
         'Roll #': r.rollNumber || 'N/A',
@@ -2721,6 +2722,7 @@ const FeeManagement = () => {
       const colWidths = [
         { wch: 18 }, // Receipt Number
         { wch: 18 }, // Voucher Number
+        { wch: 14 }, // Fee Month
         { wch: 12 }, // Payment Date
         { wch: 12 }, // Student ID
         { wch: 8 },  // Roll #
@@ -6035,6 +6037,7 @@ const FeeManagement = () => {
                             </TableCell>
                             <TableCell>Receipt Number</TableCell>
                             <TableCell>Voucher Number</TableCell>
+                            <TableCell>Fee Month</TableCell>
                             <TableCell>Payment Date</TableCell>
                             <TableCell>Student ID</TableCell>
                             <TableCell>Roll #</TableCell>
@@ -6079,7 +6082,7 @@ const FeeManagement = () => {
                             if (activeReceipts.length === 0) {
                               return (
                                 <TableRow>
-                                  <TableCell colSpan={12} align="center">
+                                  <TableCell colSpan={14} align="center">
                                     <Typography variant="body2" color="textSecondary">
                                       No receipts found. Please search for receipts.
                                     </Typography>
@@ -6098,6 +6101,8 @@ const FeeManagement = () => {
                               // Check if all receipts in the group have the same voucher number
                               const allSameVoucher = group.every(r => r.voucherNumber === firstReceipt.voucherNumber);
                               const displayVoucher = allSameVoucher ? firstReceipt.voucherNumber : 'Multiple';
+                              const allSameFeeMonth = group.every(r => (r.feeMonth || 'N/A') === (firstReceipt.feeMonth || 'N/A'));
+                              const displayFeeMonth = allSameFeeMonth ? (firstReceipt.feeMonth || (firstReceipt.paymentDate ? formatMonthYear(new Date(firstReceipt.paymentDate).getMonth() + 1, new Date(firstReceipt.paymentDate).getFullYear()) : 'N/A')) : 'Multiple';
 
                               return (
                                 <React.Fragment key={tid}>
@@ -6157,6 +6162,9 @@ const FeeManagement = () => {
                                       ) : (
                                         'N/A'
                                       )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {displayFeeMonth}
                                     </TableCell>
                                     <TableCell>
                                       {firstReceipt.paymentDate 
@@ -6265,6 +6273,9 @@ const FeeManagement = () => {
                                         ) : (
                                           'N/A'
                                         )}
+                                      </TableCell>
+                                      <TableCell>
+                                        {receipt.feeMonth || (receipt.paymentDate ? formatMonthYear(new Date(receipt.paymentDate).getMonth() + 1, new Date(receipt.paymentDate).getFullYear()) : 'N/A')}
                                       </TableCell>
                                       <TableCell>
                                         {receipt.paymentDate 
@@ -6414,6 +6425,7 @@ const FeeManagement = () => {
                               </TableCell>
                               <TableCell>Receipt Number</TableCell>
                               <TableCell>Voucher Number</TableCell>
+                              <TableCell>Fee Month</TableCell>
                               <TableCell>Payment Date</TableCell>
                               <TableCell>Student ID</TableCell>
                               <TableCell>Roll #</TableCell>
@@ -6453,7 +6465,7 @@ const FeeManagement = () => {
                               if (refundedReceipts.length === 0) {
                                 return (
                                   <TableRow>
-                                    <TableCell colSpan={11} align="center">
+                                    <TableCell colSpan={14} align="center">
                                       <Typography variant="body2" color="textSecondary">
                                         No refunded receipts.
                                       </Typography>
@@ -6470,6 +6482,8 @@ const FeeManagement = () => {
                                 const totalAmount = group.reduce((sum, r) => sum + (r.amount || 0), 0);
                                 const allSameVoucher = group.every(r => r.voucherNumber === firstReceipt.voucherNumber);
                                 const displayVoucher = allSameVoucher ? firstReceipt.voucherNumber : 'Multiple';
+                                const allSameFeeMonth = group.every(r => (r.feeMonth || 'N/A') === (firstReceipt.feeMonth || 'N/A'));
+                                const displayFeeMonth = allSameFeeMonth ? (firstReceipt.feeMonth || (firstReceipt.paymentDate ? formatMonthYear(new Date(firstReceipt.paymentDate).getMonth() + 1, new Date(firstReceipt.paymentDate).getFullYear()) : 'N/A')) : 'Multiple';
 
                                 return (
                                   <React.Fragment key={tid}>
@@ -6538,6 +6552,9 @@ const FeeManagement = () => {
                                         ) : 'N/A'}
                                       </TableCell>
                                       <TableCell>
+                                        {displayFeeMonth}
+                                      </TableCell>
+                                      <TableCell>
                                         {firstReceipt.paymentDate 
                                           ? new Date(firstReceipt.paymentDate).toLocaleDateString('en-GB')
                                           : 'N/A'}
@@ -6599,6 +6616,9 @@ const FeeManagement = () => {
                                           {receipt.voucherNumber && receipt.voucherNumber !== 'N/A' ? (
                                             <Chip label={receipt.voucherNumber} size="small" color="secondary" variant="outlined" sx={{ opacity: 0.8 }} />
                                           ) : 'N/A'}
+                                        </TableCell>
+                                        <TableCell>
+                                          {receipt.feeMonth || (receipt.paymentDate ? formatMonthYear(new Date(receipt.paymentDate).getMonth() + 1, new Date(receipt.paymentDate).getFullYear()) : 'N/A')}
                                         </TableCell>
                                         <TableCell>
                                           {receipt.paymentDate 
