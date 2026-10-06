@@ -20,6 +20,7 @@ import { DataGrid } from '@mui/x-data-grid';
 import axios from 'axios';
 import { getApiUrl } from '../../config/api';
 import * as XLSX from 'xlsx';
+import { getInstitutionId } from '../../utils/feeUtils';
 
 const AdmissionByMonthReport = () => {
   const [loading, setLoading] = useState(false);
@@ -167,6 +168,7 @@ const AdmissionByMonthReport = () => {
         params: {
           month: filters.month,
           year: filters.year,
+          institution: getInstitutionId(user, user.role === 'super_admin')
         }
       });
 

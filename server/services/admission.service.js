@@ -1477,7 +1477,9 @@ class AdmissionService {
       {
         $project: {
           applicationNumber: 1,
-          studentName: '$fullName',
+          studentName: { 
+            $ifNull: ['$personalDetails.name', { $ifNull: ['$personalInfo.name', 'N/A'] }] 
+          },
           className: { $ifNull: ['$classInfo.name', 'Not Assigned'] },
           date: '$createdAt',
           status: 1
@@ -1530,7 +1532,14 @@ class AdmissionService {
       .lean();
 
     // Transform data for the report
-    const reportData = admissions.map((admission, index) => {
+    const reportData = admissions.map((doc, index) => {
+      // Map legacy fields for backward compatibility (due to .lean())
+      const admission = {
+        ...doc,
+        personalInfo: doc.personalDetails || doc.personalInfo,
+        contactInfo: doc.contactDetails || doc.contactInfo
+      };
+
       // Get full name from personalInfo
       const fullName = admission.personalInfo?.name || 'N/A';
 
@@ -1563,13 +1572,15 @@ class AdmissionService {
    * Get detailed admission by month report for export
    */
   async getAdmissionByMonthDetailedReport(filters, user) {
-    const { month, year } = filters;
+    const { month, year, institution } = filters;
 
     // Build query
     const query = {};
 
     // Institution filter
-    if (user.role !== 'super_admin' && user.institution) {
+    if (institution) {
+      query.institution = institution;
+    } else if (user.role !== 'super_admin' && user.institution) {
       query.institution = user.institution;
     }
 
@@ -1602,7 +1613,14 @@ class AdmissionService {
     };
 
     // Transform data for the report with all required fields
-    const reportData = admissions.map((admission, index) => {
+    const reportData = admissions.map((doc, index) => {
+      // Map legacy fields for backward compatibility (due to .lean())
+      const admission = {
+        ...doc,
+        personalInfo: doc.personalDetails || doc.personalInfo,
+        contactInfo: doc.contactDetails || doc.contactInfo
+      };
+
       // Get full name from personalInfo
       const fullName = admission.personalInfo?.name || 'N/A';
 

@@ -283,10 +283,10 @@ const getAdmissionByDateReport = asyncHandler(async (req, res) => {
  * @access  Private
  */
 const getAdmissionByMonthDetailedReport = asyncHandler(async (req, res) => {
-  const { month, year } = req.query;
+  const { month, year, institution } = req.query;
 
   const reportData = await admissionService.getAdmissionByMonthDetailedReport(
-    { month, year },
+    { month, year, institution },
     req.user
   );
 
