@@ -1391,7 +1391,6 @@ class FeeService {
 
     // Generate receipt number atomically using ReceiptCounter
     // This prevents race conditions when multiple payments are created simultaneously
-    const FeePayment = require('../models/FeePayment');
     
     // Retry logic for duplicate receipt numbers (handles race conditions)
     let feePayment;
