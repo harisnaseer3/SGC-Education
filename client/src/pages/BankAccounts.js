@@ -43,7 +43,8 @@ const BankAccounts = () => {
     accountNumber: '',
     accountTitle: '',
     branchCode: '',
-    isActive: true
+    isActive: true,
+    showOnVoucher: true
   });
 
   const [saving, setSaving] = useState(false);
@@ -86,7 +87,8 @@ const BankAccounts = () => {
         accountNumber: account.accountNumber,
         accountTitle: account.accountTitle,
         branchCode: account.branchCode || '',
-        isActive: account.isActive
+        isActive: account.isActive,
+        showOnVoucher: account.showOnVoucher !== false // default to true if undefined
       });
     } else {
       setEditingId(null);
@@ -96,7 +98,8 @@ const BankAccounts = () => {
         accountNumber: '',
         accountTitle: '',
         branchCode: '',
-        isActive: true
+        isActive: true,
+        showOnVoucher: true
       });
     }
     setOpenDialog(true);
@@ -176,6 +179,7 @@ const BankAccounts = () => {
               <TableCell sx={{ fontWeight: 'bold' }}>Account Title</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Account Number</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Branch Code</TableCell>
+              <TableCell sx={{ fontWeight: 'bold' }}>Show on Voucher</TableCell>
               <TableCell sx={{ fontWeight: 'bold' }}>Status</TableCell>
               <TableCell sx={{ fontWeight: 'bold', textAlign: 'center' }}>Actions</TableCell>
             </TableRow>
@@ -208,6 +212,17 @@ const BankAccounts = () => {
                   <TableCell>{account.accountTitle}</TableCell>
                   <TableCell>{account.accountNumber}</TableCell>
                   <TableCell>{account.branchCode || '-'}</TableCell>
+                  <TableCell>
+                    <Typography 
+                      variant="body2" 
+                      sx={{ 
+                        color: account.showOnVoucher !== false ? 'success.main' : 'text.secondary',
+                        fontWeight: 'bold'
+                      }}
+                    >
+                      {account.showOnVoucher !== false ? 'Yes' : 'No'}
+                    </Typography>
+                  </TableCell>
                   <TableCell>
                     <Typography 
                       variant="body2" 
@@ -247,7 +262,6 @@ const BankAccounts = () => {
           <DialogContent sx={{ mt: 2 }}>
             <TextField
               select
-              SelectProps={{ multiple: true }}
               margin="dense"
               name="institutions"
               label="Assigned Campuses"
@@ -319,6 +333,17 @@ const BankAccounts = () => {
                 />
               }
               label="Active"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.showOnVoucher}
+                  onChange={handleChange}
+                  name="showOnVoucher"
+                  color="primary"
+                />
+              }
+              label="Show on Voucher"
             />
           </DialogContent>
           <DialogActions sx={{ p: 2, pt: 0 }}>
