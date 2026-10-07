@@ -1347,13 +1347,15 @@ class FeeService {
       const instId = studentFee.institution?._id || studentFee.institution;
       const studentObjId = studentFee.student?._id || studentFee.student;
 
-      const SuspenseEntry = require('../models/SuspenseEntry');
-      const existingSuspense = await SuspenseEntry.findOne({
-        transactionId: { $regex: tidRegex },
-        ...(instId ? { institution: instId } : {})
-      });
-      if (existingSuspense) {
-        throw new ApiError(400, `Transaction ID "${trimmedTid}" already exists in Suspense entries.`);
+      if (!paymentData.isFromSuspense) {
+        const SuspenseEntry = require('../models/SuspenseEntry');
+        const existingSuspense = await SuspenseEntry.findOne({
+          transactionId: { $regex: tidRegex },
+          ...(instId ? { institution: instId } : {})
+        });
+        if (existingSuspense) {
+          throw new ApiError(400, `Transaction ID "${trimmedTid}" already exists in Suspense entries.`);
+        }
       }
 
       const tenSecondsAgo = new Date(Date.now() - 10000);
@@ -1375,15 +1377,24 @@ class FeeService {
     let finalVoucherNumber = voucherNumber || null;
     
     // If voucher number not provided, try to find it from StudentFee vouchers based on payment date
-    if (!finalVoucherNumber && paymentDate) {
-      const paymentDateObj = new Date(paymentDate);
-      const paymentMonth = paymentDateObj.getMonth() + 1; // 1-12
-      const paymentYear = paymentDateObj.getFullYear();
-      
-      if (studentFee.vouchers && Array.isArray(studentFee.vouchers)) {
-        const matchingVoucher = studentFee.vouchers.find(
-          v => v && v.month === paymentMonth && v.year === paymentYear && v.voucherNumber
-        );
+    if (!finalVoucherNumber) {
+      if (studentFee.vouchers && Array.isArray(studentFee.vouchers) && studentFee.vouchers.length > 0) {
+        let matchingVoucher = null;
+        if (paymentDate) {
+          const paymentDateObj = new Date(paymentDate);
+          const paymentMonth = paymentDateObj.getMonth() + 1; // 1-12
+          const paymentYear = paymentDateObj.getFullYear();
+          
+          matchingVoucher = studentFee.vouchers.find(
+            v => v && v.month === paymentMonth && v.year === paymentYear && v.voucherNumber
+          );
+        }
+        
+        // Fallback to the first available voucher if no month match or no paymentDate
+        if (!matchingVoucher) {
+          matchingVoucher = studentFee.vouchers[0];
+        }
+        
         if (matchingVoucher && matchingVoucher.voucherNumber) {
           finalVoucherNumber = matchingVoucher.voucherNumber;
         }
@@ -1494,20 +1505,16 @@ class FeeService {
 
     // Get institution ID
     let institutionId;
-    if (currentUser.role !== 'super_admin') {
-      institutionId = getInstitutionId(currentUser);
-      if (!institutionId) {
-        throw new ApiError(400, 'Institution not found for user');
-      }
-    } else if (institution) {
-      institutionId = extractInstitutionId(institution);
-      if (!institutionId) {
-        throw new ApiError(400, 'Invalid institution');
-      }
+    if (institution) {
+      // Use the requested institution (extracting if it's an object)
+      institutionId = typeof institution === 'object' ? (institution._id || institution.id) : institution;
     } else {
+      institutionId = getInstitutionId(currentUser);
+    }
+    
+    if (!institutionId) {
       throw new ApiError(400, 'Institution is required');
     }
-
     // Build query
     const query = {
       institution: institutionId,
@@ -2193,7 +2200,8 @@ class FeeService {
       paymentMethod: reconciledSuspenseEntry.paymentMethod,
       transactionId: reconciledSuspenseEntry.transactionId,
       bankName: reconciledSuspenseEntry.bankName,
-      remarks: `[Reconciled from Suspense] ${remarks || ''} ${reconciledSuspenseEntry.remarks || ''}`.trim()
+      remarks: `[Reconciled from Suspense] ${remarks || ''} ${reconciledSuspenseEntry.remarks || ''}`.trim(),
+      isFromSuspense: true
     };
 
     const paymentResult = await this.recordPayment(paymentData, currentUser);
@@ -2214,7 +2222,8 @@ class FeeService {
         `Partial reconciliation successful. Balance of ${originalSuspenseEntry.amount} remains.` : 
         'Suspense entry reconciled successfully',
       payment: paymentResult.payment,
-      suspenseEntry: reconciledSuspenseEntry
+      suspenseEntry: reconciledSuspenseEntry,
+      remainingBalance: paymentAmount < suspenseEntry.amount ? originalSuspenseEntry.amount : 0
     };
   }
 

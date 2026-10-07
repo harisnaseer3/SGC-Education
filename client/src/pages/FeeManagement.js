@@ -2252,7 +2252,7 @@ const FeeManagement = () => {
   // Fetch outstanding fees for a student
   // If voucherNumber is provided, only show fees with that specific voucher
   // Otherwise, show all vouchers sorted by latest first
-  const fetchOutstandingFees = async (studentId, voucherNumber = null) => {
+  const fetchOutstandingFees = async (studentId, voucherNumber = null, institutionOverride = null) => {
     if (!studentId) {
       setOutstandingFees([]);
       return;
@@ -2260,12 +2260,12 @@ const FeeManagement = () => {
 
     try {
       setLoadingOutstandingFees(true);
-      const institutionId = getInstitutionId();
+      const targetInstitution = institutionOverride || getInstitutionId();
 
       // Fetch ALL student fees to ensure we get arrears from previous months
       const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({
         params: {
-          institution: institutionId,
+          institution: targetInstitution,
           student: studentId
         }
       }));
@@ -2895,12 +2895,24 @@ const FeeManagement = () => {
         institution: targetCampus
       };
 
-      await axios.post(`${API_URL}/fees/suspense/reconcile`, payload, createAxiosConfig());
+      const res = await axios.post(`${API_URL}/fees/suspense/reconcile`, payload, createAxiosConfig());
       notifySuccess('Payment reconciled successfully');
       
-      // Fetch updated data while keeping dialog open
+      const remainingBalance = res.data.data.remainingBalance;
+      
+      // Always fetch updated data for background list
       fetchSuspenseEntries();
-      await fetchOutstandingFees(studentId);
+
+      if (remainingBalance > 0) {
+        // Keep modal open, update remaining total
+        setSelectedSuspenseEntry(prev => ({ ...prev, amount: remainingBalance }));
+        
+        // Refresh outstanding fees so the applied fee disappears from the modal list
+        await fetchOutstandingFees(studentId, null, targetCampus);
+      } else {
+        // Fully consumed, close the dialog natively
+        resetReconciliationDialog();
+      }
     } catch (err) {
       notifyError(err.response?.data?.message || 'Failed to reconcile payment');
     } finally {
@@ -8636,7 +8648,7 @@ const FeeManagement = () => {
                             onClick={() => {
                               setSelectedReconciliationStudent(s);
                               const studentId = s.studentId?._id || s.studentId;
-                              if (studentId) fetchOutstandingFees(studentId);
+                              if (studentId) fetchOutstandingFees(studentId, null, reconciliationCampus);
                             }}
                           >
                             Select Student
