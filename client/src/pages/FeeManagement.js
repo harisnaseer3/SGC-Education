@@ -2447,7 +2447,7 @@ const FeeManagement = () => {
       // Check for transaction ID uniqueness
       try {
         const encodedTid = encodeURIComponent(manualDepositForm.transactionId.trim());
-        const checkRes = await axios.get(`${API_URL}/fees/check-transaction/${encodedTid}`, createAxiosConfig());
+        const checkRes = await axios.get(`${API_URL}/fees/check-transaction?id=${encodedTid}`, createAxiosConfig());
         if (!checkRes.data.success) {
           notifyError(checkRes.data.message || 'Transaction ID already exists');
           setRecordingPayment(false);
@@ -2791,7 +2791,7 @@ const FeeManagement = () => {
       if (suspenseFormData.transactionId && suspenseFormData.transactionId.trim() !== '') {
         try {
           const encodedTid = encodeURIComponent(suspenseFormData.transactionId.trim());
-          const checkRes = await axios.get(`${API_URL}/fees/check-transaction/${encodedTid}`, createAxiosConfig());
+          const checkRes = await axios.get(`${API_URL}/fees/check-transaction?id=${encodedTid}`, createAxiosConfig());
           if (!checkRes.data.success) {
             notifyError(checkRes.data.message || 'Transaction ID already exists');
             setSavingSuspense(false);

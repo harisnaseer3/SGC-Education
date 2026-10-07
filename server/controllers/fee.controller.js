@@ -24,12 +24,12 @@ const getFeeStructureMatrix = asyncHandler(async (req, res) => {
 });
 
 /**
- * @route   GET /api/v1/fees/check-transaction/:transactionId
+ * @route   GET /api/v1/fees/check-transaction/:transactionId (or ?id=...`)
  * @desc    Check whether a transaction ID already exists in the system
  * @access  Private
  */
 const checkTransactionId = asyncHandler(async (req, res) => {
-  const rawTid = req.params.transactionId ? req.params.transactionId.trim() : '';
+  const rawTid = req.params.transactionId ? req.params.transactionId.trim() : (req.query.id ? req.query.id.trim() : '');
   if (!rawTid) {
     return res.json({ success: true, message: 'Transaction ID is empty' });
   }
