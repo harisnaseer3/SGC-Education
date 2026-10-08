@@ -7467,13 +7467,13 @@ const FeeManagement = () => {
                       </Box>
 
                       {/* Bank Details */}
-                      <Box sx={{ mb: 1, fontSize: '0.6rem', textAlign: 'center', fontWeight: 'bold' }}>
-                        <Typography sx={{ fontSize: '0.6rem', fontWeight: 'bold', mb: 0.5 }}>
+                      <Box sx={{ mb: 1, fontSize: '0.7rem', textAlign: 'center', fontWeight: 'bold' }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold', mb: 0.5 }}>
                           Fee Payable At {bankAccounts && bankAccounts.filter(b => b.showOnVoucher !== false).length > 1 ? 'Any Branch of the Following Banks' : 'Any Branch of'}
                         </Typography>
                         {bankAccounts && bankAccounts.filter(b => b.showOnVoucher !== false).length > 0 ? (
                           bankAccounts.filter(b => b.showOnVoucher !== false).map((bank, index) => (
-                            <Typography key={index} sx={{ fontSize: '0.55rem' }}>
+                            <Typography key={index} sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>
                               {bank.bankName} - {bank.accountNumber}{bank.accountTitle ? ` - ${bank.accountTitle}` : ''}
                             </Typography>
                           ))
@@ -7803,13 +7803,13 @@ const FeeManagement = () => {
                           </Box>
 
                           {/* Bank Details */}
-                          <Box sx={{ mb: 1, fontSize: '0.6rem', textAlign: 'center', fontWeight: 'bold' }}>
-                            <Typography sx={{ fontSize: '0.6rem', fontWeight: 'bold', mb: 0.5 }}>
+                          <Box sx={{ mb: 1, fontSize: '0.7rem', textAlign: 'center', fontWeight: 'bold' }}>
+                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold', mb: 0.5 }}>
                               Fee Payable At {bankAccounts && bankAccounts.filter(b => b.showOnVoucher !== false).length > 1 ? 'Any Branch of the Following Banks' : 'Any Branch of'}
                             </Typography>
                             {bankAccounts && bankAccounts.filter(b => b.showOnVoucher !== false).length > 0 ? (
                               bankAccounts.filter(b => b.showOnVoucher !== false).map((bank, index) => (
-                                <Typography key={index} sx={{ fontSize: '0.55rem' }}>
+                                <Typography key={index} sx={{ fontSize: '0.65rem', fontWeight: 'bold' }}>
                                   {bank.bankName} - {bank.accountNumber}{bank.accountTitle ? ` - ${bank.accountTitle}` : ''}
                                 </Typography>
                               ))
