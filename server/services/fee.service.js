@@ -557,10 +557,24 @@ class FeeService {
         }
       }
 
-      // Find existing StudentFee record for this fee head
-      const existingFee = existingStudentFees.find(
+      // Find ALL existing active StudentFee records for this fee head
+      const matchingFees = existingStudentFees.filter(
         sf => (sf.feeHead._id || sf.feeHead).toString() === feeHeadId
       );
+
+      // Sort matching fees to get the newest one first (fallback safety)
+      matchingFees.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
+      const existingFee = matchingFees.length > 0 ? matchingFees[0] : null;
+
+      // If there are duplicate active fees for this head, deactivate the older ones to clean up data consistency
+      if (matchingFees.length > 1) {
+        const duplicateIds = matchingFees.slice(1).map(f => f._id);
+        await StudentFee.updateMany(
+          { _id: { $in: duplicateIds } },
+          { $set: { isActive: false, updatedAt: new Date(), updatedBy: currentUser._id } }
+        );
+      }
 
       if (existingFee && !isChangingClass) {
         // Update existing record (same class)
