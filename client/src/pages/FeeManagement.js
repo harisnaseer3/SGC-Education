@@ -1965,6 +1965,7 @@ const FeeManagement = () => {
         voucherMonth: 'N/A',
         paidAmount: 0,
         remainingAmount: 0,
+        paymentDate: null,
         studentId: admission.studentId?._id || admission.studentId || null
       }));
 
@@ -2055,6 +2056,7 @@ const FeeManagement = () => {
                 voucherStatus: 'N/A',
                 paidAmount: totalPaid,
                 remainingAmount: totalRemaining,
+                paymentDate: null,
                 originalAdmissionId: student._id // Store original admission ID
               });
             } else {
@@ -2193,6 +2195,19 @@ const FeeManagement = () => {
                 const totalVoucherObligation = voucherAmount + initialArrearsAmount;
                 const displayPaidAmount = totalPaidForVoucher;
                 
+                // Calculate voucher payment date from fees in this voucher
+                let voucherPaymentDate = null;
+                if (feesWithVoucher.length > 0) {
+                  const paymentDates = feesWithVoucher
+                    .filter(f => f.lastPaymentDate && (f.paidAmount > 0 || f.status === 'paid'))
+                    .map(f => new Date(f.lastPaymentDate).getTime())
+                    .filter(t => !isNaN(t));
+
+                  if (paymentDates.length > 0) {
+                    voucherPaymentDate = new Date(Math.max(...paymentDates)).toISOString();
+                  }
+                }
+
                 studentsWithVouchers.push({
                   ...student,
                   lastVoucher: voucherInfo.displayVoucherNumber || voucherInfo.voucherNumber,
@@ -2203,6 +2218,7 @@ const FeeManagement = () => {
                   remainingAmount: displayedRemaining,
                   arrears: calculatedArrears,
                   generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null,
+                  paymentDate: voucherPaymentDate,
                   originalAdmissionId: student._id, // Store original admission ID
                   _id: `${student._id}-${voucherInfo.voucherNumber}-${voucherInfo.month}-${voucherInfo.year}` // Unique key for each voucher row
                 });
@@ -3630,6 +3646,7 @@ const FeeManagement = () => {
     setVoucherDialogOpen(true);
     const data = await fetchVoucherData(student, printVoucherFilters.monthYear);
     if (data) {
+      data.voucherStatus = student.voucherStatus || '';
       setVoucherData(data);
     }
   };
@@ -3683,7 +3700,10 @@ const FeeManagement = () => {
       );
 
       const voucherPromises = selectedStudents.map(student => 
-        fetchVoucherData(student, printVoucherFilters.monthYear)
+        fetchVoucherData(student, printVoucherFilters.monthYear).then(data => {
+          if (data) data.voucherStatus = student.voucherStatus || '';
+          return data;
+        })
       );
 
       const results = await Promise.all(voucherPromises);
@@ -5468,11 +5488,10 @@ const FeeManagement = () => {
                             <TableCell>Roll #</TableCell>
                             <TableCell>Name</TableCell>
                             <TableCell>Class</TableCell>
-                            <TableCell>Section</TableCell>
-                            <TableCell>Adv. Fee</TableCell>
                             <TableCell>Voucher Number</TableCell>
                             <TableCell>Voucher Month</TableCell>
                             <TableCell>Voucher Status</TableCell>
+                            <TableCell>Payment Date</TableCell>
                             <TableCell align="right">Voucher Amount</TableCell>
                             <TableCell align="right">Arrears</TableCell>
                             <TableCell align="right">Paid Amount</TableCell>
@@ -5482,13 +5501,13 @@ const FeeManagement = () => {
                         <TableBody>
                           {loading ? (
                             <TableRow>
-                              <TableCell colSpan={14} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
                                 <CircularProgress />
                               </TableCell>
                             </TableRow>
                           ) : manualDepositStudents.length === 0 ? (
                             <TableRow>
-                              <TableCell colSpan={14} align="center" sx={{ py: 4 }}>
+                              <TableCell colSpan={13} align="center" sx={{ py: 4 }}>
                                 <Typography variant="body2" color="textSecondary">
                                   No data found. Please search for students.
                                 </Typography>
@@ -5546,8 +5565,6 @@ const FeeManagement = () => {
                                   )}
                                 </TableCell>
                                 <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
-                                <TableCell>{capitalizeFirstOnly(student.section || 'N/A')}</TableCell>
-                                <TableCell>{student.advanceFee || '0'}</TableCell>
                                 <TableCell>{student.lastVoucher || 'N/A'}</TableCell>
                                 <TableCell>{student.voucherMonth || 'N/A'}</TableCell>
                                 <TableCell>
@@ -5564,6 +5581,13 @@ const FeeManagement = () => {
                                   ) : (
                                     'N/A'
                                   )}
+                                </TableCell>
+                                <TableCell>
+                                  {student.voucherStatus === 'Paid' && student.paymentDate
+                                    ? new Date(student.paymentDate).toLocaleDateString('en-GB')
+                                    : (student.paymentDate && student.voucherStatus === 'Partial'
+                                        ? new Date(student.paymentDate).toLocaleDateString('en-GB')
+                                        : '-')}
                                 </TableCell>
                                 <TableCell align="right">Rs. {(student.voucherAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</TableCell>
                                 <TableCell align="right" sx={{ color: (student.arrears || 0) > 0 ? 'error.main' : 'inherit', fontWeight: (student.arrears || 0) > 0 ? 'bold' : 'normal' }}>
@@ -7284,6 +7308,8 @@ const FeeManagement = () => {
                         border: '2px solid #000',
                         p: 1.5,
                         fontSize: '0.75rem',
+                        position: 'relative',
+                        overflow: 'hidden',
                         '@media print': {
                           fontSize: '8.5pt',
                           padding: '8px 10px',
@@ -7291,10 +7317,51 @@ const FeeManagement = () => {
                           flexDirection: 'column',
                           justifyContent: 'space-between',
                           height: '100%',
-                          boxSizing: 'border-box'
+                          boxSizing: 'border-box',
+                          position: 'relative',
+                          overflow: 'hidden'
                         }
                       }}
                     >
+                      {/* Watermark Overlay */}
+                      {(voucherData.voucherStatus === 'Paid' || voucherData.voucherStatus === 'Partial') && (
+                        <Box sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          height: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          pointerEvents: 'none',
+                          zIndex: 10,
+                          '@media print': { zIndex: 10 }
+                        }}>
+                          <Typography sx={{
+                            fontSize: voucherData.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
+                            fontWeight: 900,
+                            color: voucherData.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.18)' : 'rgba(200,100,0,0.18)',
+                            transform: 'rotate(-35deg)',
+                            userSelect: 'none',
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            border: `3px solid ${voucherData.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)'}`,
+                            borderRadius: '4px',
+                            padding: '16px 0px',
+                            whiteSpace: 'nowrap',
+                            lineHeight: 1,
+                            '@media print': {
+                              fontSize: voucherData.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
+                              color: voucherData.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)',
+                              WebkitPrintColorAdjust: 'exact',
+                              printColorAdjust: 'exact'
+                            }
+                          }}>
+                            {voucherData.voucherStatus === 'Paid' ? 'PAID' : 'PARTIALLY PAID'}
+                          </Typography>
+                        </Box>
+                      )}
                       {/* Header with Voucher Number and Copy Type */}
                       <Box sx={{ 
                         display: 'flex', 
@@ -7645,6 +7712,8 @@ const FeeManagement = () => {
                             border: '2px solid #000',
                             p: 1.5,
                             fontSize: '0.75rem',
+                            position: 'relative',
+                            overflow: 'hidden',
                             '@media print': {
                               fontSize: '8.5pt',
                               padding: '8px 10px',
@@ -7652,10 +7721,51 @@ const FeeManagement = () => {
                               flexDirection: 'column',
                               justifyContent: 'space-between',
                               height: '100%',
-                              boxSizing: 'border-box'
+                              boxSizing: 'border-box',
+                              position: 'relative',
+                              overflow: 'hidden'
                             }
                           }}
                         >
+                          {/* Watermark Overlay */}
+                          {(data.voucherStatus === 'Paid' || data.voucherStatus === 'Partial') && (
+                            <Box sx={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              pointerEvents: 'none',
+                              zIndex: 10,
+                              '@media print': { zIndex: 10 }
+                            }}>
+                              <Typography sx={{
+                                fontSize: data.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
+                                fontWeight: 900,
+                                color: data.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.18)' : 'rgba(200,100,0,0.18)',
+                                transform: 'rotate(-35deg)',
+                                userSelect: 'none',
+                                letterSpacing: '0.05em',
+                                textTransform: 'uppercase',
+                                border: `3px solid ${data.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)'}`,
+                                borderRadius: '4px',
+                                padding: '16px 0px',
+                                whiteSpace: 'nowrap',
+                                lineHeight: 1,
+                                '@media print': {
+                                  fontSize: data.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
+                                  color: data.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)',
+                                  WebkitPrintColorAdjust: 'exact',
+                                  printColorAdjust: 'exact'
+                                }
+                              }}>
+                                {data.voucherStatus === 'Paid' ? 'PAID' : 'PARTIALLY PAID'}
+                              </Typography>
+                            </Box>
+                          )}
                           <Box sx={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid #000', pb: 0.5, mb: 1 }}>
                             <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>Voucher#: {data.voucherNo}</Typography>
                             <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>{copyType}</Typography>
