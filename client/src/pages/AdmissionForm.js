@@ -555,7 +555,9 @@ const AdmissionForm = () => {
         dateOfBirth: admission.personalInfo?.dateOfBirth ? new Date(admission.personalInfo.dateOfBirth).toISOString().split('T')[0] : '',
         rollNumber: student?.rollNumber || admission.rollNumber || prev.rollNumber || '',
         religion: admission.personalInfo?.religion || 'Islam',
-        gender: admission.personalInfo?.gender ? admission.personalInfo.gender.charAt(0).toUpperCase() + admission.personalInfo.gender.slice(1) : 'Male',
+        gender: (admission.personalInfo?.gender || admission.personalDetails?.gender || student?.personalDetails?.gender)
+          ? (admission.personalInfo?.gender || admission.personalDetails?.gender || student?.personalDetails?.gender).charAt(0).toUpperCase() + (admission.personalInfo?.gender || admission.personalDetails?.gender || student?.personalDetails?.gender).slice(1).toLowerCase()
+          : 'Male',
         institution: admission.institution?._id || admission.institution || prev.institution,
         academicYear: admission.academicYear || student?.academicYear || prev.academicYear,
         program: admission.program || student?.program || prev.program,
@@ -794,7 +796,14 @@ const AdmissionForm = () => {
         personalInfo: {
           name,
           dateOfBirth: formData.dateOfBirth,
-          gender: formData.gender.toLowerCase(),
+          gender: (formData.gender || 'Male').toLowerCase(),
+          nationality: 'Pakistani',
+          religion: formData.religion,
+        },
+        personalDetails: {
+          name,
+          dateOfBirth: formData.dateOfBirth,
+          gender: (formData.gender || 'Male').toLowerCase(),
           nationality: 'Pakistani',
           religion: formData.religion,
         },

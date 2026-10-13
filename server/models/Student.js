@@ -449,9 +449,35 @@ studentSchema.virtual('fullName').get(function() {
 });
 
 // Virtual for backward compatibility with frontend expecting personalInfo
-studentSchema.virtual('personalInfo').get(function() {
-  return this.personalDetails;
-});
+studentSchema.virtual('personalInfo')
+  .get(function() {
+    return this.personalDetails;
+  })
+  .set(function(val) {
+    if (val && typeof val === 'object') {
+      this.personalDetails = {
+        ...(this.personalDetails?.toObject ? this.personalDetails.toObject() : this.personalDetails),
+        ...val
+      };
+      if (val.gender) {
+        this.personalDetails.gender = val.gender.toLowerCase();
+      }
+    }
+  });
+
+// Virtual for backward compatibility with frontend expecting contactInfo
+studentSchema.virtual('contactInfo')
+  .get(function() {
+    return this.contactDetails;
+  })
+  .set(function(val) {
+    if (val && typeof val === 'object') {
+      this.contactDetails = {
+        ...(this.contactDetails?.toObject ? this.contactDetails.toObject() : this.contactDetails),
+        ...val
+      };
+    }
+  });
 
 // Virtual for backward compatibility with frontend expecting admission object
 studentSchema.virtual('admission').get(function() {
@@ -459,7 +485,7 @@ studentSchema.virtual('admission').get(function() {
     _id: this._id,
     personalInfo: this.personalDetails,
     guardianInfo: this.guardianInfo,
-    contactInfo: this.contactInfo,
+    contactInfo: this.contactDetails,
     status: this.status,
     applicationNumber: this.applicationNumber,
     admissionEffectiveDate: this.admissionDate,

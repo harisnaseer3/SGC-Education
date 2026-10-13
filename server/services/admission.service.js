@@ -239,44 +239,90 @@ class AdmissionService {
       admission = await Admission.findById(admissionId);
     }
 
+    // Map and merge frontend fields (personalInfo, contactInfo) to backend schema fields (personalDetails, contactDetails)
+    if (updateData.personalInfo || updateData.personalDetails) {
+      const personal = updateData.personalDetails || updateData.personalInfo;
+      const currentPersonal = (admission.personalDetails?.toObject ? admission.personalDetails.toObject() : admission.personalDetails) || {};
+
+      updateData.personalDetails = {
+        ...currentPersonal,
+        ...personal
+      };
+
+      if (personal.gender) {
+        updateData.personalDetails.gender = personal.gender.toLowerCase();
+      }
+      if (personal.dateOfBirth) {
+        updateData.personalDetails.dateOfBirth = personal.dateOfBirth;
+      }
+      if (personal.name) {
+        updateData.personalDetails.name = personal.name;
+      }
+      updateData.personalInfo = updateData.personalDetails;
+    }
+
+    if (updateData.contactInfo || updateData.contactDetails) {
+      const contact = updateData.contactDetails || updateData.contactInfo;
+      const currentContact = (admission.contactDetails?.toObject ? admission.contactDetails.toObject() : admission.contactDetails) || {};
+
+      updateData.contactDetails = {
+        ...currentContact,
+        ...contact,
+        currentAddress: {
+          ...(currentContact.currentAddress || {}),
+          ...(contact.currentAddress || {})
+        },
+        permanentAddress: {
+          ...(currentContact.permanentAddress || {}),
+          ...(contact.permanentAddress || {})
+        }
+      };
+      updateData.contactInfo = updateData.contactDetails;
+    }
+
+    if (updateData.guardianInfo) {
+      const currentGuardian = (admission.guardianInfo?.toObject ? admission.guardianInfo.toObject() : admission.guardianInfo) || {};
+      updateData.guardianInfo = {
+        ...currentGuardian,
+        ...updateData.guardianInfo
+      };
+    }
+
+    if (updateData.class && updateData.class.toString() !== admission.class?.toString()) {
+      // Sync existing active StudentFee records to reference the new class
+      await StudentFee.updateMany(
+        { student: admission._id, isActive: true },
+        { $set: { class: updateData.class } }
+      );
+    }
+
     // Update admission
     // If enrolled, handle syncing with student and user records
     if (admission.status === 'enrolled') {
-      // Sync with Student record (In unified model, Student _id is admissionId, or linked via admission field)
+      // Sync with separate Student record if one exists (In unified model, Student _id is admissionId, but may link via admission field)
       const student = await Student.findOne({ $or: [{ _id: admissionId }, { admission: admissionId }] });
-      if (student) {
+      if (student && student._id.toString() !== admission._id.toString()) {
         // Map updates to student fields
         if (updateData.rollNumber) student.rollNumber = updateData.rollNumber;
         if (updateData.admissionDate) {
           student.admissionDate = updateData.admissionDate;
         }
-        if (updateData.personalInfo) {
+        if (updateData.personalDetails) {
           student.personalDetails = {
-            ...student.personalDetails,
-            name: updateData.personalInfo.name || student.personalDetails?.name,
-            firstName: updateData.personalInfo.firstName || student.personalDetails?.firstName,
-            lastName: updateData.personalInfo.lastName || student.personalDetails?.lastName,
-            bloodGroup: updateData.personalInfo.bloodGroup || student.personalDetails?.bloodGroup,
-            nationality: updateData.personalInfo.nationality || student.personalDetails?.nationality,
-            religion: updateData.personalInfo.religion || student.personalDetails?.religion,
-            category: updateData.personalInfo.category || student.personalDetails?.category
+            ...(student.personalDetails?.toObject ? student.personalDetails.toObject() : student.personalDetails),
+            ...updateData.personalDetails
           };
         }
-        if (updateData.contactInfo || updateData.contactDetails) {
-          const contact = updateData.contactInfo || updateData.contactDetails;
+        if (updateData.contactDetails) {
           student.contactDetails = {
-            ...student.contactDetails,
-            phone: contact.phone || student.contactDetails?.phone,
-            email: contact.email || student.contactDetails?.email,
-            alternatePhone: contact.alternatePhone || student.contactDetails?.alternatePhone,
-            currentAddress: contact.currentAddress || student.contactDetails?.currentAddress,
-            permanentAddress: contact.permanentAddress || student.contactDetails?.permanentAddress
+            ...(student.contactDetails?.toObject ? student.contactDetails.toObject() : student.contactDetails),
+            ...updateData.contactDetails
           };
           student.contactInfo = student.contactDetails;
         }
         if (updateData.guardianInfo) {
           student.guardianInfo = {
-            ...student.guardianInfo,
+            ...(student.guardianInfo?.toObject ? student.guardianInfo.toObject() : student.guardianInfo),
             ...updateData.guardianInfo
           };
         }
@@ -298,24 +344,39 @@ class AdmissionService {
         }
         
         await student.save();
+      }
 
-        // Sync with User record
-        if (student.user) {
-          const user = await User.findById(student.user);
-          if (user) {
-            if (updateData.personalInfo?.name) user.name = updateData.personalInfo.name;
-            if (updateData.contactInfo?.phone) user.phone = updateData.contactInfo.phone;
-            if (updateData.personalInfo?.dateOfBirth) user.dateOfBirth = updateData.personalInfo.dateOfBirth;
-            if (updateData.personalInfo?.gender) user.gender = updateData.personalInfo.gender;
-            if (updateData.contactInfo?.currentAddress?.street) user.address = updateData.contactInfo.currentAddress.street;
-            await user.save();
-          }
+      // Sync with User record
+      const userId = admission.user || (student && student.user);
+      if (userId) {
+        const user = await User.findById(userId);
+        if (user) {
+          const personal = updateData.personalDetails || updateData.personalInfo;
+          const contact = updateData.contactDetails || updateData.contactInfo;
+          if (personal?.name) user.name = personal.name;
+          if (contact?.phone || personal?.phone) user.phone = contact?.phone || personal?.phone;
+          if (personal?.dateOfBirth) user.dateOfBirth = personal.dateOfBirth;
+          if (personal?.gender) user.gender = personal.gender;
+          if (contact?.currentAddress?.street) user.address = contact.currentAddress.street;
+          await user.save();
         }
       }
     }
 
-    // Update admission
+    // Update admission record
     Object.assign(admission, updateData);
+    if (updateData.personalDetails) {
+      admission.personalDetails = updateData.personalDetails;
+      admission.markModified('personalDetails');
+    }
+    if (updateData.contactDetails) {
+      admission.contactDetails = updateData.contactDetails;
+      admission.markModified('contactDetails');
+    }
+    if (updateData.guardianInfo) {
+      admission.guardianInfo = updateData.guardianInfo;
+      admission.markModified('guardianInfo');
+    }
     await admission.save();
 
     return await Admission.findById(admission._id)
@@ -1337,13 +1398,13 @@ class AdmissionService {
             $sum: { $cond: [{ $eq: ['$status', 'enrolled'] }, 1, 0] }
           },
           male: {
-            $sum: { $cond: [{ $eq: ['$personalInfo.gender', 'male'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: [{ $ifNull: ['$personalDetails.gender', '$personalInfo.gender'] }, 'male'] }, 1, 0] }
           },
           female: {
-            $sum: { $cond: [{ $eq: ['$personalInfo.gender', 'female'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: [{ $ifNull: ['$personalDetails.gender', '$personalInfo.gender'] }, 'female'] }, 1, 0] }
           },
           other: {
-            $sum: { $cond: [{ $eq: ['$personalInfo.gender', 'other'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: [{ $ifNull: ['$personalDetails.gender', '$personalInfo.gender'] }, 'other'] }, 1, 0] }
           }
         }
       },
@@ -1373,13 +1434,13 @@ class AdmissionService {
             $sum: { $cond: [{ $eq: ['$status', 'enrolled'] }, 1, 0] }
           },
           male: {
-            $sum: { $cond: [{ $eq: ['$personalInfo.gender', 'male'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: [{ $ifNull: ['$personalDetails.gender', '$personalInfo.gender'] }, 'male'] }, 1, 0] }
           },
           female: {
-            $sum: { $cond: [{ $eq: ['$personalInfo.gender', 'female'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: [{ $ifNull: ['$personalDetails.gender', '$personalInfo.gender'] }, 'female'] }, 1, 0] }
           },
           other: {
-            $sum: { $cond: [{ $eq: ['$personalInfo.gender', 'other'] }, 1, 0] }
+            $sum: { $cond: [{ $eq: [{ $ifNull: ['$personalDetails.gender', '$personalInfo.gender'] }, 'other'] }, 1, 0] }
           }
         }
       }
