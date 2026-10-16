@@ -122,114 +122,149 @@ const RemainingBalanceReport = ({ onBack }) => {
       const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }));
       const allStudentFees = response.data.data || [];
 
+      // First, group all fees by student
+      const allFeesByStudent = new Map();
+      allStudentFees.forEach(sf => {
+        const studentId = sf.student?._id?.toString() || (typeof sf.student === 'string' ? sf.student : null);
+        if (studentId) {
+          if (!allFeesByStudent.has(studentId)) {
+            allFeesByStudent.set(studentId, []);
+          }
+          allFeesByStudent.get(studentId).push(sf);
+        }
+      });
+
       // Filter students based on Class Name and Status
-      let filteredFees = allStudentFees.filter(sf => {
+      const studentMap = new Map();
+      allStudentFees.forEach(sf => {
         const admission = sf.student?.admission || {};
         const student = sf.student || {};
-        
+        const studentId = student._id?.toString() || (typeof student === 'string' ? student : null);
+        if (!studentId) return;
+
         if (filters.classId !== 'all') {
           const classId = admission.class?._id || student.currentClass?._id || admission.class || student.currentClass;
-          if (classId?.toString() !== filters.classId) return false;
+          if (classId?.toString() !== filters.classId) return;
         }
 
         if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
           const sStatus = student.status || admission.status || '';
           const matchStatus = filters.studentStatus.some(s => s.toLowerCase() === sStatus.toLowerCase());
-          if (!matchStatus) return false;
+          if (!matchStatus) return;
         }
 
-        return true;
+        // Keep the most populated student object
+        if (!studentMap.has(studentId) || (typeof sf.student === 'object' && sf.student?.admission)) {
+          studentMap.set(studentId, sf.student);
+        }
       });
 
-      // Identify students who have a fee in the target month OR have arrears
       const studentsGroup = new Map();
       const feeHeadsMap = new Map();
 
-      filteredFees.forEach(sf => {
-        const studentId = sf.student?._id?.toString();
-        if (!studentId) return;
-        
-        if (sf.feeHead && sf.feeHead._id) {
-           feeHeadsMap.set(sf.feeHead._id.toString(), { _id: sf.feeHead._id.toString(), name: sf.feeHead.name });
-        }
+      studentMap.forEach((studentObj, studentId) => {
+        const studentAllFees = allFeesByStudent.get(studentId) || [];
 
-        const relevantVouchers = (sf.vouchers || []).filter(v => {
-          const vMonth = Number(v.month);
-          const vYear = Number(v.year);
-          return vYear < targetYear || (vYear === targetYear && vMonth <= targetMonth);
+        // Check relevant vouchers up to target month/year
+        const relevantVouchers = studentAllFees.filter(sf => 
+          (sf.vouchers || []).some(v => {
+            const vMonth = Number(v.month);
+            const vYear = Number(v.year);
+            return vYear < targetYear || (vYear === targetYear && vMonth <= targetMonth);
+          })
+        );
+        if (relevantVouchers.length === 0) return;
+
+        // Fees belonging to the selected month/year
+        const currentMonthFees = studentAllFees.filter(sf => 
+          (sf.vouchers || []).some(v => Number(v.month) === targetMonth && Number(v.year) === targetYear)
+        );
+
+        // Previous fees calculation (all periods before target month/year)
+        let totalBilledPrev = 0;
+        let totalPaidPrev = 0;
+
+        studentAllFees.forEach(f => {
+          const hasVouchers = f.vouchers && f.vouchers.length > 0;
+          let isPrevious = false;
+          if (hasVouchers) {
+            isPrevious = f.vouchers.every(v => 
+              (Number(v.year) < targetYear) || 
+              (Number(v.year) === targetYear && Number(v.month) < targetMonth)
+            );
+          }
+          if (isPrevious) {
+            if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
+              totalBilledPrev += parseFloat(f.finalAmount || 0);
+            }
+            totalPaidPrev += parseFloat(f.paidAmount || 0);
+          }
         });
 
-        if (relevantVouchers.length > 0) {
-          if (!studentsGroup.has(studentId)) {
-            const admission = sf.student?.admission || {};
-            studentsGroup.set(studentId, {
-              studentId,
-              enrollmentNumber: sf.student?.enrollmentNumber || 'N/A',
-              admissionNumber: admission.applicationNumber || 'N/A',
-              rollNumber: sf.student?.rollNumber || 'N/A',
-              studentName: sf.student?.user?.name || admission.personalInfo?.name || sf.student?.name || 'N/A',
-              fatherName: admission.guardianInfo?.fatherName || 'N/A',
-              class: admission.class?.name || sf.student?.currentClass?.name || 'Unassigned',
-              section: admission.section?.name || 'Unassigned',
-              previousBalance: 0,
-              currentBalance: 0,
-              receivable: 0,
-              received: 0,
-              remaining: 0,
-              heads: {}
-            });
-          }
+        const outstandingPrev = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-          const group = studentsGroup.get(studentId);
-          const headId = sf.feeHead?._id?.toString();
-
-          const isCurrentMonth = (sf.vouchers || []).some(v => 
-            Number(v.month) === targetMonth && Number(v.year) === targetYear
-          );
-
-          if (isCurrentMonth) {
-            const headName = sf.feeHead?.name || 'Other';
-            const isArrearsHead = headName.toLowerCase() === 'arrears';
-
-            if (isArrearsHead) {
-              // Calculate dynamic arrears: Billed Previous (non-Arrears) - Paid Previous (all)
-              const studentAllFees = filteredFees.filter(f => f.student?._id?.toString() === studentId);
-              let totalBilledPrev = 0;
-              let totalPaidPrev = 0;
-
-              studentAllFees.forEach(f => {
-                const hasVouchers = f.vouchers && f.vouchers.length > 0;
-                let isPrevious = false;
-                if (hasVouchers) {
-                  isPrevious = f.vouchers.every(v => 
-                    (Number(v.year) < targetYear) || 
-                    (Number(v.year) === targetYear && Number(v.month) < targetMonth)
-                  );
-                }
-                if (isPrevious) {
-                  if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
-                    totalBilledPrev += parseFloat(f.finalAmount || 0);
-                  }
-                  totalPaidPrev += parseFloat(f.paidAmount || 0);
-                }
-              });
-
-              const calcArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
-              group.previousBalance = calcArrears;
-              group.receivable += calcArrears;
-              group.remaining += calcArrears;
-            } else {
-              group.currentBalance += (sf.finalAmount || 0);
-              group.receivable += (sf.finalAmount || 0);
-              group.received += (sf.paidAmount || 0);
-              group.remaining += (sf.remainingAmount !== undefined ? sf.remainingAmount : (sf.finalAmount || 0) - (sf.paidAmount || 0));
-            }
-
-            if (headId) {
-              group.heads[headId] = (group.heads[headId] || 0) + (sf.finalAmount || 0);
-            }
-          }
+        // If no fee in current month and no previous dues, skip
+        if (currentMonthFees.length === 0 && outstandingPrev <= 0) {
+          return;
         }
+
+        const arrearsFee = currentMonthFees.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
+        const regularFees = currentMonthFees.filter(sf => sf.feeHead?.name?.toLowerCase() !== 'arrears');
+
+        const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
+        const currentRemainingArrears = Math.max(0, Math.round((outstandingPrev - arrearsPaymentsOnVoucher) * 100) / 100);
+
+        // Previous Balance (P.Bal): Displays as it was before receiving payment
+        let previousBalance = 0;
+        if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
+          previousBalance = parseFloat(arrearsFee.finalAmount || 0);
+        } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
+          previousBalance = parseFloat(arrearsFee.baseAmount || 0);
+        } else {
+          // Fallback if no arrears head on current voucher: use previous outstanding dues
+          previousBalance = outstandingPrev;
+        }
+
+        const currentBalance = regularFees.reduce((sum, sf) => sum + parseFloat(sf.finalAmount || 0), 0);
+        const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
+        const previousReceived = Math.max(0, previousBalance - currentRemainingArrears);
+        const received = currentReceived + previousReceived;
+        const receivable = previousBalance + currentBalance;
+        const remaining = Math.max(0, receivable - received);
+
+        // Collect fee heads for head-wise view
+        const heads = {};
+        currentMonthFees.forEach(sf => {
+          const headId = sf.feeHead?._id?.toString();
+          if (headId) {
+            heads[headId] = (heads[headId] || 0) + parseFloat(sf.finalAmount || 0);
+            if (!feeHeadsMap.has(headId)) {
+              feeHeadsMap.set(headId, { 
+                _id: headId, 
+                name: sf.feeHead.name, 
+                priority: sf.feeHead.priority ?? 99 
+              });
+            }
+          }
+        });
+
+        const admission = studentObj?.admission || {};
+        studentsGroup.set(studentId, {
+          studentId,
+          enrollmentNumber: studentObj?.enrollmentNumber || 'N/A',
+          admissionNumber: admission.applicationNumber || 'N/A',
+          rollNumber: studentObj?.rollNumber || 'N/A',
+          studentName: studentObj?.user?.name || admission.personalInfo?.name || studentObj?.name || 'N/A',
+          fatherName: admission.guardianInfo?.fatherName || 'N/A',
+          class: admission.class?.name || studentObj?.currentClass?.name || 'Unassigned',
+          section: admission.section?.name || 'Unassigned',
+          previousBalance,
+          currentBalance,
+          receivable,
+          received,
+          remaining,
+          heads
+        });
       });
 
       let finalData = Array.from(studentsGroup.values());
@@ -261,7 +296,7 @@ const RemainingBalanceReport = ({ onBack }) => {
 
       setReportData({
         data: finalData,
-        feeHeads: Array.from(feeHeadsMap.values()),
+        feeHeads: Array.from(feeHeadsMap.values()).sort((a, b) => (a.priority || 0) - (b.priority || 0) || a.name.localeCompare(b.name)),
         viewType: filters.viewType,
         summary
       });
