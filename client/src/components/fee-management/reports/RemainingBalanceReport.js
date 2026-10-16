@@ -21,7 +21,11 @@ import {
   IconButton,
   Card,
   CardContent,
-  Autocomplete
+  Autocomplete,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
+  Divider
 } from '@mui/material';
 import { 
   Visibility as VisibilityIcon, 
@@ -31,7 +35,7 @@ import {
   Search
 } from '@mui/icons-material';
 import axios from 'axios';
-import { format } from 'date-fns';
+import { format, subMonths } from 'date-fns';
 import * as XLSX from 'xlsx';
 import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { 
@@ -60,9 +64,12 @@ const RemainingBalanceReport = ({ onBack }) => {
 
   const [filters, setFilters] = useState({
     institution: currentInstitutionId || '',
+    filterMode: 'dateRange', // Default to payment date range
     classId: 'all',
     studentStatus: ['All'],
-    monthYear: new Date().toISOString().slice(0, 7), // YYYY-MM
+    monthYear: format(new Date(), 'yyyy-MM'),
+    dateFrom: format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
+    dateTo: format(new Date(), 'yyyy-MM-dd'),
     viewType: 'full',
     paymentStatus: 'all'
   });
@@ -111,16 +118,52 @@ const RemainingBalanceReport = ({ onBack }) => {
       setLoading(true);
       const isSuperAdmin = user?.role === 'super_admin';
       const institutionId = getInstitutionId(user, isSuperAdmin);
-      const { month, year } = parseMonthYear(filters.monthYear);
-      const targetMonth = Number(month);
-      const targetYear = Number(year);
+
+      let targetMonth, targetYear;
+      if (filters.filterMode === 'voucher') {
+        const { month, year } = parseMonthYear(filters.monthYear);
+        targetMonth = Number(month);
+        targetYear = Number(year);
+      } else {
+        const toDateObj = filters.dateTo ? new Date(filters.dateTo) : new Date();
+        targetMonth = toDateObj.getMonth() + 1;
+        targetYear = toDateObj.getFullYear();
+      }
 
       const params = {
         institution: institutionId,
       };
 
-      const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }));
-      const allStudentFees = response.data.data || [];
+      const apiCalls = [
+        axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }))
+      ];
+
+      if (filters.filterMode === 'dateRange') {
+        apiCalls.push(
+          axios.get(`${API_URL}/fees/payments`, createAxiosConfig({
+            params: {
+              institution: institutionId,
+              startDate: filters.dateFrom,
+              endDate: filters.dateTo
+            }
+          }))
+        );
+      }
+
+      const [feesResponse, paymentsResponse] = await Promise.all(apiCalls);
+      const allStudentFees = feesResponse.data.data || [];
+      const rangePayments = paymentsResponse ? (paymentsResponse.data.data || []).filter(p => p.status === 'completed') : [];
+
+      const paymentsByStudent = new Map();
+      if (filters.filterMode === 'dateRange') {
+        rangePayments.forEach(p => {
+          const sId = p.student?._id?.toString() || (typeof p.student === 'string' ? p.student : null);
+          if (sId) {
+            if (!paymentsByStudent.has(sId)) paymentsByStudent.set(sId, []);
+            paymentsByStudent.get(sId).push(p);
+          }
+        });
+      }
 
       // First, group all fees by student
       const allFeesByStudent = new Map();
@@ -164,6 +207,7 @@ const RemainingBalanceReport = ({ onBack }) => {
 
       studentMap.forEach((studentObj, studentId) => {
         const studentAllFees = allFeesByStudent.get(studentId) || [];
+        const studentPaymentsInRange = paymentsByStudent.get(studentId) || [];
 
         // Check relevant vouchers up to target month/year
         const relevantVouchers = studentAllFees.filter(sf => 
@@ -173,7 +217,12 @@ const RemainingBalanceReport = ({ onBack }) => {
             return vYear < targetYear || (vYear === targetYear && vMonth <= targetMonth);
           })
         );
-        if (relevantVouchers.length === 0) return;
+        if (relevantVouchers.length === 0 && studentPaymentsInRange.length === 0) return;
+
+        // In date range mode when "all classes" is selected, if student has no payment in range, skip to keep report focused
+        if (filters.filterMode === 'dateRange' && filters.classId === 'all' && studentPaymentsInRange.length === 0) {
+          return;
+        }
 
         // Fees belonging to the selected month/year
         const currentMonthFees = studentAllFees.filter(sf => 
@@ -203,8 +252,8 @@ const RemainingBalanceReport = ({ onBack }) => {
 
         const outstandingPrev = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-        // If no fee in current month and no previous dues, skip
-        if (currentMonthFees.length === 0 && outstandingPrev <= 0) {
+        // If no fee in current month, no previous dues, and no payments in range, skip
+        if (currentMonthFees.length === 0 && outstandingPrev <= 0 && studentPaymentsInRange.length === 0) {
           return;
         }
 
@@ -226,10 +275,19 @@ const RemainingBalanceReport = ({ onBack }) => {
         }
 
         const currentBalance = regularFees.reduce((sum, sf) => sum + parseFloat(sf.finalAmount || 0), 0);
-        const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
-        const previousReceived = Math.max(0, previousBalance - currentRemainingArrears);
-        const received = currentReceived + previousReceived;
         const receivable = previousBalance + currentBalance;
+
+        let received = 0;
+        if (filters.filterMode === 'dateRange') {
+          // In date range mode, Received is the sum of payments made in this date range
+          received = studentPaymentsInRange.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
+        } else {
+          // In voucher mode, sum of current month fees paid + previous dues paid
+          const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
+          const previousReceived = Math.max(0, previousBalance - currentRemainingArrears);
+          received = currentReceived + previousReceived;
+        }
+
         const remaining = Math.max(0, receivable - received);
 
         // Collect fee heads for head-wise view
@@ -341,16 +399,28 @@ const RemainingBalanceReport = ({ onBack }) => {
 
     const selectedClass = classes.find(c => c._id === filters.classId);
 
+    const exportMetadata = {
+      'Class': selectedClass ? selectedClass.name : 'All Classes',
+      'Payment Status': filters.paymentStatus
+    };
+
+    if (filters.filterMode === 'dateRange') {
+      exportMetadata['Payment Date From'] = filters.dateFrom ? format(new Date(filters.dateFrom), 'dd/MM/yyyy') : '';
+      exportMetadata['Payment Date To'] = filters.dateTo ? format(new Date(filters.dateTo), 'dd/MM/yyyy') : '';
+    } else {
+      exportMetadata['Month'] = formatMonthYear(...Object.values(parseMonthYear(filters.monthYear)));
+    }
+
+    const filename = filters.filterMode === 'dateRange'
+      ? `Remaining_Balance_${filters.dateFrom}_to_${filters.dateTo}.xlsx`
+      : `Remaining_Balance_${format(new Date(), 'yyyyMMdd')}.xlsx`;
+
     exportToExcelWithBoldHeaders(
       XLSX, 
       exportData, 
       'Remaining Balance', 
-      `Remaining_Balance_${format(new Date(), 'yyyyMMdd')}.xlsx`,
-      {
-        'Month': formatMonthYear(...Object.values(parseMonthYear(filters.monthYear))),
-        'Class': selectedClass ? selectedClass.name : 'All Classes',
-        'Payment Status': filters.paymentStatus
-      }
+      filename,
+      exportMetadata
     );
   };
 
@@ -409,7 +479,13 @@ const RemainingBalanceReport = ({ onBack }) => {
           </Box>
           <Box sx={{ textAlign: 'right' }}>
             <Typography variant="h6" color="#667eea" fontWeight="bold">Remaining Balance Report</Typography>
-            <Typography variant="body2">Month: {formatMonthYear(...Object.values(parseMonthYear(filters.monthYear)))}</Typography>
+            {filters.filterMode === 'dateRange' ? (
+              <Typography variant="body2">
+                Payment Date: {filters.dateFrom ? format(new Date(filters.dateFrom), 'dd/MM/yyyy') : ''} to {filters.dateTo ? format(new Date(filters.dateTo), 'dd/MM/yyyy') : ''}
+              </Typography>
+            ) : (
+              <Typography variant="body2">Month: {formatMonthYear(...Object.values(parseMonthYear(filters.monthYear)))}</Typography>
+            )}
             <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary' }}>
               Print Date: {format(new Date(), 'dd MMM yyyy hh:mm a')}
             </Typography>
@@ -516,8 +592,39 @@ const RemainingBalanceReport = ({ onBack }) => {
       <Box className="no-print">
         <Card sx={{ mb: 3, boxShadow: 3, borderRadius: 2 }}>
           <CardContent>
+            {/* Filter Mode Toggle */}
+            <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', minWidth: 90 }}>
+                Filter Mode:
+              </Typography>
+              <RadioGroup
+                row
+                value={filters.filterMode}
+                onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
+              >
+                <FormControlLabel
+                  value="voucher"
+                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
+                  label={
+                    <Typography variant="body2" fontWeight={filters.filterMode === 'voucher' ? 700 : 400}>
+                      Month & Year (Voucher Wise)
+                    </Typography>
+                  }
+                />
+                <FormControlLabel
+                  value="dateRange"
+                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
+                  label={
+                    <Typography variant="body2" fontWeight={filters.filterMode === 'dateRange' ? 700 : 400}>
+                      Payment Date Range
+                    </Typography>
+                  }
+                />
+              </RadioGroup>
+            </Box>
+
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={3}>
+              <Grid item xs={12} sm={6} md={3}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Class</InputLabel>
                   <Select
@@ -532,7 +639,8 @@ const RemainingBalanceReport = ({ onBack }) => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} md={3}>
+
+              <Grid item xs={12} sm={6} md={3}>
                 <Autocomplete
                   multiple
                   size="small"
@@ -559,18 +667,8 @@ const RemainingBalanceReport = ({ onBack }) => {
                   }
                 />
               </Grid>
-              <Grid item xs={12} md={2}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="month"
-                  label="Month & Year"
-                  value={filters.monthYear}
-                  onChange={(e) => setFilters({ ...filters, monthYear: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={6} md={2}>
+
+              <Grid item xs={6} sm={6} md={3}>
                 <FormControl fullWidth size="small">
                   <InputLabel>Payment Status</InputLabel>
                   <Select
@@ -585,7 +683,8 @@ const RemainingBalanceReport = ({ onBack }) => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={6} md={2}>
+
+              <Grid item xs={6} sm={6} md={3}>
                 <FormControl fullWidth size="small">
                   <InputLabel>View Type</InputLabel>
                   <Select
@@ -598,24 +697,86 @@ const RemainingBalanceReport = ({ onBack }) => {
                   </Select>
                 </FormControl>
               </Grid>
-              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 1 }}>
+
+              {/* Date Filters Row */}
+              <Grid item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="month"
+                  label="Month & Year"
+                  value={filters.monthYear}
+                  onChange={(e) => setFilters({ ...filters, monthYear: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={filters.filterMode !== 'voucher'}
+                  sx={{
+                    bgcolor: filters.filterMode !== 'voucher' ? '#f1f5f9' : 'transparent',
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: '#94a3b8'
+                    }
+                  }}
+                  helperText={filters.filterMode !== 'voucher' ? 'Disabled in date range mode' : ''}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Payment Date From"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={filters.filterMode !== 'dateRange'}
+                  sx={{
+                    bgcolor: filters.filterMode !== 'dateRange' ? '#f1f5f9' : 'transparent',
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: '#94a3b8'
+                    }
+                  }}
+                  helperText={filters.filterMode !== 'dateRange' ? 'Disabled in voucher mode' : ''}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={4} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Payment Date To"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  disabled={filters.filterMode !== 'dateRange'}
+                  sx={{
+                    bgcolor: filters.filterMode !== 'dateRange' ? '#f1f5f9' : 'transparent',
+                    '& .MuiInputBase-input.Mui-disabled': {
+                      WebkitTextFillColor: '#94a3b8'
+                    }
+                  }}
+                  helperText={filters.filterMode !== 'dateRange' ? 'Disabled in voucher mode' : ''}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={12} md={3} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1.5 }}>
                 <Button 
                   variant="contained" 
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Search />}
                   onClick={handleGenerate}
                   disabled={loading}
-                  sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
+                  sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: '40px', px: 3 }}
                 >
                   Search
                 </Button>
                 {reportData && (
-                  <Box sx={{ display: 'flex', gap: 2 }}>
+                  <>
                     <Button
                       variant="outlined"
                       color="primary"
                       startIcon={<PrintIcon />}
                       onClick={handlePrint}
-                      sx={{ textTransform: 'uppercase', fontWeight: 600 }}
+                      sx={{ textTransform: 'uppercase', fontWeight: 600, height: '40px' }}
                     >
                       PRINT
                     </Button>
@@ -624,11 +785,11 @@ const RemainingBalanceReport = ({ onBack }) => {
                       color="success"
                       startIcon={<DownloadIcon />}
                       onClick={handleExportExcel}
-                      sx={{ textTransform: 'uppercase', fontWeight: 600 }}
+                      sx={{ textTransform: 'uppercase', fontWeight: 600, height: '40px' }}
                     >
                       EXPORT
                     </Button>
-                  </Box>
+                  </>
                 )}
               </Grid>
             </Grid>
