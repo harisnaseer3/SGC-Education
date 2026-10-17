@@ -269,9 +269,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
     // Student filters
     const studentTotalFilter = { institution: { $in: selectedInstitutionIds } };
-    const studentActiveFilter = { institution: { $in: selectedInstitutionIds }, status: 'enrolled' };
-    const studentNewAdmissionsFilter = { institution: { $in: selectedInstitutionIds }, status: 'enrolled' };
-    const studentStruckOffFilter = { institution: { $in: selectedInstitutionIds }, status: 'struckoff' };
+    const studentActiveFilter = { institution: { $in: selectedInstitutionIds }, status: { $regex: /^enrolled$/i } };
+    const studentNewAdmissionsFilter = { institution: { $in: selectedInstitutionIds }, status: { $regex: /^enrolled$/i } };
+    const studentStruckOffFilter = { institution: { $in: selectedInstitutionIds }, status: { $regex: /struck.*off/i } };
+    const studentPendingFilter = { institution: { $in: selectedInstitutionIds }, status: { $regex: /^pending$/i } };
     
     if (endDate) {
       const parsedEnd = new Date(endDate);
@@ -279,6 +280,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       studentTotalFilter.createdAt = { $lte: parsedEnd };
       studentActiveFilter.createdAt = { $lte: parsedEnd };
       studentStruckOffFilter.createdAt = { $lte: parsedEnd };
+      studentPendingFilter.createdAt = { $lte: parsedEnd };
     }
     
     if (hasDates) {
@@ -289,11 +291,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       studentNewAdmissionsFilter.admissionDate = { $gte: thirtyDaysAgo };
     }
     
-    const [totalStudents, activeStudents, newAdmissions, struckOffStudents, finVoucherStats] = await Promise.all([
+    const [totalStudents, activeStudents, newAdmissions, struckOffStudents, pendingStudents, finVoucherStats] = await Promise.all([
       Admission.countDocuments(studentTotalFilter),
       Admission.countDocuments(studentActiveFilter),
       Admission.countDocuments(studentNewAdmissionsFilter),
       Student.countDocuments(studentStruckOffFilter),
+      Student.countDocuments(studentPendingFilter),
       fetchDynamicVoucherStats({ institution: { $in: selectedInstitutionIds }, 'vouchers.0': { $exists: true } })
     ]);
 
@@ -312,28 +315,41 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         totalStudentsCount,
         activeStudentsCount,
         newAdmissionsCount,
+        struckOffCount,
+        pendingCount,
         instVoucherStats
       ] = await Promise.all([
         Admission.countDocuments({ institution: instId, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
-        Admission.countDocuments({ institution: instId, status: 'enrolled', ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Admission.countDocuments({ institution: instId, status: { $regex: /^enrolled$/i }, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
         Admission.countDocuments({ 
           institution: instId, 
-          status: 'enrolled',
+          status: { $regex: /^enrolled$/i },
           admissionDate: hasDates 
             ? { $gte: parsedStartDate, $lte: parsedEndDate } 
             : { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } 
         }),
+        Student.countDocuments({ institution: instId, status: { $regex: /struck.*off/i }, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Student.countDocuments({ institution: instId, status: { $regex: /^pending$/i }, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
         fetchDynamicVoucherStats({ institution: instId, 'vouchers.0': { $exists: true } })
       ]);
       
       const instFinStats = instVoucherStats.allTime;
+      // Balance out pending if any active records have non-standard status
+      const resolvedPending = Math.max(pendingCount, totalStudentsCount - activeStudentsCount - struckOffCount);
 
       return {
         _id: instId,
         name: inst.name,
         code: inst.code,
         totalStudents: totalStudentsCount,
+        totalAdmissions: totalStudentsCount,
         activeStudents: activeStudentsCount,
+        enrolledStudents: activeStudentsCount,
+        enrolled: activeStudentsCount,
+        struckOffStudents: struckOffCount,
+        struckoff: struckOffCount,
+        pendingStudents: resolvedPending,
+        pending: resolvedPending,
         newAdmissions: newAdmissionsCount,
         feesGenerated: instFinStats.totalBilled,
         feesCollected: instFinStats.totalCollected,
@@ -394,9 +410,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           totalInstitutions: institutions.length,
           activeInstitutions: institutions.length,
           totalStudents,
+          totalAdmissions: totalStudents,
           activeStudents,
+          enrolledStudents: activeStudents,
           newAdmissions,
-          struckOffStudents
+          struckOffStudents,
+          pendingStudents
         },
         finance: {
           totalCollected,
