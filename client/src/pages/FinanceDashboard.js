@@ -743,9 +743,9 @@ const FinanceDashboard = () => {
 
 
           {/* Charts Section */}
-          <Grid container spacing={3} sx={{ mb: 4 }}>
+          <Grid container spacing={3} sx={{ mb: 4, width: '100%' }}>
             {/* Area Chart: Fee Collection Trend */}
-            <Grid item xs={12} lg={6}>
+            <Grid item xs={12} lg={7} size={{ xs: 12, lg: 7 }} sx={{ width: '100%' }}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', minHeight: 450, display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h6" fontWeight="800">
@@ -805,7 +805,7 @@ const FinanceDashboard = () => {
             </Grid>
 
             {/* Pie Chart: Student Distribution by Campus */}
-            <Grid item xs={12} lg={4}>
+            <Grid item xs={12} lg={5} size={{ xs: 12, lg: 5 }} sx={{ width: '100%' }}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', minHeight: 450, display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h6" fontWeight="800">
@@ -865,7 +865,7 @@ const FinanceDashboard = () => {
             </Grid>
 
             {/* Bar Chart: Campus Comparison */}
-            <Grid item xs={12}>
+            <Grid item xs={12} size={{ xs: 12 }} sx={{ width: '100%' }}>
               <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', minHeight: 450, display: 'flex', flexDirection: 'column' }}>
                 <Box sx={{ mb: 3 }}>
                   <Typography variant="h6" fontWeight="800">
@@ -985,37 +985,39 @@ const FinanceDashboard = () => {
                   </Tabs>
                 </Box>
 
-                <Grid container spacing={3}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, width: '100%', maxWidth: '100%' }}>
                   {/* Table 1: Admission Register Report */}
                   {(activeReportTab === 'admissions' || activeReportTab === 'both') && (
-                    <Grid item xs={12}>
-                      <Paper 
-                        id="admission-register-printable"
-                        elevation={0} 
-                        sx={{ 
-                          p: { xs: 2, sm: 3 }, 
-                          borderRadius: 4, 
-                          border: '1px solid #edf2f7', 
-                          bgcolor: '#ffffff',
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
-                          pb: 3
-                        }}
-                      >
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-                          <Box>
-                            <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Box sx={{ width: 6, height: 22, bgcolor: '#8b5cf6', borderRadius: 1 }} />
-                              Admission Register Report
-                              <Chip 
-                                label={`${displayCampuses.length} Campuses`} 
-                                size="small" 
-                                sx={{ bgcolor: '#8b5cf615', color: '#8b5cf6', fontWeight: 800, ml: 1, border: '1px solid #8b5cf630' }} 
-                              />
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
-                              Campus-wise consolidated student admissions, enrolled strength, stuck off, and pending counts
-                            </Typography>
-                          </Box>
+                    <Paper 
+                      id="admission-register-printable"
+                      elevation={0} 
+                      sx={{ 
+                        width: '100%',
+                        maxWidth: '100%',
+                        boxSizing: 'border-box',
+                        p: { xs: 2, sm: 3 }, 
+                        borderRadius: 4, 
+                        border: '1px solid #edf2f7', 
+                        bgcolor: '#ffffff',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+                        pb: 3
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                        <Box>
+                          <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ width: 6, height: 22, bgcolor: '#8b5cf6', borderRadius: 1 }} />
+                            Admission Register Report
+                            <Chip 
+                              label={`${displayCampuses.length} Campuses`} 
+                              size="small" 
+                              sx={{ bgcolor: '#8b5cf615', color: '#8b5cf6', fontWeight: 800, ml: 1, border: '1px solid #8b5cf630' }} 
+                            />
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
+                            Campus-wise consolidated student admissions, enrolled strength, stuck off, and pending counts
+                          </Typography>
+                        </Box>
                           <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }} className="no-print">
                             <Button
                               variant="contained"
@@ -1056,8 +1058,8 @@ const FinanceDashboard = () => {
                           </Box>
                         </Box>
 
-                        <Box sx={{ overflowX: 'auto' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                          <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                               <tr style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
                                 <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800, width: '70px', textAlign: 'center' }}>S. #</th>
@@ -1176,46 +1178,57 @@ const FinanceDashboard = () => {
                           </table>
                         </Box>
                       </Paper>
-                    </Grid>
                   )}
 
                   {/* Table 2: Campus-wise Financial & Student Report */}
                   {(activeReportTab === 'financial' || activeReportTab === 'both') && (
-                    <Grid item xs={12}>
-                      <Paper elevation={0} sx={{ p: { xs: 2, sm: 3 }, borderRadius: 4, border: '1px solid #edf2f7', pb: 2, bgcolor: '#ffffff', boxShadow: '0 4px 20px rgba(0,0,0,0.02)' }}>
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-                          <Box>
-                            <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Box sx={{ width: 6, height: 22, bgcolor: '#6366f1', borderRadius: 1 }} />
-                              Campus-wise Financial & Student Report
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
-                              Financial fee billing, collections, outstanding arrears, and recovery per campus
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }} className="no-print">
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              startIcon={<FileDownload />}
-                              onClick={handleExportFinancialReport}
-                              sx={{
-                                borderRadius: 2.5,
-                                textTransform: 'none',
-                                fontWeight: 600,
-                                color: '#6366f1',
-                                borderColor: '#6366f140',
-                                '&:hover': { borderColor: '#6366f1', bgcolor: '#6366f108' },
-                                px: 2,
-                                py: 0.8
-                              }}
-                            >
-                              Export Excel
-                            </Button>
-                          </Box>
+                    <Paper 
+                      elevation={0} 
+                      sx={{ 
+                        width: '100%',
+                        maxWidth: '100%',
+                        boxSizing: 'border-box',
+                        p: { xs: 2, sm: 3 }, 
+                        borderRadius: 4, 
+                        border: '1px solid #edf2f7', 
+                        pb: 2, 
+                        bgcolor: '#ffffff', 
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.02)' 
+                      }}
+                    >
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                        <Box>
+                          <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ width: 6, height: 22, bgcolor: '#6366f1', borderRadius: 1 }} />
+                            Campus-wise Financial & Student Report
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
+                            Financial fee billing, collections, outstanding arrears, and recovery per campus
+                          </Typography>
                         </Box>
-                        <Box sx={{ overflowX: 'auto' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }} className="no-print">
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<FileDownload />}
+                            onClick={handleExportFinancialReport}
+                            sx={{
+                              borderRadius: 2.5,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              color: '#6366f1',
+                              borderColor: '#6366f140',
+                              '&:hover': { borderColor: '#6366f1', bgcolor: '#6366f108' },
+                              px: 2,
+                              py: 0.8
+                            }}
+                          >
+                            Export Excel
+                          </Button>
+                        </Box>
+                      </Box>
+                      <Box sx={{ overflowX: 'auto', width: '100%' }}>
+                        <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                             <thead>
                               <tr style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
                                 <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Campus Code</th>
@@ -1306,30 +1319,31 @@ const FinanceDashboard = () => {
                           </table>
                         </Box>
                       </Paper>
-                    </Grid>
                   )}
 
                   {/* Table 3: Banks Statement Report */}
                   {(activeReportTab === 'banks' || activeReportTab === 'both') && (
-                    <Grid item xs={12}>
-                      <Paper 
-                        id="banks-statement-printable"
-                        elevation={0} 
-                        sx={{ 
-                          p: { xs: 2, sm: 3 }, 
-                          borderRadius: 4, 
-                          border: '1px solid #edf2f7', 
-                          bgcolor: '#ffffff',
-                          boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
-                          pb: 3
-                        }}
-                      >
-                        {/* Header & Controls */}
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-                          <Box>
-                            <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                              <Box sx={{ width: 6, height: 22, bgcolor: '#0ea5e9', borderRadius: 1 }} />
-                              Banks Statement Report
+                    <Paper 
+                      id="banks-statement-printable"
+                      elevation={0} 
+                      sx={{ 
+                        width: '100%',
+                        maxWidth: '100%',
+                        boxSizing: 'border-box',
+                        p: { xs: 2, sm: 3 }, 
+                        borderRadius: 4, 
+                        border: '1px solid #edf2f7', 
+                        bgcolor: '#ffffff',
+                        boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+                        pb: 3
+                      }}
+                    >
+                      {/* Header & Controls */}
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                        <Box>
+                          <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <Box sx={{ width: 6, height: 22, bgcolor: '#0ea5e9', borderRadius: 1 }} />
+                            Banks Statement Report
                               {bankReportData && (
                                 <>
                                   <Chip 
@@ -1444,10 +1458,12 @@ const FinanceDashboard = () => {
                             No bank statement or payment collection records found for the selected period.
                           </Alert>
                         ) : (
-                          <Box sx={{ overflowX: 'auto', mt: 1 }}>
+                          <Box sx={{ overflowX: 'auto', width: '100%', mt: 1 }}>
                             {/* Table Banner Title */}
                             <Box 
                               sx={{ 
+                                width: '100%',
+                                boxSizing: 'border-box',
                                 textAlign: 'center', 
                                 py: 1.2, 
                                 bgcolor: '#f8fafc', 
@@ -1466,7 +1482,7 @@ const FinanceDashboard = () => {
                             </Box>
 
                             {/* Main Matrix Table */}
-                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid #1e293b' }}>
+                            <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid #1e293b' }}>
                               <thead>
                                 <tr style={{ backgroundColor: '#ffffff' }}>
                                   <th style={{ border: '1px solid #1e293b', padding: '10px 8px', fontSize: '0.85rem', fontWeight: 900, width: '55px', color: '#000000' }}>
@@ -1568,9 +1584,8 @@ const FinanceDashboard = () => {
                           </Box>
                         )}
                       </Paper>
-                    </Grid>
                   )}
-                </Grid>
+                </Box>
               </Box>
             );
           })()}
