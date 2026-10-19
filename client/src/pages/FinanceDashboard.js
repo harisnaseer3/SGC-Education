@@ -153,12 +153,51 @@ const FinanceDashboard = () => {
   const [campusList, setCampusList] = useState([]);
   const [activeReportTab, setActiveReportTab] = useState('admissions');
 
+  // Banks Statement Report States
+  const [bankReportData, setBankReportData] = useState(null);
+  const [bankReportLoading, setBankReportLoading] = useState(false);
+  const [bankReportMode, setBankReportMode] = useState('auto');
+  const [bankReportMonth, setBankReportMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
   useEffect(() => {
     sessionStorage.setItem('finance_selectedCampus', selectedCampus);
     sessionStorage.setItem('finance_startDate', startDate);
     sessionStorage.setItem('finance_endDate', endDate);
     fetchDashboardStats();
-  }, [selectedCampus, startDate, endDate]);
+    fetchBanksReportData();
+  }, [selectedCampus, startDate, endDate, bankReportMonth, bankReportMode]);
+
+  const fetchBanksReportData = async () => {
+    try {
+      setBankReportLoading(true);
+      const token = localStorage.getItem('token');
+      const params = new URLSearchParams();
+      if (bankReportMode) params.append('mode', bankReportMode);
+      if (bankReportMonth) {
+        params.append('monthKey', bankReportMonth);
+      } else if (startDate && endDate) {
+        params.append('startDate', startDate);
+        params.append('endDate', endDate);
+      }
+      if (selectedCampus && selectedCampus !== 'all') {
+        params.append('institution', selectedCampus);
+      }
+
+      const response = await axios.get(`${getApiUrl('dashboard/banks-statement-report')}?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (response.data?.success) {
+        setBankReportData(response.data.data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch banks statement report:', err);
+    } finally {
+      setBankReportLoading(false);
+    }
+  };
 
   const fetchDashboardStats = async () => {
     try {
@@ -353,6 +392,130 @@ const FinanceDashboard = () => {
 
   const handlePrintAdmissionRegister = () => {
     window.print();
+  };
+
+  const handleExportBanksStatementReport = () => {
+    if (!bankReportData || !bankReportData.campuses) return;
+    const { campuses, rows, groups, grandTotals } = bankReportData;
+
+    const aoaData = [];
+    const totalCols = 2 + campuses.length + 2;
+
+    const titleRow = ['Banks Statement Report'];
+    for (let i = 1; i < totalCols; i++) titleRow.push('');
+    aoaData.push(titleRow);
+
+    const headers = ['S. #', 'Banks / Capmpus', ...campuses.map(c => c.name || c.code), 'Total', 'Total'];
+    aoaData.push(headers);
+
+    groups.forEach(group => {
+      const groupRows = rows.filter(r => r.groupKey === group.groupKey);
+      groupRows.forEach(r => {
+        const row = [
+          r.sNo,
+          r.bankName,
+          ...campuses.map(c => {
+            const val = r.campusAmounts?.[c._id]?.amount;
+            return val !== undefined && val !== null ? val : 0;
+          }),
+          r.rowTotal || 0,
+          r.groupTotal !== null && r.groupTotal !== undefined ? r.groupTotal : ''
+        ];
+        aoaData.push(row);
+      });
+
+      if (group.hasMultipleAccounts) {
+        const subtotalRow = [
+          '',
+          group.subtotalLabel || `${group.groupKey} Main G.total`,
+          ...campuses.map(() => ''),
+          group.total || 0,
+          group.total || 0
+        ];
+        aoaData.push(subtotalRow);
+      }
+    });
+
+    const grandRow = [
+      '',
+      'Grand Total',
+      ...campuses.map(c => grandTotals?.campusTotals?.[c._id] || 0),
+      '',
+      grandTotals?.total || 0
+    ];
+    aoaData.push(grandRow);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } }
+    ];
+
+    ws['!cols'] = [
+      { wch: 8 },
+      { wch: 30 },
+      ...campuses.map(() => ({ wch: 22 })),
+      { wch: 16 },
+      { wch: 16 }
+    ];
+
+    try {
+      const borderStyle = {
+        top: { style: 'thin', color: { rgb: '000000' } },
+        bottom: { style: 'thin', color: { rgb: '000000' } },
+        left: { style: 'thin', color: { rgb: '000000' } },
+        right: { style: 'thin', color: { rgb: '000000' } }
+      };
+
+      if (ws['A1']) {
+        ws['A1'].s = {
+          font: { bold: true, sz: 14, color: { rgb: '000000' } },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          fill: { fgColor: { rgb: 'FFFFFF' } },
+          border: borderStyle
+        };
+      }
+
+      for (let c = 0; c < totalCols; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 1, c });
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { bold: true, color: { rgb: '000000' } },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            fill: { fgColor: { rgb: 'F1F5F9' } },
+            border: borderStyle
+          };
+        }
+      }
+
+      for (let r = 2; r < aoaData.length; r++) {
+        const isGrand = r === aoaData.length - 1;
+        const isSubtotal = String(aoaData[r][1] || '').includes('G.total');
+        for (let c = 0; c < totalCols; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          if (ws[cellRef]) {
+            ws[cellRef].s = {
+              font: { bold: isGrand || isSubtotal, color: { rgb: '000000' }, underline: isGrand },
+              alignment: { horizontal: c === 1 ? 'left' : 'center', vertical: 'center' },
+              border: isGrand ? {
+                top: { style: 'thin', color: { rgb: '000000' } },
+                bottom: { style: 'double', color: { rgb: '000000' } },
+                left: { style: 'thin', color: { rgb: '000000' } },
+                right: { style: 'thin', color: { rgb: '000000' } }
+              } : borderStyle,
+              fill: isGrand ? { fgColor: { rgb: 'F8FAFC' } } : (isSubtotal ? { fgColor: { rgb: 'F1F5F9' } } : undefined)
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Styling failed, writing standard xlsx', e);
+    }
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Banks Statement');
+    const dateStr = bankReportMonth || new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `Banks_Statement_Report_${dateStr}.xlsx`);
   };
 
   // Process data for trends chart
@@ -780,8 +943,9 @@ const FinanceDashboard = () => {
                 <style>{`
                   @media print {
                     body * { visibility: hidden !important; }
-                    #admission-register-printable, #admission-register-printable * { visibility: visible !important; }
-                    #admission-register-printable { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
+                    #admission-register-printable, #admission-register-printable *,
+                    #banks-statement-printable, #banks-statement-printable * { visibility: visible !important; }
+                    #admission-register-printable, #banks-statement-printable { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
                     .no-print { display: none !important; }
                   }
                 `}</style>
@@ -816,7 +980,8 @@ const FinanceDashboard = () => {
                   >
                     <Tab icon={<School sx={{ fontSize: 18 }} />} iconPosition="start" label="Admission Register Report" value="admissions" />
                     <Tab icon={<Assessment sx={{ fontSize: 18 }} />} iconPosition="start" label="Campus-wise Financial Report" value="financial" />
-                    <Tab icon={<TableChart sx={{ fontSize: 18 }} />} iconPosition="start" label="View Both Reports" value="both" />
+                    <Tab icon={<AccountBalance sx={{ fontSize: 18 }} />} iconPosition="start" label="Banks Statement Report" value="banks" />
+                    <Tab icon={<TableChart sx={{ fontSize: 18 }} />} iconPosition="start" label="View All Reports" value="both" />
                   </Tabs>
                 </Box>
 
@@ -1140,6 +1305,268 @@ const FinanceDashboard = () => {
                             </tfoot>
                           </table>
                         </Box>
+                      </Paper>
+                    </Grid>
+                  )}
+
+                  {/* Table 3: Banks Statement Report */}
+                  {(activeReportTab === 'banks' || activeReportTab === 'both') && (
+                    <Grid item xs={12}>
+                      <Paper 
+                        id="banks-statement-printable"
+                        elevation={0} 
+                        sx={{ 
+                          p: { xs: 2, sm: 3 }, 
+                          borderRadius: 4, 
+                          border: '1px solid #edf2f7', 
+                          bgcolor: '#ffffff',
+                          boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+                          pb: 3
+                        }}
+                      >
+                        {/* Header & Controls */}
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                          <Box>
+                            <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                              <Box sx={{ width: 6, height: 22, bgcolor: '#0ea5e9', borderRadius: 1 }} />
+                              Banks Statement Report
+                              {bankReportData && (
+                                <>
+                                  <Chip 
+                                    label={`${bankReportData.rows?.length || 0} Accounts`} 
+                                    size="small" 
+                                    sx={{ bgcolor: '#0ea5e915', color: '#0284c7', fontWeight: 800, ml: 1, border: '1px solid #0ea5e930' }} 
+                                  />
+                                  <Chip 
+                                    label={`${bankReportData.campuses?.length || 0} Campuses`} 
+                                    size="small" 
+                                    sx={{ bgcolor: '#10b98115', color: '#059669', fontWeight: 800, border: '1px solid #10b98130' }} 
+                                  />
+                                </>
+                              )}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
+                              Consolidated multi-campus bank statements, collections, and account totals at one place
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }} className="no-print">
+                            {/* Month Filter */}
+                            <TextField
+                              size="small"
+                              type="month"
+                              label="Select Month"
+                              value={bankReportMonth}
+                              onChange={(e) => setBankReportMonth(e.target.value)}
+                              InputLabelProps={{ shrink: true }}
+                              sx={{ 
+                                width: 165,
+                                '& .MuiOutlinedInput-root': { borderRadius: 2.5 }
+                              }}
+                            />
+
+                            {bankReportMonth && (
+                              <Button
+                                size="small"
+                                variant="text"
+                                onClick={() => setBankReportMonth('')}
+                                sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                              >
+                                All Time
+                              </Button>
+                            )}
+
+                            {/* Data Mode Selector */}
+                            <FormControl size="small" sx={{ minWidth: 170 }}>
+                              <InputLabel>Mode</InputLabel>
+                              <Select
+                                value={bankReportMode}
+                                label="Mode"
+                                onChange={(e) => setBankReportMode(e.target.value)}
+                                sx={{ borderRadius: 2.5 }}
+                              >
+                                <MenuItem value="auto">Auto (Best Available)</MenuItem>
+                                <MenuItem value="collections">Fee Receipts</MenuItem>
+                                <MenuItem value="reconciled">Statement Reconciled</MenuItem>
+                              </Select>
+                            </FormControl>
+
+                            {/* Export Button */}
+                            <Button
+                              variant="contained"
+                              size="small"
+                              startIcon={<FileDownload />}
+                              onClick={handleExportBanksStatementReport}
+                              disabled={!bankReportData || bankReportData.rows?.length === 0}
+                              sx={{
+                                bgcolor: '#10b981',
+                                '&:hover': { bgcolor: '#059669' },
+                                borderRadius: 2.5,
+                                textTransform: 'none',
+                                fontWeight: 700,
+                                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                                px: 2,
+                                py: 0.8
+                              }}
+                            >
+                              Export Excel
+                            </Button>
+
+                            {/* Print Button */}
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              startIcon={<Print />}
+                              onClick={() => window.print()}
+                              sx={{
+                                borderRadius: 2.5,
+                                textTransform: 'none',
+                                fontWeight: 600,
+                                color: '#64748b',
+                                borderColor: '#e2e8f0',
+                                '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+                                px: 2,
+                                py: 0.8
+                              }}
+                            >
+                              Print
+                            </Button>
+                          </Box>
+                        </Box>
+
+                        {/* Report Content */}
+                        {bankReportLoading ? (
+                          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 8 }}>
+                            <CircularProgress size={36} sx={{ color: '#0ea5e9' }} />
+                          </Box>
+                        ) : !bankReportData || bankReportData.rows?.length === 0 ? (
+                          <Alert severity="info" sx={{ borderRadius: 2.5 }}>
+                            No bank statement or payment collection records found for the selected period.
+                          </Alert>
+                        ) : (
+                          <Box sx={{ overflowX: 'auto', mt: 1 }}>
+                            {/* Table Banner Title */}
+                            <Box 
+                              sx={{ 
+                                textAlign: 'center', 
+                                py: 1.2, 
+                                bgcolor: '#f8fafc', 
+                                border: '1px solid #1e293b', 
+                                borderBottom: 'none' 
+                              }}
+                            >
+                              <Typography variant="h6" fontWeight="900" sx={{ color: '#000000', letterSpacing: 0.5, fontSize: '1.15rem' }}>
+                                Banks Statement Report
+                              </Typography>
+                              {bankReportMonth && (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
+                                  For Period: {new Date(bankReportMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                </Typography>
+                              )}
+                            </Box>
+
+                            {/* Main Matrix Table */}
+                            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid #1e293b' }}>
+                              <thead>
+                                <tr style={{ backgroundColor: '#ffffff' }}>
+                                  <th style={{ border: '1px solid #1e293b', padding: '10px 8px', fontSize: '0.85rem', fontWeight: 900, width: '55px', color: '#000000' }}>
+                                    S. #
+                                  </th>
+                                  <th style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000' }}>
+                                    Banks / Campus
+                                  </th>
+                                  {bankReportData.campuses.map(campus => (
+                                    <th key={campus._id} style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000' }}>
+                                      {campus.name}
+                                    </th>
+                                  ))}
+                                  <th style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, width: '130px', color: '#000000' }}>
+                                    Total
+                                  </th>
+                                  <th style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, width: '130px', color: '#000000' }}>
+                                    Total
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {bankReportData.groups.map(group => {
+                                  const groupRows = bankReportData.rows.filter(r => r.groupKey === group.groupKey);
+                                  return (
+                                    <React.Fragment key={group.groupKey}>
+                                      {groupRows.map((row) => (
+                                        <tr 
+                                          key={row.bankAccountId}
+                                          style={{ backgroundColor: '#ffffff' }}
+                                        >
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 700, color: '#000000' }}>
+                                            {row.sNo}
+                                          </td>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000' }}>
+                                            {row.bankName}
+                                          </td>
+                                          {bankReportData.campuses.map(campus => {
+                                            const cellVal = row.campusAmounts?.[campus._id]?.amount;
+                                            return (
+                                              <td key={campus._id} style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 600, color: '#000000' }}>
+                                                {cellVal !== undefined && cellVal !== null 
+                                                  ? (cellVal === 0 && row.rowTotal > 0 && group.accountsCount > 1 
+                                                      ? '0' 
+                                                      : (cellVal > 0 ? cellVal.toLocaleString() : '')) 
+                                                  : ''}
+                                              </td>
+                                            );
+                                          })}
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000' }}>
+                                            {(row.rowTotal || 0).toLocaleString()}
+                                          </td>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000' }}>
+                                            {row.groupTotal !== null && row.groupTotal !== undefined ? row.groupTotal.toLocaleString() : ''}
+                                          </td>
+                                        </tr>
+                                      ))}
+
+                                      {/* Subtotal Row for multi-account bank groups */}
+                                      {group.hasMultipleAccounts && (
+                                        <tr style={{ backgroundColor: '#ffffff' }}>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 8px' }}></td>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000' }}>
+                                            {group.subtotalLabel || `${group.groupKey} Main G.total`}
+                                          </td>
+                                          {bankReportData.campuses.map(campus => (
+                                            <td key={campus._id} style={{ border: '1px solid #1e293b', padding: '9px 14px' }}></td>
+                                          ))}
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000' }}>
+                                            {(group.total || 0).toLocaleString()}
+                                          </td>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000' }}>
+                                            {(group.total || 0).toLocaleString()}
+                                          </td>
+                                        </tr>
+                                      )}
+                                    </React.Fragment>
+                                  );
+                                })}
+                              </tbody>
+                              <tfoot>
+                                <tr style={{ backgroundColor: '#ffffff' }}>
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 8px' }}></td>
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '0.95rem' }}>
+                                    Grand Total
+                                  </td>
+                                  {bankReportData.campuses.map(campus => (
+                                    <td key={campus._id} style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '0.95rem' }}>
+                                      {(bankReportData.grandTotals?.campusTotals?.[campus._id] || 0).toLocaleString()}
+                                    </td>
+                                  ))}
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px' }}></td>
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '1.05rem' }}>
+                                    {(bankReportData.grandTotals?.total || 0).toLocaleString()}
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </Box>
+                        )}
                       </Paper>
                     </Grid>
                   )}

@@ -8,6 +8,9 @@ const AcademicCalendar = require('../models/AcademicCalendar');
 const Admission = require('../models/Student');
 const Group = require('../models/Group');
 const Student = require('../models/Student');
+const BankAccount = require('../models/BankAccount');
+const MonthReconciliation = require('../models/MonthReconciliation');
+const SuspenseEntry = require('../models/SuspenseEntry');
 const { asyncHandler } = require('../middleware/error.middleware');
 const { ApiError } = require('../middleware/error.middleware');
 const { buildInstitutionQuery } = require('../middleware/institution.middleware');
@@ -886,7 +889,405 @@ const getAnalytics = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   GET /api/v1/dashboard/banks-statement-report
+ * @desc    Get consolidated bank statement report across all campuses
+ * @access  Private (Finance Manager, Super Admin, Admin)
+ */
+const getBanksStatementReport = asyncHandler(async (req, res) => {
+  let institutions = [];
+  let institutionIds = [];
+
+  if (req.user.role === 'finance_manager') {
+    if (!req.user.organization) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any organization.');
+    }
+    const orgId = req.user.organization._id || req.user.organization;
+    institutions = await Institution.find({ organization: orgId })
+      .select('_id name code address')
+      .sort({ name: 1 })
+      .lean();
+    institutionIds = institutions.map(i => i._id);
+  } else if (req.user.role === 'super_admin') {
+    const filter = {};
+    if (req.query.organization) {
+      filter.organization = req.query.organization;
+    }
+    institutions = await Institution.find(filter)
+      .select('_id name code address')
+      .sort({ name: 1 })
+      .lean();
+    institutionIds = institutions.map(i => i._id);
+  } else if (req.user.role === 'admin') {
+    const instId = getInstitutionId(req.user);
+    if (!instId) {
+      throw new ApiError(403, 'Access denied. Your account is not associated with any institution.');
+    }
+    institutions = await Institution.find({ _id: instId })
+      .select('_id name code address')
+      .lean();
+    institutionIds = institutions.map(i => i._id);
+  } else {
+    throw new ApiError(403, 'Access denied. Finance manager or admin access required.');
+  }
+
+  if (institutions.length === 0) {
+    return res.status(200).json({
+      success: true,
+      data: {
+        campuses: [],
+        rows: [],
+        groups: [],
+        grandTotals: { campusTotals: {}, total: 0 }
+      }
+    });
+  }
+
+  // Parse filters
+  const { startDate, endDate, monthKey, mode = 'auto' } = req.query;
+  let parsedStartDate = null;
+  let parsedEndDate = null;
+
+  if (monthKey) {
+    const parts = monthKey.split('-');
+    if (parts.length === 2) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10);
+      parsedStartDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
+      parsedEndDate = new Date(year, month, 0, 23, 59, 59, 999);
+    }
+  } else if (startDate && endDate) {
+    parsedStartDate = new Date(startDate);
+    parsedStartDate.setHours(0, 0, 0, 0);
+    parsedEndDate = new Date(endDate);
+    parsedEndDate.setHours(23, 59, 59, 999);
+  }
+
+  // 1. Fetch active bank accounts
+  let bankAccounts = await BankAccount.find({ isActive: true })
+    .select('_id bankName accountTitle accountNumber branchCode institutions')
+    .sort({ bankName: 1 })
+    .lean();
+
+  if (!bankAccounts || bankAccounts.length === 0) {
+    bankAccounts = await BankAccount.find({})
+      .select('_id bankName accountTitle accountNumber branchCode institutions')
+      .sort({ bankName: 1 })
+      .lean();
+  }
+
+  // 2. Build payment & reconciliation queries
+  const paymentQuery = {
+    institution: { $in: institutionIds },
+    status: 'completed'
+  };
+  if (parsedStartDate && parsedEndDate) {
+    paymentQuery.$or = [
+      { paymentDate: { $gte: parsedStartDate, $lte: parsedEndDate } },
+      { createdAt: { $gte: parsedStartDate, $lte: parsedEndDate } }
+    ];
+  }
+
+  const suspenseQuery = {
+    institution: { $in: institutionIds },
+    status: 'reconciled'
+  };
+  if (parsedStartDate && parsedEndDate) {
+    suspenseQuery.$or = [
+      { paymentDate: { $gte: parsedStartDate, $lte: parsedEndDate } },
+      { createdAt: { $gte: parsedStartDate, $lte: parsedEndDate } }
+    ];
+  }
+
+  const reconQuery = {
+    institution: { $in: institutionIds }
+  };
+  if (monthKey) {
+    reconQuery.monthKey = monthKey;
+  } else if (parsedStartDate && parsedEndDate) {
+    const startY = parsedStartDate.getFullYear();
+    const startM = parsedStartDate.getMonth() + 1;
+    const endY = parsedEndDate.getFullYear();
+    const endM = parsedEndDate.getMonth() + 1;
+    const mKeys = [];
+    let curY = startY;
+    let curM = startM;
+    while (curY < endY || (curY === endY && curM <= endM)) {
+      mKeys.push(`${curY}-${String(curM).padStart(2, '0')}`);
+      curM++;
+      if (curM > 12) {
+        curM = 1;
+        curY++;
+      }
+    }
+    if (mKeys.length > 0) {
+      reconQuery.monthKey = { $in: mKeys };
+    }
+  }
+
+  const [feePayments, suspenseEntries, reconRecords] = await Promise.all([
+    FeePayment.find(paymentQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate').lean(),
+    SuspenseEntry.find(suspenseQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate').lean(),
+    MonthReconciliation.find(reconQuery).select('institution bankAccount monthKey reconcileAmount').lean()
+  ]);
+
+  // Normalize string helper
+  const cleanStr = (s) => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+
+  // Helper function to resolve which bank account a payment belongs to
+  const resolveBank = (item) => {
+    if (item.bankAccount) {
+      const bId = (item.bankAccount._id || item.bankAccount).toString();
+      const b = bankAccounts.find(x => x._id.toString() === bId);
+      if (b) return b;
+    }
+
+    if (item.bankName) {
+      const pClean = cleanStr(item.bankName);
+      let exact = bankAccounts.find(b => cleanStr(b.bankName) === pClean);
+      if (exact) return exact;
+
+      let bestMatch = null;
+      let maxLen = 0;
+      for (const b of bankAccounts) {
+        const bClean = cleanStr(b.bankName);
+        if (bClean.includes(pClean) || pClean.includes(bClean)) {
+          const matchLen = Math.min(bClean.length, pClean.length);
+          if (matchLen > maxLen) {
+            maxLen = matchLen;
+            bestMatch = b;
+          }
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+
+    if (item.remarks) {
+      const rClean = cleanStr(item.remarks);
+      let bestMatch = null;
+      let maxLen = 0;
+      for (const b of bankAccounts) {
+        const bClean = cleanStr(b.bankName);
+        if (bClean.length > 2 && rClean.includes(bClean) && bClean.length > maxLen) {
+          maxLen = bClean.length;
+          bestMatch = b;
+        }
+      }
+      if (bestMatch) return bestMatch;
+    }
+    return null;
+  };
+
+  // Matrix: [bankId][instId] = { collections: 0, reconciled: 0 }
+  const matrix = {};
+  bankAccounts.forEach(b => {
+    const bId = b._id.toString();
+    matrix[bId] = {};
+    institutions.forEach(inst => {
+      matrix[bId][inst._id.toString()] = { collections: 0, reconciled: 0 };
+    });
+  });
+
+  const unmappedBanks = new Map();
+
+  // Aggregate FeePayments
+  feePayments.forEach(p => {
+    const instId = (p.institution?._id || p.institution)?.toString();
+    if (!instId) return;
+
+    const matchedBank = resolveBank(p);
+    if (matchedBank) {
+      const bId = matchedBank._id.toString();
+      if (!matrix[bId]) matrix[bId] = {};
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0 };
+      matrix[bId][instId].collections += (p.amount || 0);
+    } else if (p.bankName) {
+      const key = p.bankName.trim();
+      if (!unmappedBanks.has(key)) unmappedBanks.set(key, {});
+      const entry = unmappedBanks.get(key);
+      entry[instId] = (entry[instId] || 0) + (p.amount || 0);
+    }
+  });
+
+  // Aggregate SuspenseEntries
+  suspenseEntries.forEach(s => {
+    const instId = (s.institution?._id || s.institution)?.toString();
+    if (!instId) return;
+
+    const matchedBank = resolveBank(s);
+    if (matchedBank) {
+      const bId = matchedBank._id.toString();
+      if (!matrix[bId]) matrix[bId] = {};
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0 };
+      matrix[bId][instId].collections += (s.amount || 0);
+    } else if (s.bankName) {
+      const key = s.bankName.trim();
+      if (!unmappedBanks.has(key)) unmappedBanks.set(key, {});
+      const entry = unmappedBanks.get(key);
+      entry[instId] = (entry[instId] || 0) + (s.amount || 0);
+    }
+  });
+
+  // Aggregate MonthReconciliation
+  reconRecords.forEach(r => {
+    const instId = (r.institution?._id || r.institution)?.toString();
+    if (!instId) return;
+
+    if (r.bankAccount) {
+      const bId = (r.bankAccount._id || r.bankAccount).toString();
+      if (!matrix[bId]) matrix[bId] = {};
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0 };
+      matrix[bId][instId].reconciled += (r.reconcileAmount || 0);
+    }
+  });
+
+  // Group accounts by bank brand/family
+  const getBankGroup = (bankName) => {
+    const clean = (bankName || '').trim().toUpperCase();
+    if (clean.startsWith('BIPL') || clean.includes('BANKISLAMI') || clean.includes('BANK ISLAMI')) return 'BIPL';
+    if (clean.startsWith('ABL') || clean.includes('ALLIED')) return 'ABL';
+    if (clean.startsWith('MBL') || clean.includes('MEEZAN')) return 'MBL';
+    if (clean.startsWith('HBL') || clean.includes('HABIB')) return 'HBL';
+    if (clean.startsWith('UBL') || clean.includes('UNITED')) return 'UBL';
+    if (clean.startsWith('MCB')) return 'MCB';
+    if (clean.startsWith('NBP') || clean.includes('NATIONAL')) return 'NBP';
+    if (clean.startsWith('BAFL') || clean.includes('ALFALAH')) return 'BAFL';
+    if (clean.startsWith('FBL') || clean.includes('FAYSAL')) return 'FBL';
+    if (clean.startsWith('BOP') || clean.includes('PUNJAB')) return 'BOP';
+    if (clean.startsWith('AKBL') || clean.includes('ASKARI')) return 'AKBL';
+    const words = clean.split(/\s+/);
+    return words[0] || 'OTHER';
+  };
+
+  const groupedAccounts = new Map();
+  bankAccounts.forEach(acc => {
+    const groupKey = getBankGroup(acc.bankName);
+    if (!groupedAccounts.has(groupKey)) groupedAccounts.set(groupKey, []);
+    groupedAccounts.get(groupKey).push(acc);
+  });
+
+  // Include any unmapped banks found in payment transactions
+  unmappedBanks.forEach((instMap, bankName) => {
+    const groupKey = getBankGroup(bankName);
+    const virtualAcc = {
+      _id: `unmapped_${bankName}`,
+      bankName: bankName,
+      accountNumber: 'N/A',
+      accountTitle: bankName,
+      isVirtual: true
+    };
+    if (!groupedAccounts.has(groupKey)) groupedAccounts.set(groupKey, []);
+    groupedAccounts.get(groupKey).push(virtualAcc);
+    matrix[virtualAcc._id] = {};
+    institutions.forEach(inst => {
+      matrix[virtualAcc._id][inst._id.toString()] = {
+        collections: instMap[inst._id.toString()] || 0,
+        reconciled: 0
+      };
+    });
+  });
+
+  let serial = 1;
+  const allRows = [];
+  const processedGroups = [];
+  const grandCampusTotals = {};
+  institutions.forEach(inst => {
+    grandCampusTotals[inst._id.toString()] = 0;
+  });
+  let grandTotalSum = 0;
+
+  groupedAccounts.forEach((accList, groupKey) => {
+    const groupRows = [];
+    const groupCampusTotals = {};
+    institutions.forEach(inst => {
+      groupCampusTotals[inst._id.toString()] = 0;
+    });
+    let groupTotalSum = 0;
+
+    accList.forEach(acc => {
+      const bId = acc._id.toString();
+      const campusAmounts = {};
+      let rowTotal = 0;
+
+      institutions.forEach(inst => {
+        const instId = inst._id.toString();
+        const cell = matrix[bId]?.[instId] || { collections: 0, reconciled: 0 };
+        
+        let amount = 0;
+        if (mode === 'collections') {
+          amount = cell.collections;
+        } else if (mode === 'reconciled') {
+          amount = cell.reconciled;
+        } else {
+          // auto mode: if reconciled is set and > 0, prefer it; otherwise use collections
+          amount = cell.reconciled > 0 ? cell.reconciled : cell.collections;
+        }
+
+        campusAmounts[instId] = {
+          amount,
+          collections: cell.collections,
+          reconciled: cell.reconciled
+        };
+        rowTotal += amount;
+        groupCampusTotals[instId] += amount;
+        grandCampusTotals[instId] += amount;
+      });
+
+      groupTotalSum += rowTotal;
+
+      const rowData = {
+        sNo: serial++,
+        bankAccountId: bId,
+        bankName: acc.bankName,
+        accountTitle: acc.accountTitle,
+        accountNumber: acc.accountNumber,
+        groupKey,
+        campusAmounts,
+        rowTotal,
+        groupTotal: accList.length === 1 ? rowTotal : null
+      };
+      groupRows.push(rowData);
+      allRows.push(rowData);
+    });
+
+    grandTotalSum += groupTotalSum;
+
+    const hasMain = accList.some(a => (a.bankName || '').toLowerCase().includes('main'));
+    const subtotalLabel = hasMain ? `${groupKey} Main G.total` : `${groupKey} G.total`;
+
+    processedGroups.push({
+      groupKey,
+      groupName: groupKey,
+      hasMultipleAccounts: accList.length > 1,
+      subtotalLabel,
+      campusTotals: groupCampusTotals,
+      total: groupTotalSum,
+      accountsCount: accList.length
+    });
+  });
+
+  res.status(200).json({
+    success: true,
+    data: {
+      campuses: institutions.map(i => ({ _id: i._id, name: i.name, code: i.code })),
+      rows: allRows,
+      groups: processedGroups,
+      grandTotals: {
+        campusTotals: grandCampusTotals,
+        total: grandTotalSum
+      },
+      filters: {
+        startDate: parsedStartDate ? parsedStartDate.toISOString().split('T')[0] : null,
+        endDate: parsedEndDate ? parsedEndDate.toISOString().split('T')[0] : null,
+        monthKey: monthKey || null,
+        mode
+      }
+    }
+  });
+});
+
 module.exports = {
   getDashboardStats,
-  getAnalytics
+  getAnalytics,
+  getBanksStatementReport
 };

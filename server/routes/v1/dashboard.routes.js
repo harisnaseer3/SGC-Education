@@ -22,4 +22,7 @@ router.get('/stats', dashboardController.getDashboardStats);
 // Get analytics data (trends, charts)
 router.get('/analytics', dashboardController.getAnalytics);
 
+// Get consolidated banks statement report
+router.get('/banks-statement-report', dashboardController.getBanksStatementReport);
+
 module.exports = router;
