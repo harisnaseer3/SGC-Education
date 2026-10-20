@@ -43,6 +43,10 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
   const logoCacheBuster = `?v=${Date.now()}&p=${location.pathname}`;
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isSuperAdmin = user.role === 'super_admin';
+  const isFinanceDashboard = location.pathname === '/finance-dashboard' || user.role === 'finance_manager';
+  const displayedModules = isFinanceDashboard
+    ? availableModules.filter(m => m.name === 'Admissions' || m.name === 'Fee Management')
+    : availableModules;
 
   const handleMenu = (event) => {
     setAnchorEl(event.currentTarget);
@@ -173,7 +177,7 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
             Dashboard
           </MenuItem>
           <Divider />
-          {availableModules.map((module, index) => {
+          {displayedModules.map((module, index) => {
             const IconComponent = module.icon;
             return (
               <MenuItem

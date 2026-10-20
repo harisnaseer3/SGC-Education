@@ -32,6 +32,13 @@ const Sidebar = ({ collapsed, onToggle }) => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const sidebarWidth = collapsed && !isMobile ? 80 : 280;
 
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isFinanceDashboard = location.pathname === '/finance-dashboard' || user.role === 'finance_manager';
+
+  const displayedModules = isFinanceDashboard
+    ? availableModules.filter(m => m.name === 'Admissions' || m.name === 'Fee Management')
+    : availableModules;
+
   // State to track which parent modules are expanded
   const [openMenus, setOpenMenus] = useState({});
 
@@ -41,7 +48,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
     const newOpenMenus = { ...openMenus };
     let changed = false;
 
-    availableModules.forEach(module => {
+    displayedModules.forEach(module => {
       if (module.children) {
         const isChildActive = module.children.some(child => {
           // Check if current path matches child route exactly or starts with it
@@ -59,7 +66,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
     if (changed) {
       setOpenMenus(newOpenMenus);
     }
-  }, [location.pathname, location.search]);
+  }, [location.pathname, location.search, displayedModules]);
 
   const handleToggleMenu = (name) => {
     setOpenMenus(prev => ({
@@ -193,10 +200,10 @@ const Sidebar = ({ collapsed, onToggle }) => {
         {/* Dashboard Link — collapse toggle on right for desktop */}
         <ListItem disablePadding sx={{ px: 1, mb: 0.5 }}>
           <ListItemButton
-            selected={location.pathname === '/dashboard'}
+            selected={location.pathname === '/dashboard' || location.pathname === '/finance-dashboard'}
             onClick={() => {
               setOpenMenus({});
-              navigate('/dashboard');
+              navigate(location.pathname === '/finance-dashboard' ? '/finance-dashboard' : '/dashboard');
             }}
             sx={{
               minHeight: 48,
@@ -246,7 +253,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
           </Box>
         )}
 
-        {availableModules.map(module => renderMenuItem(module))}
+        {displayedModules.map(module => renderMenuItem(module))}
       </List>
     </Drawer>
   );

@@ -242,31 +242,66 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
   // If user is a finance manager, handle with dedicated logic
-  if (req.user.role === 'finance_manager') {
-    if (!req.user.organization) {
-      throw new ApiError(403, 'Access denied. Your account is not associated with any organization.');
-    }
-    const orgId = req.user.organization._id || req.user.organization;
-    const institutions = await Institution.find({ organization: orgId }).select('_id name code');
-    const institutionIds = institutions.map(i => i._id);
+  if (req.user.role === 'finance_manager' || req.query.view === 'finance') {
+    let institutions = [];
+    let institutionIds = [];
 
-    const { startDate, endDate, institution } = req.query;
-    const hasDates = startDate && endDate;
+    if (req.user.role === 'finance_manager') {
+      if (!req.user.organization) {
+        throw new ApiError(403, 'Access denied. Your account is not associated with any organization.');
+      }
+      const orgId = req.user.organization._id || req.user.organization;
+      institutions = await Institution.find({ organization: orgId }).select('_id name code');
+      institutionIds = institutions.map(i => i._id);
+    } else if (req.user.role === 'super_admin') {
+      const filter = {};
+      if (req.query.organization) {
+        filter.organization = req.query.organization;
+      }
+      institutions = await Institution.find(filter).select('_id name code');
+      institutionIds = institutions.map(i => i._id);
+    } else if (req.user.role === 'admin') {
+      const instId = getInstitutionId(req.user);
+      if (!instId) {
+        throw new ApiError(403, 'Access denied. Your account is not associated with any institution.');
+      }
+      institutions = await Institution.find({ _id: instId }).select('_id name code');
+      institutionIds = institutions.map(i => i._id);
+    } else {
+      throw new ApiError(403, 'Access denied.');
+    }
+
+    const { startDate, endDate, institution, monthKey } = req.query;
+
+    let targetMonth = null;
+    let targetYear = null;
+    if (monthKey) {
+      const parts = monthKey.split('-');
+      if (parts.length === 2) {
+        targetYear = parseInt(parts[0], 10);
+        targetMonth = parseInt(parts[1], 10);
+      }
+    }
+
+    const hasDates = (startDate && endDate) || Boolean(targetYear && targetMonth);
     let parsedStartDate, parsedEndDate;
-    if (hasDates) {
+    if (startDate && endDate) {
       parsedStartDate = new Date(startDate);
       parsedStartDate.setHours(0, 0, 0, 0);
       parsedEndDate = new Date(endDate);
       parsedEndDate.setHours(23, 59, 59, 999);
+    } else if (targetYear && targetMonth) {
+      parsedStartDate = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
+      parsedEndDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
     }
 
     let selectedInstitutionIds = institutionIds;
-    if (institution) {
+    if (institution && institution !== 'all') {
       const requestedInstId = extractInstitutionId(institution);
       if (institutionIds.some(id => id.toString() === requestedInstId.toString())) {
         selectedInstitutionIds = [new mongoose.Types.ObjectId(requestedInstId)];
       } else {
-        throw new ApiError(403, 'Access denied. The requested campus does not belong to your organization.');
+        throw new ApiError(403, req.user.role === 'super_admin' ? 'Requested campus not found.' : 'Access denied. The requested campus does not belong to your organization.');
       }
     }
 
@@ -303,12 +338,36 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       fetchDynamicVoucherStats({ institution: { $in: selectedInstitutionIds }, 'vouchers.0': { $exists: true } })
     ]);
 
-    const overallFinStats = finVoucherStats.allTime;
-    const totalCollected = overallFinStats.totalCollected;
-    const totalBilled = overallFinStats.totalBilled;
-    const totalOutstanding = overallFinStats.totalOutstanding;
-    const previousReceivableVal = overallFinStats.totalArrears;
-    const recoveryVal = overallFinStats.collectedPaid;
+    let overallFinStats = finVoucherStats.allTime;
+    if (targetYear && targetMonth) {
+      const mStat = finVoucherStats.monthlyBreakdown?.find(
+        m => Number(m._id?.year) === targetYear && Number(m._id?.month) === targetMonth
+      );
+      if (mStat) {
+        overallFinStats = mStat;
+      } else {
+        overallFinStats = {
+          total: 0,
+          paid: 0,
+          unpaid: 0,
+          partial: 0,
+          totalBilled: 0,
+          totalCollected: 0,
+          totalOutstanding: 0,
+          totalArrears: 0,
+          collectedPaid: 0,
+          collectedPartial: 0,
+          outstandingRegular: 0,
+          outstandingArrears: 0
+        };
+      }
+    }
+
+    const totalCollected = overallFinStats.totalCollected || 0;
+    const totalBilled = overallFinStats.totalBilled || 0;
+    const totalOutstanding = overallFinStats.totalOutstanding || 0;
+    const previousReceivableVal = overallFinStats.totalArrears || 0;
+    const recoveryVal = overallFinStats.collectedPaid || 0;
 
     // Campus Breakdown
     const campusBreakdown = await Promise.all(institutions.map(async (inst) => {
@@ -322,8 +381,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         pendingCount,
         instVoucherStats
       ] = await Promise.all([
-        Admission.countDocuments({ institution: instId, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
-        Admission.countDocuments({ institution: instId, status: { $regex: /^enrolled$/i }, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Admission.countDocuments({ institution: instId, ...(endDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Admission.countDocuments({ institution: instId, status: { $regex: /^enrolled$/i }, ...(endDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
         Admission.countDocuments({ 
           institution: instId, 
           status: { $regex: /^enrolled$/i },
@@ -331,14 +390,44 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             ? { $gte: parsedStartDate, $lte: parsedEndDate } 
             : { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } 
         }),
-        Student.countDocuments({ institution: instId, status: { $regex: /struck.*off/i }, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
-        Student.countDocuments({ institution: instId, status: { $regex: /^pending$/i }, ...(parsedEndDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Student.countDocuments({ institution: instId, status: { $regex: /struck.*off/i }, ...(endDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
+        Student.countDocuments({ institution: instId, status: { $regex: /^pending$/i }, ...(endDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
         fetchDynamicVoucherStats({ institution: instId, 'vouchers.0': { $exists: true } })
       ]);
       
-      const instFinStats = instVoucherStats.allTime;
+      let instFinStats = instVoucherStats.allTime;
+      if (targetYear && targetMonth) {
+        const mStat = instVoucherStats.monthlyBreakdown?.find(
+          m => Number(m._id?.year) === targetYear && Number(m._id?.month) === targetMonth
+        );
+        if (mStat) {
+          instFinStats = mStat;
+        } else {
+          instFinStats = {
+            total: 0,
+            paid: 0,
+            unpaid: 0,
+            partial: 0,
+            totalBilled: 0,
+            totalCollected: 0,
+            totalOutstanding: 0,
+            totalArrears: 0,
+            collectedPaid: 0,
+            collectedPartial: 0,
+            outstandingRegular: 0,
+            outstandingArrears: 0
+          };
+        }
+      }
+
       // Balance out pending if any active records have non-standard status
       const resolvedPending = Math.max(pendingCount, totalStudentsCount - activeStudentsCount - struckOffCount);
+
+      const totalBilled = instFinStats.totalBilled || 0;
+      const totalArrears = instFinStats.totalArrears || 0;
+      const totalCollected = instFinStats.totalCollected || 0;
+      const totalOutstanding = instFinStats.totalOutstanding || 0;
+      const currentVouchers = Math.max(0, totalBilled - totalArrears);
 
       return {
         _id: instId,
@@ -354,11 +443,16 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         pendingStudents: resolvedPending,
         pending: resolvedPending,
         newAdmissions: newAdmissionsCount,
-        feesGenerated: instFinStats.totalBilled,
-        feesCollected: instFinStats.totalCollected,
-        outstandingDues: instFinStats.totalOutstanding,
-        previousReceivable: instFinStats.totalArrears,
-        recovery: instFinStats.collectedPaid
+        feesGenerated: totalBilled,
+        feesCollected: totalCollected,
+        outstandingDues: totalOutstanding,
+        previousReceivable: totalArrears,
+        recovery: instFinStats.collectedPaid || 0,
+        vouchers: currentVouchers,
+        arrears: totalArrears,
+        grandTotal: totalBilled,
+        received: totalCollected,
+        balance: totalOutstanding
       };
     }));
 
@@ -944,9 +1038,15 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
   }
 
   // Parse filters
-  const { startDate, endDate, monthKey, mode = 'auto' } = req.query;
+  const { startDate, endDate, monthKey, mode = 'auto', institution } = req.query;
   let parsedStartDate = null;
   let parsedEndDate = null;
+
+  if (institution && institution !== 'all') {
+    const requestedInstId = extractInstitutionId(institution);
+    institutions = institutions.filter(i => i._id.toString() === requestedInstId.toString());
+    institutionIds = institutions.map(i => i._id);
+  }
 
   if (monthKey) {
     const parts = monthKey.split('-');

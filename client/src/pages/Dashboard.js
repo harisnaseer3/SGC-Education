@@ -362,7 +362,10 @@ const Dashboard = () => {
     </Box>
   );
 
-  if (user.role === 'finance_manager') {
+  const searchParams = new URLSearchParams(location.search);
+  const currentView = searchParams.get('view');
+
+  if (user.role === 'finance_manager' || (user.role === 'super_admin' && currentView === 'finance')) {
     return <FinanceDashboard />;
   }
 
@@ -431,6 +434,74 @@ const Dashboard = () => {
 
       {dashboardData && (
         <>
+          {/* Quick Access to Finance Dashboard for Super Admin */}
+          {user.role === 'super_admin' && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 2.5,
+                mb: 3,
+                borderRadius: 3,
+                background: 'linear-gradient(135deg, #10b98115 0%, #05966905 100%)',
+                border: '1px solid #10b98130',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 2,
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.05)',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    bgcolor: '#10b981',
+                    color: '#fff',
+                    p: 1.25,
+                    borderRadius: 2.5,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  <AccountBalance sx={{ fontSize: 26 }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700, color: '#065f46', lineHeight: 1.2 }}>
+                    Finance Manager Dashboard
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem', mt: 0.25 }}>
+                    Monitor multi-campus collections, admission fee insights, and consolidated bank statement reconciliations.
+                  </Typography>
+                </Box>
+              </Box>
+              <Button
+                variant="contained"
+                endIcon={<TrendingUp />}
+                onClick={() => navigate('/finance-dashboard')}
+                sx={{
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: '#fff',
+                  fontWeight: 700,
+                  borderRadius: 2.5,
+                  px: 2.5,
+                  py: 1,
+                  textTransform: 'none',
+                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
+                  '&:hover': {
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    transform: 'translateY(-1px)',
+                    boxShadow: '0 6px 16px rgba(16, 185, 129, 0.35)',
+                  },
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                Go to Finance Manager Dashboard
+              </Button>
+            </Paper>
+          )}
+
           {/* Academic Setup Bar */}
           <Paper 
             elevation={0}
@@ -524,6 +595,30 @@ const Dashboard = () => {
                 >
                   👥 Manage Groups
                 </Button>
+                {user.role === 'super_admin' && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => navigate('/finance-dashboard')}
+                    startIcon={<AccountBalance sx={{ fontSize: 16 }} />}
+                    sx={{
+                      borderColor: '#10b981',
+                      color: '#059669',
+                      fontWeight: 700,
+                      borderRadius: 2,
+                      px: 2,
+                      py: 0.75,
+                      textTransform: 'none',
+                      bgcolor: '#10b9810a',
+                      '&:hover': {
+                        borderColor: '#059669',
+                        bgcolor: '#10b98118',
+                      },
+                    }}
+                  >
+                    Finance Dashboard
+                  </Button>
+                )}
               </Box>
             </Box>
           </Paper>

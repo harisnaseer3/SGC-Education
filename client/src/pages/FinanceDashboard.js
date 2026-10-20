@@ -36,6 +36,7 @@ import {
   FileDownload,
   Print,
   TableChart,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material';
 import {
   ResponsiveContainer,
@@ -55,7 +56,7 @@ import {
 import axios from 'axios';
 import * as XLSX from 'xlsx-js-style';
 import { getApiUrl } from '../config/api';
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899', '#8b5cf6'];
 
@@ -118,6 +119,8 @@ const StatCard = ({ title, value, icon, color, subtitle, compact = false }) => (
 );
 
 const FinanceDashboard = () => {
+  const navigate = useNavigate();
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -153,6 +156,12 @@ const FinanceDashboard = () => {
   const [campusList, setCampusList] = useState([]);
   const [activeReportTab, setActiveReportTab] = useState('admissions');
 
+  // All Campus Receivable Report States
+  const [receivableMonth, setReceivableMonth] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+
   // Banks Statement Report States
   const [bankReportData, setBankReportData] = useState(null);
   const [bankReportLoading, setBankReportLoading] = useState(false);
@@ -167,6 +176,9 @@ const FinanceDashboard = () => {
     sessionStorage.setItem('finance_startDate', startDate);
     sessionStorage.setItem('finance_endDate', endDate);
     fetchDashboardStats();
+  }, [selectedCampus, startDate, endDate, receivableMonth]);
+
+  useEffect(() => {
     fetchBanksReportData();
   }, [selectedCampus, startDate, endDate, bankReportMonth, bankReportMode]);
 
@@ -204,10 +216,13 @@ const FinanceDashboard = () => {
       setLoading(true);
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
+      params.append('view', 'finance');
       if (selectedCampus && selectedCampus !== 'all') {
         params.append('institution', selectedCampus);
       }
-      if (startDate && endDate) {
+      if (receivableMonth) {
+        params.append('monthKey', receivableMonth);
+      } else if (startDate && endDate) {
         params.append('startDate', startDate);
         params.append('endDate', endDate);
       }
@@ -358,36 +373,173 @@ const FinanceDashboard = () => {
     XLSX.writeFile(wb, `Admission_Register_Report_${dateStr}.xlsx`);
   };
 
+  const getVouchersHeader = () => {
+    let date = new Date();
+    if (receivableMonth) {
+      const parts = receivableMonth.split('-');
+      if (parts.length === 2) {
+        date = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, 1);
+      }
+    } else if (startDate) {
+      date = new Date(startDate);
+    } else {
+      return 'Vouchers (All Time)';
+    }
+    const monthName = date.toLocaleDateString('en-US', { month: 'short' });
+    const yearShort = String(date.getFullYear()).slice(-2);
+    return `Vouchers ${monthName}. ${yearShort}`;
+  };
+
   const handleExportFinancialReport = () => {
     if (!dashboardData?.campusBreakdown) return;
     const list = selectedCampus === 'all'
       ? dashboardData.campusBreakdown
       : dashboardData.campusBreakdown.filter(c => c._id === selectedCampus);
 
-    const rows = [
-      ['Campus Code', 'Campus Name', 'Total Students', 'Active Students', 'New Admissions', 'Total Billed', 'Total Collected', 'Total Outstanding', 'Prev. Receivable', 'Recovery']
+    const vouchersHeader = getVouchersHeader();
+
+    const aoaData = [
+      ['All Campus Receiveable Report', '', '', '', '', '', '', ''],
+      ['S. #', 'Capmpus', 'No. of Students', vouchersHeader, 'Arears', 'Grand Total', 'Received', 'Balance']
     ];
 
-    list.forEach(c => {
-      rows.push([
-        c.code,
-        c.name,
-        c.totalStudents || 0,
-        c.activeStudents || 0,
-        c.newAdmissions || 0,
-        c.feesGenerated || 0,
-        c.feesCollected || 0,
-        c.outstandingDues || 0,
-        c.previousReceivable || 0,
-        c.recovery || 0
+    let totalStudents = 0;
+    let totalVouchers = 0;
+    let totalArrears = 0;
+    let totalGrand = 0;
+    let totalReceived = 0;
+    let totalBalance = 0;
+
+    list.forEach((c, idx) => {
+      const students = c.activeStudents ?? c.enrolled ?? c.totalStudents ?? 0;
+      const arrears = c.arrears ?? (c.previousReceivable || 0);
+      const vouchers = c.vouchers !== undefined ? c.vouchers : Math.max(0, (c.feesGenerated || 0) - (c.previousReceivable || 0));
+      const grandTotal = c.grandTotal ?? (vouchers + arrears);
+      const received = c.received ?? (c.feesCollected || 0);
+      const balance = c.balance ?? Math.max(0, grandTotal - received);
+
+      totalStudents += students;
+      totalVouchers += vouchers;
+      totalArrears += arrears;
+      totalGrand += grandTotal;
+      totalReceived += received;
+      totalBalance += balance;
+
+      aoaData.push([
+        idx + 1,
+        c.name || c.code || '',
+        students,
+        vouchers,
+        arrears,
+        grandTotal,
+        received,
+        balance
       ]);
     });
 
-    const ws = XLSX.utils.aoa_to_sheet(rows);
+    // Total row
+    aoaData.push([
+      '',
+      'total',
+      totalStudents,
+      totalVouchers,
+      totalArrears,
+      totalGrand,
+      totalReceived,
+      totalBalance
+    ]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoaData);
+
+    ws['!merges'] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }
+    ];
+
+    ws['!cols'] = [
+      { wch: 8 },  // S. #
+      { wch: 28 }, // Campus
+      { wch: 18 }, // No. of Students
+      { wch: 20 }, // Vouchers
+      { wch: 18 }, // Arears
+      { wch: 18 }, // Grand Total
+      { wch: 18 }, // Received
+      { wch: 18 }  // Balance
+    ];
+
+    try {
+      const borderStyle = {
+        top: { style: 'thin', color: { rgb: '000000' } },
+        bottom: { style: 'thin', color: { rgb: '000000' } },
+        left: { style: 'thin', color: { rgb: '000000' } },
+        right: { style: 'thin', color: { rgb: '000000' } }
+      };
+
+      if (ws['A1']) {
+        ws['A1'].s = {
+          font: { bold: true, sz: 14, name: 'Calibri' },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          border: borderStyle
+        };
+      }
+
+      ['A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2', 'H2'].forEach(cell => {
+        if (ws[cell]) {
+          ws[cell].s = {
+            font: { bold: true, sz: 11, name: 'Calibri' },
+            alignment: { horizontal: 'center', vertical: 'center' },
+            border: borderStyle
+          };
+        }
+      });
+
+      const cols = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      for (let r = 2; r < 2 + list.length; r++) {
+        cols.forEach(col => {
+          const cellRef = `${col}${r + 1}`;
+          if (ws[cellRef]) {
+            ws[cellRef].s = {
+              font: { sz: 11, name: 'Calibri', bold: col === 'F' || col === 'H' },
+              alignment: { 
+                horizontal: col === 'B' ? 'left' : (col === 'A' || col === 'C' ? 'center' : 'right'), 
+                vertical: 'center' 
+              },
+              border: borderStyle
+            };
+          }
+        });
+      }
+
+      const totalRowIdx = 2 + list.length + 1;
+      cols.forEach(col => {
+        const cellRef = `${col}${totalRowIdx}`;
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { bold: true, sz: 11, underline: true, name: 'Calibri' },
+            alignment: { 
+              horizontal: col === 'B' ? 'center' : (col === 'A' || col === 'C' ? 'center' : 'right'), 
+              vertical: 'center' 
+            },
+            border: {
+              top: { style: 'thin', color: { rgb: '000000' } },
+              bottom: { style: 'double', color: { rgb: '000000' } },
+              left: { style: 'thin', color: { rgb: '000000' } },
+              right: { style: 'thin', color: { rgb: '000000' } }
+            }
+          };
+        }
+      });
+    } catch (e) {
+      console.warn('Styling failed, writing standard xlsx', e);
+    }
+
     const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Financial Summary');
-    const dateStr = new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `Campus_Financial_Report_${dateStr}.xlsx`);
+    XLSX.utils.book_append_sheet(wb, ws, 'All Campus Receivable');
+    const fileSuffix = receivableMonth || new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `All_Campus_Receivable_Report_${fileSuffix}.xlsx`);
+  };
+
+  const handlePrintFinancialReport = () => {
+    window.print();
   };
 
   const handlePrintAdmissionRegister = () => {
@@ -576,7 +728,32 @@ const FinanceDashboard = () => {
             Analyze fee-related metrics, student distributions, and campus-wise collections.
           </Typography>
         </Box>
-        <Chip label="Finance Manager Dashboard" color="primary" icon={<Business />} sx={{ fontSize: '0.95rem', py: 2.5, px: 1.5, fontWeight: 'bold', borderRadius: 3 }} />
+        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+          {user.role === 'super_admin' && (
+            <Button
+              variant="outlined"
+              startIcon={<DashboardIcon />}
+              onClick={() => navigate('/dashboard')}
+              sx={{
+                fontWeight: 700,
+                borderRadius: 2.5,
+                borderColor: '#667eea',
+                color: '#667eea',
+                px: 2,
+                py: 0.9,
+                textTransform: 'none',
+                bgcolor: 'rgba(102, 126, 234, 0.05)',
+                '&:hover': {
+                  borderColor: '#5a67d8',
+                  bgcolor: 'rgba(102, 126, 234, 0.12)',
+                },
+              }}
+            >
+              Main Dashboard
+            </Button>
+          )}
+          <Chip label="Finance Manager Dashboard" color="primary" icon={<Business />} sx={{ fontSize: '0.95rem', py: 2.5, px: 1.5, fontWeight: 'bold', borderRadius: 3 }} />
+        </Box>
       </Box>
 
       {/* Filter Section */}
@@ -928,15 +1105,26 @@ const FinanceDashboard = () => {
             const stuckoffGrand = displayCampuses.reduce((sum, c) => sum + (c.struckoff ?? c.struckOffStudents ?? 0), 0);
             const pendingGrand = displayCampuses.reduce((sum, c) => sum + (c.pending ?? c.pendingStudents ?? 0), 0);
 
-            // Grand totals for Financial Report
-            const finTotalStudentsGrand = displayCampuses.reduce((sum, c) => sum + (c.totalStudents || 0), 0);
-            const finActiveStudentsGrand = displayCampuses.reduce((sum, c) => sum + (c.activeStudents || 0), 0);
-            const finNewAdmissionsGrand = displayCampuses.reduce((sum, c) => sum + (c.newAdmissions || 0), 0);
-            const finBilledGrand = displayCampuses.reduce((sum, c) => sum + (c.feesGenerated || 0), 0);
-            const finCollectedGrand = displayCampuses.reduce((sum, c) => sum + (c.feesCollected || 0), 0);
-            const finOutstandingGrand = displayCampuses.reduce((sum, c) => sum + (c.outstandingDues || 0), 0);
-            const finPrevReceivableGrand = displayCampuses.reduce((sum, c) => sum + (c.previousReceivable || 0), 0);
-            const finRecoveryGrand = displayCampuses.reduce((sum, c) => sum + (c.recovery || 0), 0);
+            // Grand totals for All Campus Receivable Report
+            const finStudentsGrand = displayCampuses.reduce((sum, c) => sum + (c.activeStudents ?? c.enrolled ?? c.totalStudents ?? 0), 0);
+            const finArrearsGrand = displayCampuses.reduce((sum, c) => sum + (c.arrears ?? c.previousReceivable ?? 0), 0);
+            const finVouchersGrand = displayCampuses.reduce((sum, c) => {
+              const v = c.vouchers !== undefined ? c.vouchers : Math.max(0, (c.feesGenerated || 0) - (c.previousReceivable || 0));
+              return sum + v;
+            }, 0);
+            const finGrandTotalGrand = displayCampuses.reduce((sum, c) => {
+              const v = c.vouchers !== undefined ? c.vouchers : Math.max(0, (c.feesGenerated || 0) - (c.previousReceivable || 0));
+              const arr = c.arrears ?? c.previousReceivable ?? 0;
+              return sum + (c.grandTotal ?? (v + arr));
+            }, 0);
+            const finReceivedGrand = displayCampuses.reduce((sum, c) => sum + (c.received ?? c.feesCollected ?? 0), 0);
+            const finBalanceGrand = displayCampuses.reduce((sum, c) => {
+              const v = c.vouchers !== undefined ? c.vouchers : Math.max(0, (c.feesGenerated || 0) - (c.previousReceivable || 0));
+              const arr = c.arrears ?? c.previousReceivable ?? 0;
+              const gt = c.grandTotal ?? (v + arr);
+              const rec = c.received ?? c.feesCollected ?? 0;
+              return sum + (c.balance ?? Math.max(0, gt - rec));
+            }, 0);
 
             return (
               <Box sx={{ mb: 4 }}>
@@ -944,8 +1132,9 @@ const FinanceDashboard = () => {
                   @media print {
                     body * { visibility: hidden !important; }
                     #admission-register-printable, #admission-register-printable *,
-                    #banks-statement-printable, #banks-statement-printable * { visibility: visible !important; }
-                    #admission-register-printable, #banks-statement-printable { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
+                    #banks-statement-printable, #banks-statement-printable *,
+                    #campus-financial-printable, #campus-financial-printable * { visibility: visible !important; }
+                    #admission-register-printable, #banks-statement-printable, #campus-financial-printable { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
                     .no-print { display: none !important; }
                   }
                 `}</style>
@@ -979,7 +1168,7 @@ const FinanceDashboard = () => {
                     }}
                   >
                     <Tab icon={<School sx={{ fontSize: 18 }} />} iconPosition="start" label="Admission Register Report" value="admissions" />
-                    <Tab icon={<Assessment sx={{ fontSize: 18 }} />} iconPosition="start" label="Campus-wise Financial Report" value="financial" />
+                    <Tab icon={<Assessment sx={{ fontSize: 18 }} />} iconPosition="start" label="All Campus Receivable Report" value="financial" />
                     <Tab icon={<AccountBalance sx={{ fontSize: 18 }} />} iconPosition="start" label="Banks Statement Report" value="banks" />
                     <Tab icon={<TableChart sx={{ fontSize: 18 }} />} iconPosition="start" label="View All Reports" value="both" />
                   </Tabs>
@@ -1180,9 +1369,10 @@ const FinanceDashboard = () => {
                       </Paper>
                   )}
 
-                  {/* Table 2: Campus-wise Financial & Student Report */}
+                  {/* Table 2: All Campus Receivable Report */}
                   {(activeReportTab === 'financial' || activeReportTab === 'both') && (
                     <Paper 
+                      id="campus-financial-printable"
                       elevation={0} 
                       sx={{ 
                         width: '100%',
@@ -1191,7 +1381,7 @@ const FinanceDashboard = () => {
                         p: { xs: 2, sm: 3 }, 
                         borderRadius: 4, 
                         border: '1px solid #edf2f7', 
-                        pb: 2, 
+                        pb: 3, 
                         bgcolor: '#ffffff', 
                         boxShadow: '0 4px 20px rgba(0,0,0,0.02)' 
                       }}
@@ -1200,119 +1390,194 @@ const FinanceDashboard = () => {
                         <Box>
                           <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Box sx={{ width: 6, height: 22, bgcolor: '#6366f1', borderRadius: 1 }} />
-                            Campus-wise Financial & Student Report
+                            All Campus Receivable Report
+                            <Chip 
+                              label={`${displayCampuses.length} Campuses`} 
+                              size="small" 
+                              sx={{ bgcolor: '#6366f115', color: '#6366f1', fontWeight: 800, ml: 1, border: '1px solid #6366f130' }} 
+                            />
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
-                            Financial fee billing, collections, outstanding arrears, and recovery per campus
+                            Consolidated campus-wise fee vouchers, arrears, grand total billing, collections, and balance
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }} className="no-print">
+                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }} className="no-print">
+                          {/* Month Filter */}
+                          <TextField
+                            size="small"
+                            type="month"
+                            label="Select Month"
+                            value={receivableMonth}
+                            onChange={(e) => setReceivableMonth(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ 
+                              width: 165,
+                              '& .MuiOutlinedInput-root': { borderRadius: 2.5 }
+                            }}
+                          />
+
+                          {receivableMonth && (
+                            <Button
+                              size="small"
+                              variant="text"
+                              onClick={() => setReceivableMonth('')}
+                              sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                            >
+                              All Time
+                            </Button>
+                          )}
+
                           <Button
-                            variant="outlined"
+                            variant="contained"
                             size="small"
                             startIcon={<FileDownload />}
                             onClick={handleExportFinancialReport}
                             sx={{
+                              bgcolor: '#10b981',
+                              '&:hover': { bgcolor: '#059669' },
                               borderRadius: 2.5,
                               textTransform: 'none',
-                              fontWeight: 600,
-                              color: '#6366f1',
-                              borderColor: '#6366f140',
-                              '&:hover': { borderColor: '#6366f1', bgcolor: '#6366f108' },
+                              fontWeight: 700,
+                              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
                               px: 2,
                               py: 0.8
                             }}
                           >
                             Export Excel
                           </Button>
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            startIcon={<Print />}
+                            onClick={handlePrintFinancialReport}
+                            sx={{
+                              borderRadius: 2.5,
+                              textTransform: 'none',
+                              fontWeight: 600,
+                              color: '#64748b',
+                              borderColor: '#e2e8f0',
+                              '&:hover': { borderColor: '#cbd5e1', bgcolor: '#f8fafc' },
+                              px: 2,
+                              py: 0.8
+                            }}
+                          >
+                            Print
+                          </Button>
                         </Box>
                       </Box>
                       <Box sx={{ overflowX: 'auto', width: '100%' }}>
-                        <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                        <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left', border: '1px solid #cbd5e1' }}>
                             <thead>
-                              <tr style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Campus Code</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Campus Name</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Total Students</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Active Students</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>New Admissions</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Total Billed</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Total Collected</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Total Outstanding</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Prev. Receivable</th>
-                                <th style={{ padding: '14px 16px', color: '#475569', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800 }}>Recovery</th>
+                              <tr style={{ backgroundColor: '#ffffff', borderBottom: '2px solid #0f172a' }}>
+                                <th 
+                                  colSpan={8} 
+                                  style={{ 
+                                    padding: '14px', 
+                                    color: '#0f172a', 
+                                    fontSize: '1.15rem', 
+                                    fontWeight: 900, 
+                                    textAlign: 'center',
+                                    letterSpacing: '0.5px',
+                                    border: '1px solid #cbd5e1'
+                                  }}
+                                >
+                                  All Campus Receiveable Report
+                                </th>
+                              </tr>
+                              <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f8fafc' }}>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, width: '60px', textAlign: 'center' }}>S. #</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 16px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800 }}>Campus</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, textAlign: 'center' }}>No. of Students</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, textAlign: 'right' }}>{getVouchersHeader()}</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, textAlign: 'right' }}>Arears</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, textAlign: 'right' }}>Grand Total</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, textAlign: 'right' }}>Received</th>
+                                <th style={{ border: '1px solid #cbd5e1', padding: '12px 14px', color: '#0f172a', fontSize: '0.85rem', fontWeight: 800, textAlign: 'right' }}>Balance</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {displayCampuses.map((campus, idx) => (
-                                <tr key={campus._id || idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background-color 0.2s ease' }}
-                                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
-                                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                                >
-                                  <td style={{ padding: '16px' }}>
-                                    <Chip label={campus.code} size="small" color="primary" variant="outlined" sx={{ fontWeight: 'bold' }} />
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 700, color: '#334155' }}>
-                                    {campus.name}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 600, color: '#475569' }}>
-                                    {(campus.totalStudents || 0).toLocaleString()}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 600, color: '#0ea5e9' }}>
-                                    {(campus.activeStudents || 0).toLocaleString()}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 600, color: '#8b5cf6' }}>
-                                    <Chip label={`+${campus.newAdmissions || 0}`} size="small" sx={{ bgcolor: '#8b5cf615', color: '#8b5cf6', fontWeight: 700, border: '1px solid #8b5cf630' }} />
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 700, color: '#6366f1' }}>
-                                    Rs. {(campus.feesGenerated || 0).toLocaleString()}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 700, color: '#10b981' }}>
-                                    Rs. {(campus.feesCollected || 0).toLocaleString()}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 700, color: '#f59e0b' }}>
-                                    Rs. {(campus.outstandingDues || 0).toLocaleString()}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 700, color: '#f43f5e' }}>
-                                    Rs. {(campus.previousReceivable || 0).toLocaleString()}
-                                  </td>
-                                  <td style={{ padding: '16px', fontWeight: 700, color: '#06b6d4' }}>
-                                    Rs. {(campus.recovery || 0).toLocaleString()}
-                                  </td>
-                                </tr>
-                              ))}
+                              {displayCampuses.map((campus, idx) => {
+                                const students = campus.activeStudents ?? campus.enrolled ?? campus.totalStudents ?? 0;
+                                const arrears = campus.arrears ?? (campus.previousReceivable || 0);
+                                const vouchers = campus.vouchers !== undefined ? campus.vouchers : Math.max(0, (campus.feesGenerated || 0) - (campus.previousReceivable || 0));
+                                const grandTotal = campus.grandTotal ?? (vouchers + arrears);
+                                const received = campus.received ?? (campus.feesCollected || 0);
+                                const balance = campus.balance ?? Math.max(0, grandTotal - received);
+
+                                return (
+                                  <tr 
+                                    key={campus._id || idx} 
+                                    style={{ 
+                                      borderBottom: '1px solid #e2e8f0', 
+                                      transition: 'background-color 0.2s ease' 
+                                    }}
+                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8fafc'}
+                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                                  >
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#475569' }}>
+                                      {idx + 1}
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 16px', fontWeight: 800, color: '#0f172a' }}>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                        {campus.code && (
+                                          <Chip 
+                                            label={campus.code} 
+                                            size="small" 
+                                            variant="outlined" 
+                                            color="primary" 
+                                            sx={{ fontWeight: 800, fontSize: '0.72rem', height: 22 }} 
+                                          />
+                                        )}
+                                        <span>{campus.name}</span>
+                                      </Box>
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'center', fontWeight: 700, color: '#1e293b' }}>
+                                      {students.toLocaleString()}
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#4338ca' }}>
+                                      {vouchers.toLocaleString()}
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#475569' }}>
+                                      {arrears.toLocaleString()}
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: '#0f172a' }}>
+                                      {grandTotal.toLocaleString()}
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'right', fontWeight: 700, color: '#059669' }}>
+                                      {received.toLocaleString()}
+                                    </td>
+                                    <td style={{ border: '1px solid #e2e8f0', padding: '12px 14px', textAlign: 'right', fontWeight: 800, color: balance > 0 ? '#d97706' : '#059669' }}>
+                                      {balance.toLocaleString()}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
                             </tbody>
                             <tfoot>
-                              <tr style={{ backgroundColor: '#f8fafc', borderTop: '2px solid #cbd5e1' }}>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#64748b' }}>
+                              <tr style={{ backgroundColor: '#ffffff', borderTop: '2px solid #0f172a', borderBottom: '3px double #0f172a' }}>
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'center', fontWeight: 800, color: '#64748b' }}>
                                   -
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#0f172a', fontSize: '0.95rem' }}>
-                                  Grand total
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px 16px', fontWeight: 900, color: '#0f172a', fontSize: '1rem', textDecoration: 'underline' }}>
+                                  total
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#475569' }}>
-                                  {finTotalStudentsGrand.toLocaleString()}
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'center', fontWeight: 900, color: '#0f172a', fontSize: '1rem', textDecoration: 'underline' }}>
+                                  {finStudentsGrand.toLocaleString()}
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#0ea5e9' }}>
-                                  {finActiveStudentsGrand.toLocaleString()}
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '1rem', textDecoration: 'underline' }}>
+                                  {finVouchersGrand.toLocaleString()}
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#8b5cf6' }}>
-                                  <Chip label={`+${finNewAdmissionsGrand}`} size="small" sx={{ bgcolor: '#8b5cf615', color: '#8b5cf6', fontWeight: 700, border: '1px solid #8b5cf630' }} />
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '1rem', textDecoration: 'underline' }}>
+                                  {finArrearsGrand.toLocaleString()}
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#6366f1' }}>
-                                  Rs. {finBilledGrand.toLocaleString()}
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '1.05rem', textDecoration: 'underline' }}>
+                                  {finGrandTotalGrand.toLocaleString()}
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#10b981' }}>
-                                  Rs. {finCollectedGrand.toLocaleString()}
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '1rem', textDecoration: 'underline' }}>
+                                  {finReceivedGrand.toLocaleString()}
                                 </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#f59e0b' }}>
-                                  Rs. {finOutstandingGrand.toLocaleString()}
-                                </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#f43f5e' }}>
-                                  Rs. {finPrevReceivableGrand.toLocaleString()}
-                                </td>
-                                <td style={{ padding: '16px', fontWeight: 800, color: '#06b6d4' }}>
-                                  Rs. {finRecoveryGrand.toLocaleString()}
+                                <td style={{ border: '1px solid #cbd5e1', padding: '14px', textAlign: 'right', fontWeight: 900, color: '#0f172a', fontSize: '1.05rem', textDecoration: 'underline' }}>
+                                  {finBalanceGrand.toLocaleString()}
                                 </td>
                               </tr>
                             </tfoot>

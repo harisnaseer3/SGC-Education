@@ -34,6 +34,7 @@ import BackupManagement from './pages/BackupManagement';
 import RoleManagement from './pages/RoleManagement';
 import BankAccounts from './pages/BankAccounts';
 import ActivityLogs from './pages/ActivityLogs';
+import FinanceDashboard from './pages/FinanceDashboard';
 import usePermissions from './hooks/usePermissions';
 import { PERMISSIONS } from './utils/constants';
 
@@ -107,6 +108,7 @@ const ProtectedRoute = ({ children, title, permission }) => {
       '/backup-management': 'Backup Management',
       '/bank-accounts': 'Bank Accounts',
       '/activity-logs': 'Activity Logs',
+      '/finance-dashboard': 'Finance Manager Dashboard',
     };
     
     // Check for edit routes
@@ -183,6 +185,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance-dashboard"
+            element={
+              <ProtectedRoute permission={PERMISSIONS.FEES.VIEW}>
+                <FinanceDashboard />
               </ProtectedRoute>
             }
           />
