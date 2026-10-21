@@ -25,6 +25,7 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
+  Checkbox,
   Divider
 } from '@mui/material';
 import { 
@@ -64,9 +65,10 @@ const RemainingBalanceReport = ({ onBack }) => {
 
   const [filters, setFilters] = useState({
     institution: currentInstitutionId || '',
-    filterMode: 'dateRange', // Default to payment date range
+    filterMode: 'voucher', // Default to month & year (voucher wise)
     classId: 'all',
     studentStatus: ['All'],
+    includeStruckOff: false,
     monthYear: format(new Date(), 'yyyy-MM'),
     dateFrom: format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
     dateTo: format(new Date(), 'yyyy-MM-dd'),
@@ -190,6 +192,16 @@ const RemainingBalanceReport = ({ onBack }) => {
           if (classId?.toString() !== filters.classId) return;
         }
 
+        const rawStatus = (student.status || admission.status || '').toLowerCase().trim();
+        const isStruckOff = rawStatus === 'struck off' || rawStatus === 'struck_off' || rawStatus === 'struckoff';
+
+        // Struck Off check:
+        // Exclude struck off students if includeStruckOff is false, unless user explicitly selected 'Struck Off' in studentStatus
+        if (isStruckOff && !filters.includeStruckOff) {
+          const explicitlyRequested = filters.studentStatus && filters.studentStatus.some(s => s.toLowerCase() === 'struck off');
+          if (!explicitlyRequested) return;
+        }
+
         if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
           const sStatus = student.status || admission.status || '';
           const matchStatus = filters.studentStatus.some(s => s.toLowerCase() === sStatus.toLowerCase());
@@ -308,6 +320,9 @@ const RemainingBalanceReport = ({ onBack }) => {
         });
 
         const admission = studentObj?.admission || {};
+        const rawStatus = (studentObj?.status || admission?.status || '').toLowerCase().trim();
+        const isStruckOff = rawStatus === 'struck off' || rawStatus === 'struck_off' || rawStatus === 'struckoff';
+
         studentsGroup.set(studentId, {
           studentId,
           enrollmentNumber: studentObj?.enrollmentNumber || 'N/A',
@@ -317,6 +332,7 @@ const RemainingBalanceReport = ({ onBack }) => {
           fatherName: admission.guardianInfo?.fatherName || 'N/A',
           class: admission.class?.name || studentObj?.currentClass?.name || 'Unassigned',
           section: admission.section?.name || 'Unassigned',
+          isStruckOff,
           previousBalance,
           currentBalance,
           receivable,
@@ -402,7 +418,8 @@ const RemainingBalanceReport = ({ onBack }) => {
 
     const exportMetadata = {
       'Class': selectedClass ? selectedClass.name : 'All Classes',
-      'Payment Status': filters.paymentStatus
+      'Payment Status': filters.paymentStatus,
+      'Include Struck Off': filters.includeStruckOff ? 'Yes' : 'No'
     };
 
     if (filters.filterMode === 'dateRange') {
@@ -541,7 +558,18 @@ const RemainingBalanceReport = ({ onBack }) => {
                         <TableCell>{row.enrollmentNumber}</TableCell>
                         <TableCell>{row.admissionNumber}</TableCell>
                         <TableCell>{row.rollNumber}</TableCell>
-                        <TableCell>{row.studentName}</TableCell>
+                        <TableCell>
+                          {row.studentName}
+                          {row.isStruckOff && (
+                            <Chip 
+                              label="Struck Off" 
+                              size="small" 
+                              color="error" 
+                              variant="outlined" 
+                              sx={{ height: 18, fontSize: '0.65rem', ml: 1, verticalAlign: 'middle' }} 
+                            />
+                          )}
+                        </TableCell>
                         <TableCell>{row.fatherName}</TableCell>
                         {viewType === 'head-wise' ? (
                           feeHeads.map(head => (
@@ -593,35 +621,54 @@ const RemainingBalanceReport = ({ onBack }) => {
       <Box className="no-print">
         <Card sx={{ mb: 3, boxShadow: 3, borderRadius: 2 }}>
           <CardContent>
-            {/* Filter Mode Toggle */}
-            <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', minWidth: 90 }}>
-                Filter Mode:
-              </Typography>
-              <RadioGroup
-                row
-                value={filters.filterMode}
-                onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
-              >
-                <FormControlLabel
-                  value="voucher"
-                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
-                  label={
-                    <Typography variant="body2" fontWeight={filters.filterMode === 'voucher' ? 700 : 400}>
-                      Month & Year (Voucher Wise)
-                    </Typography>
-                  }
-                />
-                <FormControlLabel
-                  value="dateRange"
-                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
-                  label={
-                    <Typography variant="body2" fontWeight={filters.filterMode === 'dateRange' ? 700 : 400}>
-                      Payment Date Range
-                    </Typography>
-                  }
-                />
-              </RadioGroup>
+            {/* Filter Mode Toggle & Struck Off Option */}
+            <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', minWidth: 90 }}>
+                  Filter Mode:
+                </Typography>
+                <RadioGroup
+                  row
+                  value={filters.filterMode}
+                  onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
+                >
+                  <FormControlLabel
+                    value="voucher"
+                    control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
+                    label={
+                      <Typography variant="body2" fontWeight={filters.filterMode === 'voucher' ? 700 : 400}>
+                        Month & Year (Voucher Wise)
+                      </Typography>
+                    }
+                  />
+                  <FormControlLabel
+                    value="dateRange"
+                    control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
+                    label={
+                      <Typography variant="body2" fontWeight={filters.filterMode === 'dateRange' ? 700 : 400}>
+                        Payment Date Range
+                      </Typography>
+                    }
+                  />
+                </RadioGroup>
+              </Box>
+
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={Boolean(filters.includeStruckOff)}
+                    onChange={(e) => setFilters({ ...filters, includeStruckOff: e.target.checked })}
+                    sx={{ color: '#e53e3e', '&.Mui-checked': { color: '#e53e3e' } }}
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={filters.includeStruckOff ? 700 : 500} sx={{ color: filters.includeStruckOff ? '#e53e3e' : '#475569' }}>
+                    Include Struck Off Students (Arrears)
+                  </Typography>
+                }
+                sx={{ m: 0 }}
+              />
             </Box>
 
             <Grid container spacing={2} alignItems="center">
