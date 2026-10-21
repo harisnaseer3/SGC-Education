@@ -86,10 +86,12 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
         sf.vouchers && sf.vouchers.some(v => v && Number(v.month) === month && Number(v.year) === year)
       );
 
+      const arrearsFee = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
+      const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
+
       let voucherAmount = 0;
       let regularPaid = 0;
       let regularRemaining = 0;
-      let arrearsPaymentsOnVoucher = 0;
 
       feesWithVoucher.forEach(sf => {
         const isArrearsHead = sf.feeHead?.name?.toLowerCase() === 'arrears';
@@ -97,12 +99,10 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
           voucherAmount += parseFloat(sf.finalAmount || 0);
           regularPaid += parseFloat(sf.paidAmount || 0);
           regularRemaining += Math.max(0, parseFloat(sf.finalAmount || 0) - parseFloat(sf.paidAmount || 0));
-        } else {
-          arrearsPaymentsOnVoucher += parseFloat(sf.paidAmount || 0);
         }
       });
 
-      // 2. Calculate dynamic arrears from PREVIOUS periods
+      // 2. Calculate dynamic arrears from PREVIOUS periods (fallback if no snapshot)
       let totalBilledPrev = 0;
       let totalPaidPrev = 0;
 
@@ -127,10 +127,26 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
       });
 
       const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
-      const calculatedArrears = Math.max(0, outstandingPrevArrears - arrearsPaymentsOnVoucher);
-      const displayedRemaining = regularRemaining + calculatedArrears;
-      const totalPaidForVoucher = regularPaid + arrearsPaymentsOnVoucher;
-      const displayedBilled = voucherAmount + calculatedArrears;
+
+      // Previous Balance (billed arrears): match RemainingBalanceReport logic
+      let previousBalance = 0;
+      if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
+        previousBalance = parseFloat(arrearsFee.finalAmount || 0);
+      } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
+        previousBalance = parseFloat(arrearsFee.baseAmount || 0);
+      } else {
+        previousBalance = outstandingPrevArrears;
+      }
+
+      // Current remaining arrears after payments
+      const currentRemainingArrears = Math.max(0, Math.round((outstandingPrevArrears - arrearsPaymentsOnVoucher) * 100) / 100);
+
+      // Previous received
+      const previousReceived = Math.max(0, previousBalance - currentRemainingArrears);
+
+      const displayedBilled = voucherAmount + previousBalance;
+      const totalPaidForVoucher = regularPaid + previousReceived;
+      const displayedRemaining = Math.max(0, displayedBilled - totalPaidForVoucher);
 
       // Determine status
       let voucherStatus = 'unpaid';
@@ -147,12 +163,12 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
         month,
         year,
         voucherAmount,
-        arrears: calculatedArrears,
-        displayedBilled,
-        totalPaid: totalPaidForVoucher,
-        displayedRemaining,
+        arrears: previousBalance, // Billed arrears matching Report P.Bal
+        displayedBilled,          // Total billed matching Report Receivable
+        totalPaid: totalPaidForVoucher, // Total collected matching Report Received
+        displayedRemaining,       // Total outstanding matching Report Remaining
         regularRemaining,
-        calculatedArrears,
+        calculatedArrears: currentRemainingArrears,
         voucherStatus
       };
 
