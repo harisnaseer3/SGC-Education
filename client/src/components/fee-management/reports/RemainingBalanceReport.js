@@ -193,18 +193,58 @@ const RemainingBalanceReport = ({ onBack }) => {
         }
 
         const rawStatus = (student.status || admission.status || '').toLowerCase().trim();
-        const isStruckOff = rawStatus === 'struck off' || rawStatus === 'struck_off' || rawStatus === 'struckoff';
+        const isStruckOffRaw = rawStatus === 'struck off' || rawStatus === 'struck_off' || rawStatus === 'struckoff';
+
+        let isEffectiveStruckOff = false;
+        if (isStruckOffRaw) {
+          const studentAllFees = allFeesByStudent.get(studentId) || [];
+          const hasCurrentMonthVoucher = studentAllFees.some(f => 
+            (f.vouchers || []).some(v => Number(v.month) === targetMonth && Number(v.year) === targetYear)
+          );
+
+          // Find date when student was struck off from statusHistory or updatedAt
+          let struckOffDate = null;
+          if (student.statusHistory && Array.isArray(student.statusHistory)) {
+            const struckEntry = [...student.statusHistory]
+              .reverse()
+              .find(h => (h.status === 'struck_off' || h.status === 'struckoff' || h.status === 'struck off') && h.changedAt);
+            if (struckEntry) struckOffDate = new Date(struckEntry.changedAt);
+          }
+          if (!struckOffDate && admission?.statusHistory && Array.isArray(admission.statusHistory)) {
+            const struckEntry = [...admission.statusHistory]
+              .reverse()
+              .find(h => (h.status === 'struck_off' || h.status === 'struckoff' || h.status === 'struck off') && h.changedAt);
+            if (struckEntry) struckOffDate = new Date(struckEntry.changedAt);
+          }
+          if (!struckOffDate && (student.updatedAt || admission?.updatedAt)) {
+            struckOffDate = new Date(student.updatedAt || admission.updatedAt);
+          }
+
+          const targetMonthEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+
+          if (struckOffDate) {
+            // Student is only considered struck off for this report if the struck-off date was on or before this month's end
+            isEffectiveStruckOff = struckOffDate <= targetMonthEnd;
+          } else {
+            // If no struck-off date is recorded, fallback: if they have a voucher for this month, they were still active; otherwise struck off
+            isEffectiveStruckOff = !hasCurrentMonthVoucher;
+          }
+        }
 
         // Struck Off check:
-        // Exclude struck off students if includeStruckOff is false, unless user explicitly selected 'Struck Off' in studentStatus
-        if (isStruckOff && !filters.includeStruckOff) {
+        // Exclude struck off students ONLY if they were effectively struck off in or before this month,
+        // unless includeStruckOff is true or user explicitly selected 'Struck Off' in studentStatus
+        if (isEffectiveStruckOff && !filters.includeStruckOff) {
           const explicitlyRequested = filters.studentStatus && filters.studentStatus.some(s => s.toLowerCase() === 'struck off');
           if (!explicitlyRequested) return;
         }
 
         if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
-          const sStatus = student.status || admission.status || '';
-          const matchStatus = filters.studentStatus.some(s => s.toLowerCase() === sStatus.toLowerCase());
+          const effectiveStatus = isEffectiveStruckOff ? (student.status || admission.status || 'Struck Off') : 'Enrolled';
+          const matchStatus = filters.studentStatus.some(s => 
+            s.toLowerCase() === effectiveStatus.toLowerCase() || 
+            s.toLowerCase() === (student.status || admission.status || '').toLowerCase()
+          );
           if (!matchStatus) return;
         }
 
@@ -321,7 +361,36 @@ const RemainingBalanceReport = ({ onBack }) => {
 
         const admission = studentObj?.admission || {};
         const rawStatus = (studentObj?.status || admission?.status || '').toLowerCase().trim();
-        const isStruckOff = rawStatus === 'struck off' || rawStatus === 'struck_off' || rawStatus === 'struckoff';
+        const isStruckOffRaw = rawStatus === 'struck off' || rawStatus === 'struck_off' || rawStatus === 'struckoff';
+
+        let isEffectiveStruckOff = false;
+        if (isStruckOffRaw) {
+          const hasCurrentMonthVoucher = studentAllFees.some(f => 
+            (f.vouchers || []).some(v => Number(v.month) === targetMonth && Number(v.year) === targetYear)
+          );
+          let struckOffDate = null;
+          if (studentObj?.statusHistory && Array.isArray(studentObj.statusHistory)) {
+            const struckEntry = [...studentObj.statusHistory]
+              .reverse()
+              .find(h => (h.status === 'struck_off' || h.status === 'struckoff' || h.status === 'struck off') && h.changedAt);
+            if (struckEntry) struckOffDate = new Date(struckEntry.changedAt);
+          }
+          if (!struckOffDate && admission?.statusHistory && Array.isArray(admission.statusHistory)) {
+            const struckEntry = [...admission.statusHistory]
+              .reverse()
+              .find(h => (h.status === 'struck_off' || h.status === 'struckoff' || h.status === 'struck off') && h.changedAt);
+            if (struckEntry) struckOffDate = new Date(struckEntry.changedAt);
+          }
+          if (!struckOffDate && (studentObj?.updatedAt || admission?.updatedAt)) {
+            struckOffDate = new Date(studentObj.updatedAt || admission.updatedAt);
+          }
+          const targetMonthEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+          if (struckOffDate) {
+            isEffectiveStruckOff = struckOffDate <= targetMonthEnd;
+          } else {
+            isEffectiveStruckOff = !hasCurrentMonthVoucher;
+          }
+        }
 
         studentsGroup.set(studentId, {
           studentId,
@@ -332,7 +401,7 @@ const RemainingBalanceReport = ({ onBack }) => {
           fatherName: admission.guardianInfo?.fatherName || 'N/A',
           class: admission.class?.name || studentObj?.currentClass?.name || 'Unassigned',
           section: admission.section?.name || 'Unassigned',
-          isStruckOff,
+          isStruckOff: isEffectiveStruckOff,
           previousBalance,
           currentBalance,
           receivable,

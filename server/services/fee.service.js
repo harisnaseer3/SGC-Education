@@ -827,7 +827,7 @@ class FeeService {
     const studentFees = await StudentFee.find(query)
       .populate({
         path: 'student',
-        select: 'enrollmentNumber rollNumber status academicYear applicationNumber admissionNo admissionNumber name firstName lastName personalDetails guardianInfo class className section sectionName admissionDate createdAt statusHistory',
+        select: 'enrollmentNumber rollNumber status academicYear applicationNumber admissionNo admissionNumber name firstName lastName personalDetails guardianInfo class className section sectionName admissionDate createdAt statusHistory updatedAt',
         populate: [
           { path: 'class', select: 'name code' },
           { path: 'section', select: 'name code' }
