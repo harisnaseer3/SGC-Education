@@ -793,7 +793,7 @@ const Dashboard = () => {
                       value: `Rs. ${(activeVoucherData.totalArrears || 0).toLocaleString()}`, 
                       icon: <Receipt />, 
                       color: '#f59e0b', 
-                      subtitle: 'Outstanding arrears',
+                      subtitle: 'Previous balance',
                       path: `/fee-management?tab=print-voucher&month=${(() => {
                         if (['allTime', 'currentMonth', 'prevMonth'].includes(voucherFilter)) {
                           const d = new Date();

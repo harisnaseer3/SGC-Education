@@ -261,16 +261,18 @@ const RemainingBalanceReport = ({ onBack }) => {
         const regularFees = currentMonthFees.filter(sf => sf.feeHead?.name?.toLowerCase() !== 'arrears');
 
         const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
-        const currentRemainingArrears = Math.max(0, Math.round((outstandingPrev - arrearsPaymentsOnVoucher) * 100) / 100);
 
-        // Previous Balance (P.Bal): Displays as it was before receiving payment
+        // Previous Balance (P.Bal):
+        // Prefer live ledger dues (outstandingPrev + any payment made on this voucher's arrears) to reflect any payments made after voucher generation.
+        // Fall back to arrearsFee snapshot only if no prior billing history exists (e.g. initial starting arrears balance).
         let previousBalance = 0;
-        if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
+        if (outstandingPrev > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
+          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
+        } else if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.finalAmount || 0);
         } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.baseAmount || 0);
         } else {
-          // Fallback if no arrears head on current voucher: use previous outstanding dues
           previousBalance = outstandingPrev;
         }
 
@@ -282,10 +284,9 @@ const RemainingBalanceReport = ({ onBack }) => {
           // In date range mode, Received is the sum of payments made in this date range
           received = studentPaymentsInRange.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
         } else {
-          // In voucher mode, sum of current month fees paid + previous dues paid
+          // In voucher mode, sum of payments made against this voucher (regular fees + arrears head on this voucher)
           const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
-          const previousReceived = Math.max(0, previousBalance - currentRemainingArrears);
-          received = currentReceived + previousReceived;
+          received = currentReceived + arrearsPaymentsOnVoucher;
         }
 
         const remaining = Math.max(0, receivable - received);

@@ -92,9 +92,12 @@ const calculateERPCollectionStats = async (institutionFilter = {}) => {
 
       const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-      // Previous Balance (billed arrears): match RemainingBalanceReport logic
+      // Previous Balance (P.Bal):
+      // Prefer live ledger dues (outstandingPrevArrears + any payment on this voucher's arrears) to reflect any payments made after voucher generation.
       let previousBalance = 0;
-      if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
+      if (outstandingPrevArrears > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
+        previousBalance = Math.max(0, Math.round((outstandingPrevArrears + arrearsPaymentsOnVoucher) * 100) / 100);
+      } else if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
         previousBalance = parseFloat(arrearsFee.finalAmount || 0);
       } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
         previousBalance = parseFloat(arrearsFee.baseAmount || 0);
@@ -102,14 +105,8 @@ const calculateERPCollectionStats = async (institutionFilter = {}) => {
         previousBalance = outstandingPrevArrears;
       }
 
-      // Current remaining arrears after payments
-      const currentRemainingArrears = Math.max(0, Math.round((outstandingPrevArrears - arrearsPaymentsOnVoucher) * 100) / 100);
-
-      // Previous received
-      const previousReceived = Math.max(0, previousBalance - currentRemainingArrears);
-
       const displayedBilled = voucherAmount + previousBalance;
-      const totalPaidForVoucher = regularPaid + previousReceived;
+      const totalPaidForVoucher = regularPaid + arrearsPaymentsOnVoucher;
       const displayedRemaining = Math.max(0, displayedBilled - totalPaidForVoucher);
 
       let voucherStatus = 'unpaid';

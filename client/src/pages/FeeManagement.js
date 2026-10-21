@@ -1112,35 +1112,43 @@ const FeeManagement = () => {
         // Dynamic unpaid arrears calculation from previous periods
         const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-        // Any payment made against the Arrears head on THIS voucher should reduce the total remaining debt
+        // Any payment made against the Arrears head on THIS voucher
         const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
           ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
           : 0;
 
-        // Effective remaining arrears for this voucher
-        const calculatedArrears = Math.max(0, outstandingPrevArrears - arrearsPaymentsOnVoucher);
+        // Previous Balance (P.Bal):
+        // Prefer live ledger dues (outstandingPrevArrears + any payment on this voucher's arrears) to reflect any payments made after voucher generation.
+        let previousBalance = 0;
+        if (outstandingPrevArrears > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
+          previousBalance = Math.max(0, Math.round((outstandingPrevArrears + arrearsPaymentsOnVoucher) * 100) / 100);
+        } else if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.finalAmount || 0) > 0) {
+          previousBalance = parseFloat(arrearsRecordOnVoucher.finalAmount || 0);
+        } else if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.baseAmount || 0) > 0) {
+          previousBalance = parseFloat(arrearsRecordOnVoucher.baseAmount || 0);
+        } else {
+          previousBalance = outstandingPrevArrears;
+        }
 
-        // Sum remaining amounts for current non-arrears items
-        const totalRemainingForVoucherExclArrears = feesWithVoucher.reduce((sum, f) => {
+        const regularPaid = feesWithVoucher.reduce((sum, f) => {
           if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
-          return sum + Math.max(0, parseFloat(f.finalAmount || 0) - parseFloat(f.paidAmount || 0));
+          return sum + parseFloat(f.paidAmount || 0);
         }, 0);
-
-        const displayedRemaining = totalRemainingForVoucherExclArrears + calculatedArrears;
+        const totalPaidForVoucher = regularPaid + arrearsPaymentsOnVoucher;
+        const totalVoucherObligation = voucherAmount + previousBalance;
+        const displayedRemaining = Math.max(0, totalVoucherObligation - totalPaidForVoucher);
 
         // Determine voucher status using the displayed remaining amount
         let voucherStatus = feesWithVoucher.length === 0 ? 'Generated' : 'Unpaid';
         if (voucherStatus !== 'Generated') {
           if (displayedRemaining <= 0.01) {
             voucherStatus = 'Paid';
-          } else if (feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0) > 0 || arrearsPaymentsOnVoucher > 0) {
+          } else if (totalPaidForVoucher > 0) {
             voucherStatus = 'Partial';
           } else {
             voucherStatus = 'Unpaid';
           }
         }
-
-        const displayPaidAmount = feesWithVoucher.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
 
         uniqueStudentsMap.set(studentIdStr, {
           _id: admission?._id || studentIdStr,
@@ -1154,8 +1162,8 @@ const FeeManagement = () => {
           voucherStatus: voucherStatus,
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount,
-          arrears: calculatedArrears,
-          paidAmount: displayPaidAmount,
+          arrears: previousBalance,
+          paidAmount: totalPaidForVoucher,
           remainingAmount: displayedRemaining,
           generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null
         });
