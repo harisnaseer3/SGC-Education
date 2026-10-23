@@ -288,8 +288,60 @@ class UserService {
 
     return await User.findById(user._id)
       .select('-password')
-      .populate('institution', 'name type')
-;
+      .populate('institution', 'name type');
+  }
+
+  /**
+   * Permanently delete user
+   */
+  async deleteUser(userId, currentUser) {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new ApiError(404, 'User not found');
+    }
+
+    // Prevent self-deletion
+    const currentUserId = (currentUser.id || currentUser._id || '').toString();
+    if (user._id.toString() === currentUserId) {
+      throw new ApiError(400, 'You cannot delete your own account');
+    }
+
+    // Prevent deleting root developer
+    if (user.email === 'haris@sgceducation.com') {
+      throw new ApiError(403, 'Root developer account cannot be deleted');
+    }
+
+    // Role-based restrictions
+    if (currentUser.role !== 'super_admin') {
+      if (user.role === 'super_admin') {
+        throw new ApiError(403, 'Only a Super Admin can delete a Super Admin user');
+      }
+
+      if (currentUser.role === 'organization_admin') {
+        if (user.role === 'organization_admin') {
+          throw new ApiError(403, 'Cannot delete another Organization Admin');
+        }
+        if (user.institution && currentUser.organization) {
+          const Institution = require('../models/Institution');
+          const orgId = currentUser.organization._id || currentUser.organization;
+          const inst = await Institution.findOne({ _id: user.institution, organization: orgId });
+          if (!inst) {
+            throw new ApiError(403, 'User does not belong to your organization');
+          }
+        }
+      } else if (currentUser.institution) {
+        if (!user.institution || user.institution.toString() !== currentUser.institution.toString()) {
+          throw new ApiError(403, 'You can only delete users from your own campus');
+        }
+        if (['admin', 'organization_admin', 'super_admin'].includes(user.role)) {
+          throw new ApiError(403, 'You do not have permission to delete administrative users');
+        }
+      }
+    }
+
+    await User.findByIdAndDelete(userId);
+    return { message: 'User permanently deleted' };
   }
 }
 

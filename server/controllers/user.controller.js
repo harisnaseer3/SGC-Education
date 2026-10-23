@@ -177,6 +177,25 @@ const deactivateUser = asyncHandler(async (req, res) => {
   });
 });
 
+/**
+ * @route   DELETE /api/v1/users/:id
+ * @desc    Permanently delete a user
+ * @access  Private (Admin / Super Admin)
+ */
+const deleteUser = asyncHandler(async (req, res) => {
+  await userService.deleteUser(req.params.id, req.user);
+
+  createActivityLog(req.user.id || req.user._id, 'delete', 'user', `Permanently deleted user ID: ${req.params.id}`, {
+    targetUserId: req.params.id,
+    ipAddress: req.ip || req.connection.remoteAddress
+  });
+
+  res.json({
+    success: true,
+    message: 'User deleted permanently'
+  });
+});
+
 module.exports = {
   getProfile,
   updateProfile,
@@ -186,5 +205,6 @@ module.exports = {
   getUserById,
   updateUser,
   toggleUserStatus,
-  deactivateUser
+  deactivateUser,
+  deleteUser
 };

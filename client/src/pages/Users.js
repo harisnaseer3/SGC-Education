@@ -29,6 +29,7 @@ import {
 import {
   Edit,
   PowerSettingsNew,
+  Delete,
   PersonAdd,
   Key,
   SwitchAccount,
@@ -36,7 +37,8 @@ import {
   Visibility,
   VisibilityOff,
   CheckCircle,
-  Security
+  Security,
+  WarningAmber
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -53,7 +55,6 @@ const Users = () => {
   const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
   const [users, setUsers] = useState([]);
   const [institutions, setInstitutions] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -64,7 +65,6 @@ const Users = () => {
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [institutionFilter, setInstitutionFilter] = useState('');
-  const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [roles, setRoles] = useState([]); // Dynamic roles state
 
@@ -82,30 +82,18 @@ const Users = () => {
   const [impersonateUser, setImpersonateUser] = useState(null);
   const [impersonateLoading, setImpersonateLoading] = useState(false);
 
-  const isInitialLoad = useRef(true);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
-    if (isInitialLoad.current) {
-      isInitialLoad.current = false;
-      const institutionData = localStorage.getItem('selectedInstitution');
-      if (institutionData && roleFilter !== 'super_admin') {
-        try {
-          const institution = JSON.parse(institutionData);
-          setInstitutionFilter(institution._id);
-          return;
-        } catch (e) {
-          console.error('Failed to parse institution data', e);
-        }
-      }
-    }
-
     fetchUsers();
     fetchRoles(); // Fetch roles for filter
     if (currentUser.role === 'super_admin') {
       fetchInstitutions();
     }
-    fetchDepartments();
-  }, [search, roleFilter, institutionFilter, departmentFilter, statusFilter]);
+  }, [search, roleFilter, institutionFilter, statusFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -116,7 +104,6 @@ const Users = () => {
       if (search) params.append('search', search);
       if (roleFilter) params.append('role', roleFilter);
       if (institutionFilter) params.append('institution', institutionFilter);
-      if (departmentFilter) params.append('department', departmentFilter);
       if (statusFilter) params.append('isActive', statusFilter);
 
       const response = await axios.get(
@@ -159,18 +146,6 @@ const Users = () => {
     }
   };
 
-  const fetchDepartments = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(getApiUrl('departments'), {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setDepartments(response.data.data);
-    } catch (err) {
-      console.error('Failed to fetch departments:', err);
-    }
-  };
-
   const handleToggleStatus = async (userId) => {
     try {
       const token = localStorage.getItem('token');
@@ -189,6 +164,31 @@ const Users = () => {
 
   const handleEdit = (userId) => {
     navigate(`/users/edit/${userId}`);
+  };
+
+  const handleOpenDeleteDialog = (user) => {
+    setUserToDelete(user);
+    setDeleteError('');
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return;
+    try {
+      setDeleteLoading(true);
+      setDeleteError('');
+      const token = localStorage.getItem('token');
+      await axios.delete(getApiUrl(`users/${userToDelete._id}`), {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchUsers();
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || 'Failed to permanently delete user');
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   // Developer Handlers
@@ -358,96 +358,99 @@ const Users = () => {
           <Typography variant="h6" gutterBottom>
             Filters
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                label="Search"
-                placeholder="Name or email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="Role"
-                value={roleFilter}
-                onChange={(e) => {
-                  setRoleFilter(e.target.value);
-                  // Clear institution filter when selecting super_admin (they don't have institutions)
-                  if (e.target.value === 'super_admin') {
-                    setInstitutionFilter('');
-                  }
-                }}
-                size="small"
-              >
-                <MenuItem value="">All Roles</MenuItem>
-                {roles.map((role) => {
-                  const isSuperAdminRole = role.name === 'super_admin';
-                  if (isSuperAdminRole && currentUser.role !== 'super_admin') return null;
-                  
-                  return (
-                    <MenuItem key={role._id} value={role.name}>
-                      {getRoleLabel(role.name)}
-                    </MenuItem>
-                  );
-                })}
-              </TextField>
-            </Grid>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: currentUser.role === 'super_admin' ? '2fr 1.5fr 2fr 1.2fr' : '2fr 1.5fr 1.2fr'
+              },
+              gap: 2,
+              alignItems: 'center'
+            }}
+          >
+            <TextField
+              fullWidth
+              label="Search"
+              placeholder="Name or email..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              size="small"
+            />
+            <TextField
+              fullWidth
+              select
+              label="Role"
+              value={roleFilter}
+              onChange={(e) => {
+                setRoleFilter(e.target.value);
+                if (e.target.value === 'super_admin') {
+                  setInstitutionFilter('');
+                }
+              }}
+              size="small"
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">All Roles</MenuItem>
+              {roles.map((role) => {
+                const isSuperAdminRole = role.name === 'super_admin';
+                if (isSuperAdminRole && currentUser.role !== 'super_admin') return null;
+                
+                return (
+                  <MenuItem key={role._id} value={role.name}>
+                    {getRoleLabel(role.name)}
+                  </MenuItem>
+                );
+              })}
+            </TextField>
             {currentUser.role === 'super_admin' && (
-              <Grid item xs={12} md={3}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Institution"
-                  value={institutionFilter}
-                  onChange={(e) => setInstitutionFilter(e.target.value)}
-                  size="small"
-                >
-                  <MenuItem value="">All Institutions</MenuItem>
-                  {institutions.map((inst) => (
-                    <MenuItem key={inst._id} value={inst._id}>
-                      {inst.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </Grid>
-            )}
-            <Grid item xs={12} md={3}>
               <TextField
                 fullWidth
                 select
-                label="Department"
-                value={departmentFilter}
-                onChange={(e) => setDepartmentFilter(e.target.value)}
+                label="Institution"
+                value={institutionFilter}
+                onChange={(e) => setInstitutionFilter(e.target.value)}
                 size="small"
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
               >
-                <MenuItem value="">All Departments</MenuItem>
-                {departments.map((dept) => (
-                  <MenuItem key={dept._id} value={dept._id}>
-                    {dept.name} ({dept.code})
+                <MenuItem value="">All Institutions</MenuItem>
+                {institutions.map((inst) => (
+                  <MenuItem key={inst._id} value={inst._id}>
+                    {inst.name}
                   </MenuItem>
                 ))}
               </TextField>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <TextField
-                fullWidth
-                select
-                label="Status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                size="small"
-              >
-                <MenuItem value="">All Status</MenuItem>
-                <MenuItem value="true">Active</MenuItem>
-                <MenuItem value="false">Inactive</MenuItem>
-              </TextField>
-            </Grid>
-          </Grid>
+            )}
+            <TextField
+              fullWidth
+              select
+              label="Status"
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              size="small"
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">All Status</MenuItem>
+              <MenuItem value="true">Active</MenuItem>
+              <MenuItem value="false">Inactive</MenuItem>
+            </TextField>
+          </Box>
         </Paper>
 
         {/* Users Table */}
@@ -460,7 +463,6 @@ const Users = () => {
                   <TableCell><strong>Email</strong></TableCell>
                   <TableCell><strong>Role</strong></TableCell>
                   <TableCell><strong>Institution</strong></TableCell>
-                  <TableCell><strong>Department</strong></TableCell>
                   <TableCell><strong>Status</strong></TableCell>
                   <TableCell align="center"><strong>Actions</strong></TableCell>
                 </TableRow>
@@ -468,13 +470,13 @@ const Users = () => {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={6} align="center">
                       Loading users...
                     </TableCell>
                   </TableRow>
                 ) : users.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} align="center">
+                    <TableCell colSpan={6} align="center">
                       No users found
                     </TableCell>
                   </TableRow>
@@ -496,9 +498,6 @@ const Users = () => {
                           : (user.role === 'organization_admin' || user.role === 'finance_manager')
                             ? `${capitalizeFirstOnly(user.organization?.name || 'Organization')} (All Campuses)`
                             : capitalizeFirstOnly(user.institution?.name || '-')}
-                      </TableCell>
-                      <TableCell>
-                        {user.department ? `${capitalizeFirstOnly(user.department.name || '')} (${user.department.code})` : '-'}
                       </TableCell>
                       <TableCell>
                         <Chip
@@ -527,6 +526,27 @@ const Users = () => {
                           >
                             <PowerSettingsNew />
                           </IconButton>
+                        )}
+                        {(hasPermission(PERMISSIONS.USERS.DELETE) || currentUser.role === 'super_admin') && (
+                          <Tooltip
+                            title={
+                              (user._id === (currentUser.id || currentUser._id) || user.email === 'haris@sgceducation.com')
+                                ? "Cannot delete this account"
+                                : "Permanently Delete User"
+                            }
+                            arrow
+                          >
+                            <span>
+                              <IconButton
+                                size="small"
+                                sx={{ color: '#d32f2f', ml: 0.5, '&:hover': { bgcolor: '#ffebee' } }}
+                                onClick={() => handleOpenDeleteDialog(user)}
+                                disabled={user._id === (currentUser.id || currentUser._id) || user.email === 'haris@sgceducation.com'}
+                              >
+                                <Delete fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
                         )}
                         {isDeveloper && (
                           <>
@@ -710,6 +730,50 @@ const Users = () => {
               startIcon={impersonateLoading ? <CircularProgress size={18} color="inherit" /> : <SwitchAccount />}
             >
               {impersonateLoading ? 'Logging In...' : 'Log In As User'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Permanent Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={() => !deleteLoading && setDeleteDialogOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: '#d32f2f' }}>
+            <WarningAmber color="error" />
+            <Typography variant="h6" fontWeight="bold">Delete User Permanently?</Typography>
+          </DialogTitle>
+          <DialogContent>
+            {deleteError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {deleteError}
+              </Alert>
+            )}
+            <Typography variant="body2" sx={{ mb: 1.5, color: '#444' }}>
+              Are you sure you want to permanently delete user <strong>{userToDelete?.name}</strong> ({userToDelete?.email})?
+            </Typography>
+            <Alert severity="warning" sx={{ fontSize: '0.82rem' }}>
+              <strong>Warning:</strong> This action cannot be undone. All credentials and records associated directly with this user will be removed.
+            </Alert>
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteLoading}
+              variant="outlined"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={deleteLoading}
+              variant="contained"
+              color="error"
+              startIcon={deleteLoading ? <CircularProgress size={16} color="inherit" /> : <Delete />}
+            >
+              {deleteLoading ? 'Deleting...' : 'Delete Permanently'}
             </Button>
           </DialogActions>
         </Dialog>

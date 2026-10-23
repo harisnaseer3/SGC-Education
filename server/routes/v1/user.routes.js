@@ -26,5 +26,6 @@ router.get('/:id', hasPermission(PERMISSIONS.USERS.VIEW), userController.getUser
 router.put('/:id', hasPermission(PERMISSIONS.USERS.EDIT), userController.updateUser);
 router.put('/:id/toggle-status', hasPermission(PERMISSIONS.USERS.EDIT), userController.toggleUserStatus);
 router.put('/:id/deactivate', hasPermission(PERMISSIONS.USERS.EDIT), userController.deactivateUser);
+router.delete('/:id', hasPermission(PERMISSIONS.USERS.DELETE), userController.deleteUser);
 
 module.exports = router;
