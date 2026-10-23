@@ -26,6 +26,7 @@ const backupRoutes = require('./backup.routes');
 const roleRoutes = require('./role.routes');
 const bankAccountRoutes = require('./bankAccount.routes');
 const erpRoutes = require('./erpIntegration.routes');
+const developerRoutes = require('./developer.routes');
 
 /**
  * API v1 Routes
@@ -56,6 +57,7 @@ router.use('/backups', backupRoutes);
 router.use('/roles', roleRoutes);
 router.use('/bank-accounts', bankAccountRoutes);
 router.use('/erp', erpRoutes);
+router.use('/developer', developerRoutes);
 
 // Health check
 router.get('/health', (req, res) => {

@@ -18,11 +18,18 @@ const seedRoles = async () => {
       
       if (!existingRole) {
         console.log(`+ Creating system role: ${roleName}`);
+        let description = `Built-in system role for ${roleName}`;
+        if (roleName === 'organization_admin') {
+          description = 'Organization admin with access to all campuses under the organization';
+        } else if (roleName === 'admission_officer') {
+          description = 'Admission officer with campus admission management access';
+        }
+
         await Role.create({
           name: roleName,
           permissions: permissions,
           isSystemRole: true,
-          description: `Built-in system role for ${roleName}`
+          description
         });
       } else if (existingRole.isSystemRole) {
         // Optionally update permissions of system roles to match constants

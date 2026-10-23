@@ -12,7 +12,7 @@ class UserService {
     const user = await User.findById(userId)
       .select('-password')
       .populate('institution', 'name type')
-;
+      .populate('organization', 'name code');
 
     if (!user) {
       throw new ApiError(404, 'User not found');
@@ -88,14 +88,27 @@ class UserService {
     // Institution filtering based on role
     if (currentUser.role === 'super_admin') {
       // Super admin can filter by institution if provided
-      // BUT: If filtering by super_admin role, don't apply institution filter
-      // because super admins don't have institutions
-      if (filters.institution && filters.role !== 'super_admin') {
+      // BUT: If filtering by super_admin or org-level role, don't apply institution filter
+      if (filters.institution && filters.role !== 'super_admin' && filters.role !== 'organization_admin' && filters.role !== 'finance_manager') {
         query.institution = filters.institution;
       }
-      // If filtering by super_admin role, we need to explicitly exclude institution filter
-      // to show super admins (who don't have institutions)
-      // If no institution filter, super admin sees all users
+    } else if (currentUser.role === 'organization_admin' || currentUser.role === 'finance_manager') {
+      // User with organization scoping sees users belonging to campuses in their organization
+      if (currentUser.organization) {
+        const orgId = currentUser.organization._id || currentUser.organization;
+        const Institution = require('../models/Institution');
+        const orgInstitutions = await Institution.find({ organization: orgId }).select('_id');
+        const instIds = orgInstitutions.map(i => i._id);
+
+        if (filters.institution) {
+          query.institution = filters.institution;
+        } else {
+          query.$or = [
+            { institution: { $in: instIds } },
+            { organization: orgId }
+          ];
+        }
+      }
     } else if (currentUser.institution) {
       // Regular admin only sees users from their institution
       query.institution = currentUser.institution;
@@ -104,10 +117,8 @@ class UserService {
     // Apply role filter
     if (filters.role) {
       query.role = filters.role;
-      // If filtering by super_admin, ensure we don't filter by institution
-      // because super admins don't have institutions
-      if (filters.role === 'super_admin') {
-        // Remove institution filter if it exists, so super admins are shown
+      // If filtering by super_admin, organization_admin or finance_manager, ensure we don't filter by institution
+      if (['super_admin', 'organization_admin', 'finance_manager'].includes(filters.role) && !filters.institution) {
         delete query.institution;
       }
     }
@@ -124,6 +135,7 @@ class UserService {
     const users = await User.find(query)
       .select('-password')
       .populate('institution', 'name type')
+      .populate('organization', 'name code')
       .sort({ createdAt: -1 });
 
     console.log('=== GET USERS SERVICE ===', {
@@ -150,19 +162,14 @@ class UserService {
 
     // Validate permissions
     if (createdBy.role === 'admin') {
-      if (role === 'super_admin') {
-        throw new ApiError(403, 'You cannot create super admin users');
+      if (role === 'super_admin' || role === 'organization_admin') {
+        throw new ApiError(403, 'You do not have permission to create this user role');
       }
       
-      // Admins can only create users for their institution (unless they are creating an org-level role if allowed)
-      // Actually, an admin creating a finance_manager should be restricted, but let's allow it for their organization
-      if (role !== 'finance_manager' && (!institution || institution.toString() !== createdBy.institution.toString())) {
+      // Admins can only create users for their institution (unless creating org-level role if allowed)
+      if (role !== 'finance_manager' && role !== 'organization_admin' && (!institution || institution.toString() !== createdBy.institution.toString())) {
         throw new ApiError(403, 'You can only create users for your institution');
       }
-      
-      // If admin creates finance_manager, ensure it's for their organization
-      // If createdBy doesn't have an organization field populated, this might be tricky.
-      // But we just let it pass for now or assume they are creating for their institution's org.
     }
 
     // Create user
@@ -182,7 +189,7 @@ class UserService {
     const populatedUser = await User.findById(user._id)
       .select('-password')
       .populate('institution', 'name type')
-;
+      .populate('organization', 'name code');
 
     return populatedUser;
   }
@@ -199,7 +206,7 @@ class UserService {
 
     // Check permissions
     if (currentUser.role !== 'super_admin') {
-      if (user.role !== 'finance_manager' && (!user.institution || user.institution.toString() !== currentUser.institution.toString())) {
+      if (user.role !== 'finance_manager' && user.role !== 'organization_admin' && (!user.institution || user.institution.toString() !== currentUser.institution.toString())) {
         throw new ApiError(403, 'You can only update users from your institution');
       }
     }
@@ -222,11 +229,11 @@ class UserService {
     }
 
     // If changing to a role that doesn't use institution, unset it
-    if (updateData.role === 'super_admin' || updateData.role === 'finance_manager') {
+    if (updateData.role === 'super_admin' || updateData.role === 'finance_manager' || updateData.role === 'organization_admin') {
       user.institution = undefined;
     }
     // If changing to a role that doesn't use organization, unset it
-    if (updateData.role && updateData.role !== 'finance_manager') {
+    if (updateData.role && updateData.role !== 'finance_manager' && updateData.role !== 'organization_admin') {
       user.organization = undefined;
     }
 
@@ -237,7 +244,7 @@ class UserService {
     return await User.findById(user._id)
       .select('-password')
       .populate('institution', 'name type')
-;
+      .populate('organization', 'name code');
   }
 
   /**

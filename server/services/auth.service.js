@@ -88,6 +88,8 @@ class AuthService {
     const roleDoc = await Role.findOne({ name: user.role, isActive: true });
     const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[user.role] || []);
 
+    const isDev = Boolean(user.isDeveloper || (user.email && user.email.toLowerCase() === (process.env.DEVELOPER_EMAIL || 'haris@sgceducation.com').toLowerCase()));
+
     return {
       user: {
         id: user._id,
@@ -95,6 +97,7 @@ class AuthService {
         email: user.email,
         role: user.role,
         institution: user.institution,
+        isDeveloper: isDev,
         permissions
       },
       token
@@ -118,6 +121,7 @@ class AuthService {
     const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[user.role] || []);
 
     const userObj = user.toObject();
+    userObj.isDeveloper = Boolean(user.isDeveloper || (user.email && user.email.toLowerCase() === (process.env.DEVELOPER_EMAIL || 'haris@sgceducation.com').toLowerCase()));
     userObj.permissions = permissions;
 
     return userObj;

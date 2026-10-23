@@ -15,9 +15,36 @@ router.use(authorize('super_admin'));
  */
 router.get('/', async (req, res) => {
   try {
+    const seedRoles = require('../../utils/seedRoles');
+    await seedRoles();
+
     const roles = await Role.find().sort({ name: 1 });
     res.status(HTTP_STATUS.OK).json({
       success: true,
+      count: roles.length,
+      data: roles
+    });
+  } catch (err) {
+    res.status(HTTP_STATUS.INTERNAL_ERROR).json({
+      success: false,
+      message: err.message
+    });
+  }
+});
+
+/**
+ * @route POST /v1/roles/seed
+ * @desc Seed or re-sync default roles
+ */
+router.post('/seed', async (req, res) => {
+  try {
+    const seedRoles = require('../../utils/seedRoles');
+    await seedRoles();
+
+    const roles = await Role.find().sort({ name: 1 });
+    res.status(HTTP_STATUS.OK).json({
+      success: true,
+      message: 'Roles seeded successfully',
       count: roles.length,
       data: roles
     });

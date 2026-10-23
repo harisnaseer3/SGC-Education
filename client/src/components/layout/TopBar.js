@@ -74,15 +74,70 @@ const TopBar = ({ title = 'SGC Education', showInstitutionSwitcher = true, actio
     navigate('/profile');
   };
 
+  const devSession = JSON.parse(localStorage.getItem('developerSession') || 'null');
+
+  const handleExitImpersonation = () => {
+    if (devSession && devSession.token && devSession.user) {
+      localStorage.setItem('token', devSession.token);
+      localStorage.setItem('user', JSON.stringify(devSession.user));
+      localStorage.removeItem('developerSession');
+      window.location.href = '/users';
+    }
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('selectedInstitution');
+    localStorage.removeItem('developerSession');
     navigate('/login');
   };
 
   return (
     <AppBar position="fixed" sx={{ width: '100%', right: 0, left: 0, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', zIndex: 1300 }}>
+      {devSession && (
+        <Box
+          sx={{
+            bgcolor: '#ff9800',
+            color: '#1a1a1a',
+            px: { xs: 1.5, sm: 3 },
+            py: 0.75,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: 1,
+            borderBottom: '1px solid rgba(0,0,0,0.15)',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+          }}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              🛡️ DEVELOPER IMPERSONATION MODE:
+            </Typography>
+            <Typography variant="body2">
+              Viewing as <strong>{user.name}</strong> ({user.email}) • Role: <strong>{user.role}</strong>
+            </Typography>
+          </Box>
+          <Button
+            size="small"
+            variant="contained"
+            onClick={handleExitImpersonation}
+            sx={{
+              bgcolor: '#1a1a1a',
+              color: '#ffffff',
+              fontWeight: 'bold',
+              fontSize: '0.75rem',
+              py: 0.3,
+              px: 2,
+              borderRadius: 1,
+              '&:hover': { bgcolor: '#000000' }
+            }}
+          >
+            Exit & Return to Developer
+          </Button>
+        </Box>
+      )}
       <Toolbar sx={{ px: { xs: 1, sm: 3 }, flexWrap: 'nowrap', gap: { xs: 1, sm: 2 } }}>
         <IconButton
           color="inherit"

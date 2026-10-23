@@ -14,14 +14,21 @@ class InstitutionService {
     // Other users can only see their own institution
     const query = {};
 
-    if (currentUser.role !== 'super_admin') {
+    if (currentUser.role === 'super_admin') {
+      // Super admin can see all institutions (or filter by query.organization if provided)
+    } else if (currentUser.role === 'organization_admin' || currentUser.role === 'finance_manager') {
+      // Organization admin & finance manager have access to all campuses under their organization
+      if (currentUser.organization) {
+        query.organization = currentUser.organization._id || currentUser.organization;
+      }
+    } else if (currentUser.institution) {
       query._id = currentUser.institution;
     }
 
     // Apply filters
     if (filters.type) query.type = filters.type;
     if (filters.isActive !== undefined) query.isActive = filters.isActive;
-    if (filters.organization) query.organization = filters.organization;
+    if (filters.organization && currentUser.role === 'super_admin') query.organization = filters.organization;
     if (filters.search) {
       query.$or = [
         { name: { $regex: filters.search, $options: 'i' } },
@@ -64,12 +71,22 @@ class InstitutionService {
     }
 
     // Check access permissions
-    const userInstitutionId = currentUser.institution?._id
-      ? currentUser.institution._id.toString()
-      : currentUser.institution?.toString();
+    if (currentUser.role !== 'super_admin') {
+      if (currentUser.role === 'organization_admin' || currentUser.role === 'finance_manager') {
+        const userOrgId = (currentUser.organization?._id || currentUser.organization)?.toString();
+        const instOrgId = (institution.organization?._id || institution.organization)?.toString();
+        if (!userOrgId || userOrgId !== instOrgId) {
+          throw new ApiError(403, 'Access denied to this institution');
+        }
+      } else {
+        const userInstitutionId = currentUser.institution?._id
+          ? currentUser.institution._id.toString()
+          : currentUser.institution?.toString();
 
-    if (currentUser.role !== 'super_admin' && institution._id.toString() !== userInstitutionId) {
-      throw new ApiError(403, 'Access denied to this institution');
+        if (institution._id.toString() !== userInstitutionId) {
+          throw new ApiError(403, 'Access denied to this institution');
+        }
+      }
     }
 
     return institution;

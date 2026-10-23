@@ -17,12 +17,26 @@ import {
   Grid,
   Typography,
   Alert,
-  TablePagination
+  TablePagination,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  InputAdornment,
+  Tooltip,
+  CircularProgress
 } from '@mui/material';
 import {
   Edit,
   PowerSettingsNew,
-  PersonAdd
+  PersonAdd,
+  Key,
+  SwitchAccount,
+  ContentCopy,
+  Visibility,
+  VisibilityOff,
+  CheckCircle,
+  Security
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -53,6 +67,20 @@ const Users = () => {
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [roles, setRoles] = useState([]); // Dynamic roles state
+
+  // Developer check & recovery states
+  const isDeveloper = Boolean(currentUser.isDeveloper || (currentUser.email && currentUser.email.toLowerCase() === 'haris@sgceducation.com'));
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState({ type: '', text: '' });
+  const [copied, setCopied] = useState(false);
+
+  const [impersonateModalOpen, setImpersonateModalOpen] = useState(false);
+  const [impersonateUser, setImpersonateUser] = useState(null);
+  const [impersonateLoading, setImpersonateLoading] = useState(false);
 
   const isInitialLoad = useRef(true);
 
@@ -163,6 +191,93 @@ const Users = () => {
     navigate(`/users/edit/${userId}`);
   };
 
+  // Developer Handlers
+  const handleOpenResetModal = (user) => {
+    setSelectedUser(user);
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    setNewPassword(`Sgc@${randomSuffix}`);
+    setResetMessage({ type: '', text: '' });
+    setCopied(false);
+    setShowPassword(false);
+    setResetModalOpen(true);
+  };
+
+  const handleGeneratePassword = () => {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    setNewPassword(`Sgc@${randomSuffix}`);
+    setCopied(false);
+  };
+
+  const handleCopyCredentials = () => {
+    if (!selectedUser) return;
+    const credText = `SGCEducation Account Recovery\nName: ${selectedUser.name}\nEmail / Username: ${selectedUser.email}\nTemporary Password: ${newPassword}\nRole: ${selectedUser.role}`;
+    navigator.clipboard.writeText(credText);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2500);
+  };
+
+  const handleExecuteResetPassword = async () => {
+    if (!newPassword || newPassword.trim().length < 6) {
+      setResetMessage({ type: 'error', text: 'Password must be at least 6 characters' });
+      return;
+    }
+    try {
+      setResetLoading(true);
+      const token = localStorage.getItem('token');
+      await axios.post(
+        getApiUrl(`developer/reset-password/${selectedUser._id}`),
+        { newPassword },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setResetMessage({
+        type: 'success',
+        text: `Password successfully updated for ${selectedUser.name}! You can copy and send credentials below.`
+      });
+    } catch (err) {
+      setResetMessage({
+        type: 'error',
+        text: err.response?.data?.message || 'Failed to reset password'
+      });
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
+  const handleOpenImpersonate = (user) => {
+    setImpersonateUser(user);
+    setImpersonateModalOpen(true);
+  };
+
+  const handleExecuteImpersonate = async () => {
+    try {
+      setImpersonateLoading(true);
+      const token = localStorage.getItem('token');
+      const res = await axios.post(
+        getApiUrl(`developer/impersonate/${impersonateUser._id}`),
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      // Save developer original session
+      localStorage.setItem('developerSession', JSON.stringify({
+        token,
+        user: currentUser
+      }));
+
+      // Switch to impersonated user
+      localStorage.setItem('token', res.data.token);
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+
+      // Redirect to dashboard
+      window.location.href = '/dashboard';
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to impersonate user');
+      setImpersonateModalOpen(false);
+    } finally {
+      setImpersonateLoading(false);
+    }
+  };
+
 
   const getRoleColor = (role) => {
     switch (role) {
@@ -170,6 +285,12 @@ const Users = () => {
         return 'error';
       case 'admin':
         return 'primary';
+      case 'organization_admin':
+        return 'secondary';
+      case 'admission_officer':
+        return 'warning';
+      case 'finance_manager':
+        return 'secondary';
       case 'teacher':
         return 'info';
       case 'student':
@@ -185,12 +306,18 @@ const Users = () => {
         return 'Super Admin';
       case 'admin':
         return 'Admin';
+      case 'organization_admin':
+        return 'Organization Admin';
+      case 'admission_officer':
+        return 'Admission Officer';
+      case 'finance_manager':
+        return 'Finance Manager';
       case 'teacher':
         return 'Teacher';
       case 'student':
         return 'Student';
       default:
-        return role;
+        return role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
     }
   };
 
@@ -364,7 +491,11 @@ const Users = () => {
                         />
                       </TableCell>
                       <TableCell>
-                        {capitalizeFirstOnly(user.institution?.name || '-')}
+                        {user.role === 'super_admin'
+                          ? 'All Campuses'
+                          : (user.role === 'organization_admin' || user.role === 'finance_manager')
+                            ? `${capitalizeFirstOnly(user.organization?.name || 'Organization')} (All Campuses)`
+                            : capitalizeFirstOnly(user.institution?.name || '-')}
                       </TableCell>
                       <TableCell>
                         {user.department ? `${capitalizeFirstOnly(user.department.name || '')} (${user.department.code})` : '-'}
@@ -397,6 +528,28 @@ const Users = () => {
                             <PowerSettingsNew />
                           </IconButton>
                         )}
+                        {isDeveloper && (
+                          <>
+                            <Tooltip title="Developer: Quick Reset Password" arrow>
+                              <IconButton
+                                size="small"
+                                sx={{ color: '#e65100', ml: 0.5, '&:hover': { bgcolor: '#ffe0b2' } }}
+                                onClick={() => handleOpenResetModal(user)}
+                              >
+                                <Key fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={`Developer: Login As ${user.name}`} arrow>
+                              <IconButton
+                                size="small"
+                                sx={{ color: '#6a1b9a', ml: 0.5, '&:hover': { bgcolor: '#e1bee7' } }}
+                                onClick={() => handleOpenImpersonate(user)}
+                              >
+                                <SwitchAccount fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))
@@ -418,6 +571,148 @@ const Users = () => {
             )}
           </TableContainer>
         </Paper>
+
+        {/* Developer Modal: Quick Reset Password */}
+        <Dialog
+          open={resetModalOpen}
+          onClose={() => !resetLoading && setResetModalOpen(false)}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle sx={{ background: 'linear-gradient(135deg, #e65100 0%, #ff9800 100%)', color: 'white', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Key />
+            <Typography variant="h6" fontWeight="bold">Developer Master Recovery: Reset Password</Typography>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 3 }}>
+            {selectedUser && (
+              <Box sx={{ mb: 3 }}>
+                <Paper variant="outlined" sx={{ p: 2, bgcolor: '#f9f9f9', borderRadius: 2 }}>
+                  <Typography variant="subtitle2" color="text.secondary">Target User Profile</Typography>
+                  <Typography variant="h6" fontWeight="bold">{selectedUser.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Email / Username:</strong> {selectedUser.email}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Role:</strong> {getRoleLabel(selectedUser.role)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    <strong>Campus / Org:</strong> {selectedUser.organization?.name || selectedUser.institution?.name || 'All Campuses'}
+                  </Typography>
+                </Paper>
+              </Box>
+            )}
+
+            {resetMessage.text && (
+              <Alert severity={resetMessage.type} sx={{ mb: 2 }}>
+                {resetMessage.text}
+              </Alert>
+            )}
+
+            <TextField
+              fullWidth
+              label="New Password"
+              type={showPassword ? 'text' : 'password'}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              helperText="Set a temporary password (min 6 characters) to share with the user."
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                  </InputAdornment>
+                )
+              }}
+              sx={{ mb: 2 }}
+            />
+
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleGeneratePassword}
+              >
+                Generate New Password
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                size="small"
+                startIcon={copied ? <CheckCircle color="success" /> : <ContentCopy />}
+                onClick={handleCopyCredentials}
+              >
+                {copied ? 'Copied to Clipboard!' : 'Copy Credentials'}
+              </Button>
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5, borderTop: '1px solid #e0e0e0' }}>
+            <Button
+              onClick={() => setResetModalOpen(false)}
+              disabled={resetLoading}
+            >
+              Close
+            </Button>
+            <Button
+              variant="contained"
+              sx={{ bgcolor: '#e65100', '&:hover': { bgcolor: '#bf360c' } }}
+              onClick={handleExecuteResetPassword}
+              disabled={resetLoading}
+              startIcon={resetLoading ? <CircularProgress size={18} color="inherit" /> : <Key />}
+            >
+              {resetLoading ? 'Updating...' : 'Set Password'}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Developer Modal: Impersonate User Confirmation */}
+        <Dialog
+          open={impersonateModalOpen}
+          onClose={() => !impersonateLoading && setImpersonateModalOpen(false)}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ background: 'linear-gradient(135deg, #4a148c 0%, #7b1fa2 100%)', color: 'white', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <SwitchAccount />
+            <Typography variant="h6" fontWeight="bold">Confirm Impersonation</Typography>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 3 }}>
+            {impersonateUser && (
+              <Box>
+                <Typography variant="body1" sx={{ mb: 1.5 }}>
+                  Are you sure you want to log in as <strong>{impersonateUser.name}</strong>?
+                </Typography>
+                <Paper variant="outlined" sx={{ p: 1.5, bgcolor: '#f3e5f5', borderRadius: 2, mb: 2 }}>
+                  <Typography variant="body2"><strong>Email:</strong> {impersonateUser.email}</Typography>
+                  <Typography variant="body2"><strong>Role:</strong> {getRoleLabel(impersonateUser.role)}</Typography>
+                </Paper>
+                <Typography variant="caption" color="text.secondary">
+                  💡 You will see and operate the system under their exact permissions. A persistent banner will appear at the top allowing you to exit and return to developer mode anytime.
+                </Typography>
+              </Box>
+            )}
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button
+              onClick={() => setImpersonateModalOpen(false)}
+              disabled={impersonateLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              sx={{ bgcolor: '#6a1b9a', '&:hover': { bgcolor: '#4a148c' } }}
+              onClick={handleExecuteImpersonate}
+              disabled={impersonateLoading}
+              startIcon={impersonateLoading ? <CircularProgress size={18} color="inherit" /> : <SwitchAccount />}
+            >
+              {impersonateLoading ? 'Logging In...' : 'Log In As User'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </Box>
   );

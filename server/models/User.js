@@ -22,21 +22,21 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['super_admin', 'admin', 'finance_manager', 'teacher', 'staff'],
+    enum: ['super_admin', 'admin', 'organization_admin', 'admission_officer', 'finance_manager', 'teacher', 'staff', 'student'],
     required: true
   },
   institution: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Institution',
     required: function() {
-      return this.role !== 'super_admin' && this.role !== 'finance_manager';
+      return this.role !== 'super_admin' && this.role !== 'finance_manager' && this.role !== 'organization_admin';
     }
   },
   organization: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Organization',
     required: function() {
-      return this.role === 'finance_manager';
+      return this.role === 'finance_manager' || this.role === 'organization_admin';
     }
   },
   phone: {
@@ -57,6 +57,10 @@ const userSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  isDeveloper: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,

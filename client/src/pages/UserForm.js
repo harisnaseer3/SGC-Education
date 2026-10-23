@@ -57,8 +57,6 @@ const UserForm = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [institutions, setInstitutions] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [allDepartments, setAllDepartments] = useState([]);
   const [roles, setRoles] = useState([]); // Dynamic roles state
   const [organizations, setOrganizations] = useState([]);
 
@@ -70,7 +68,6 @@ const UserForm = () => {
     role: 'student',
     institution: '',
     organization: '',
-    department: '',
     phone: '',
   });
 
@@ -84,7 +81,6 @@ const UserForm = () => {
     }
 
     fetchInstitutions();
-    fetchDepartments();
     fetchRoles();
     fetchOrganizations();
 
@@ -92,18 +88,6 @@ const UserForm = () => {
       fetchUser();
     }
   }, [id]);
-
-  useEffect(() => {
-    // Filter departments by selected institution
-    if (formData.institution) {
-      const filtered = allDepartments.filter(
-        dept => dept.institution._id === formData.institution || dept.institution === formData.institution
-      );
-      setDepartments(filtered);
-    } else {
-      setDepartments(allDepartments);
-    }
-  }, [formData.institution, allDepartments]);
 
   const fetchInstitutions = async () => {
     try {
@@ -114,18 +98,6 @@ const UserForm = () => {
       setInstitutions(response.data.data);
     } catch (err) {
       console.error('Failed to fetch institutions:', err);
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const response = await axios.get(getApiUrl('departments'), {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAllDepartments(response.data.data);
-    } catch (err) {
-      console.error('Failed to fetch departments:', err);
     }
   };
 
@@ -173,7 +145,6 @@ const UserForm = () => {
         role: userData.role || 'student',
         institution: userData.institution?._id || userData.institution || '',
         organization: userData.organization?._id || userData.organization || '',
-        department: userData.department?._id || userData.department || '',
         phone: userData.phone || '',
       });
     } catch (err) {
@@ -189,15 +160,6 @@ const UserForm = () => {
       ...formData,
       [name]: value
     });
-
-    // Clear department if institution changes
-    if (name === 'institution') {
-      setFormData(prev => ({
-        ...prev,
-        institution: value,
-        department: ''
-      }));
-    }
   };
 
   const validateForm = () => {
@@ -206,14 +168,15 @@ const UserForm = () => {
       return false;
     }
 
-    // Institution is required for all roles except super_admin and finance_manager
-    if (formData.role !== 'super_admin' && formData.role !== 'finance_manager' && !formData.institution) {
+    // Institution is required for all roles except super_admin, finance_manager, and organization_admin
+    const isOrgLevelRole = formData.role === 'finance_manager' || formData.role === 'organization_admin';
+    if (formData.role !== 'super_admin' && !isOrgLevelRole && !formData.institution) {
       setError('Institution is required for this role');
       return false;
     }
 
-    if (formData.role === 'finance_manager' && !formData.organization) {
-      setError('Organization is required for Finance Manager');
+    if (isOrgLevelRole && !formData.organization) {
+      setError(`Organization is required for ${getRoleLabel(formData.role)}`);
       return false;
     }
 
@@ -266,21 +229,18 @@ const UserForm = () => {
         delete submitData.password;
       }
 
-      // Remove institution field if role is super_admin or finance_manager or if it's empty
-      if (submitData.role === 'super_admin' || submitData.role === 'finance_manager') {
+      // Remove institution field if role is super_admin, finance_manager, or organization_admin or if it's empty
+      if (submitData.role === 'super_admin' || submitData.role === 'finance_manager' || submitData.role === 'organization_admin') {
         delete submitData.institution;
       } else if (!submitData.institution || submitData.institution === '') {
         delete submitData.institution;
       }
 
-      if (submitData.role !== 'finance_manager') {
+      if (submitData.role !== 'finance_manager' && submitData.role !== 'organization_admin') {
         delete submitData.organization;
       }
 
-      // Remove department if it's empty
-      if (!submitData.department || submitData.department === '') {
-        delete submitData.department;
-      }
+      delete submitData.department;
 
       if (isEditMode) {
         await axios.put(
@@ -324,6 +284,9 @@ const UserForm = () => {
     switch (role) {
       case 'super_admin': return 'error';
       case 'admin': return 'primary';
+      case 'organization_admin': return 'secondary';
+      case 'admission_officer': return 'warning';
+      case 'finance_manager': return 'secondary';
       case 'teacher': return 'info';
       case 'student': return 'success';
       default: return 'default';
@@ -334,9 +297,12 @@ const UserForm = () => {
     switch (role) {
       case 'super_admin': return 'Super Admin';
       case 'admin': return 'Admin';
+      case 'organization_admin': return 'Organization Admin';
+      case 'admission_officer': return 'Admission Officer';
+      case 'finance_manager': return 'Finance Manager';
       case 'teacher': return 'Teacher';
       case 'student': return 'Student';
-      default: return role;
+      default: return role ? role.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : '';
     }
   };
 
@@ -587,14 +553,14 @@ const UserForm = () => {
                     Organization & Access
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Assign institution and department access
+                    Assign institution or organization access
                   </Typography>
                 </Box>
               </Box>
               <CardContent sx={{ p: 3 }}>
                 <Grid container spacing={3}>
-                  <Grid item xs={12} md={6}>
-                    {formData.role === 'finance_manager' ? (
+                  <Grid item xs={12}>
+                    {(formData.role === 'finance_manager' || formData.role === 'organization_admin') ? (
                       <FormControl 
                         fullWidth 
                         required
@@ -672,46 +638,12 @@ const UserForm = () => {
                     )}
                     {formData.role === 'super_admin' && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                        Super Admin has access to all institutions
+                        Super Admin has access to all institutions across all organizations
                       </Typography>
                     )}
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <FormControl 
-                      fullWidth
-                      disabled={!formData.institution}
-                      sx={{
-                        '& .MuiOutlinedInput-root': {
-                          borderRadius: 2,
-                        }
-                      }}
-                    >
-                      <InputLabel>Department (Optional)</InputLabel>
-                      <Select
-                        name="department"
-                        value={formData.department}
-                        onChange={handleChange}
-                        label="Department (Optional)"
-                        disabled={!formData.institution}
-                      >
-                        <MenuItem value="">
-                          <em>None</em>
-                        </MenuItem>
-                        {departments.length === 0 && formData.institution ? (
-                          <MenuItem disabled>No departments available</MenuItem>
-                        ) : (
-                          departments.map((dept) => (
-                            <MenuItem key={dept._id} value={dept._id}>
-                              {dept.name} ({dept.code})
-                            </MenuItem>
-                          ))
-                        )}
-                      </Select>
-                    </FormControl>
-                    {!formData.institution && (
+                    {(formData.role === 'organization_admin' || formData.role === 'finance_manager') && (
                       <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                        Select an institution first
+                        {getRoleLabel(formData.role)} has access to all campuses under the selected organization
                       </Typography>
                     )}
                   </Grid>

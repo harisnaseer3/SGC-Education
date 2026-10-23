@@ -190,6 +190,11 @@ const checkInstitutionAccess = (req, res, next) => {
     return next();
   }
 
+  // Organization admin and finance manager have access across institutions under their organization
+  if (req.user.role === USER_ROLES.ORGANIZATION_ADMIN || req.user.role === USER_ROLES.FINANCE_MANAGER) {
+    return next();
+  }
+
   // Check if user's institution matches the requested institution
   if (req.user.institution && req.user.institution.toString() !== institutionId) {
     return res.status(403).json({
@@ -201,11 +206,36 @@ const checkInstitutionAccess = (req, res, next) => {
   next();
 };
 
+/**
+ * Check if user is the system developer
+ */
+const isDeveloper = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({
+      success: false,
+      message: 'Access denied. Authentication required.'
+    });
+  }
+
+  const devEmail = (process.env.DEVELOPER_EMAIL || 'haris@sgceducation.com').toLowerCase();
+  const userEmail = (req.user.email || '').toLowerCase();
+
+  if (req.user.isDeveloper || userEmail === devEmail) {
+    return next();
+  }
+
+  return res.status(403).json({
+    success: false,
+    message: 'Access denied. Developer privileges required.'
+  });
+};
+
 module.exports = {
   authorize,
   hasPermission,
   hasAnyPermission,
   isSuperAdmin,
   isAdmin,
-  checkInstitutionAccess
+  checkInstitutionAccess,
+  isDeveloper
 };
