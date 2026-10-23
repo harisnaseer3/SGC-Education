@@ -60,22 +60,25 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 const CHART_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899', '#8b5cf6'];
 
-const StatCard = ({ title, value, icon, color, subtitle, compact = false }) => (
+const StatCard = ({ title, value, icon, color, subtitle, trend, compact = false, onClick }) => (
   <Card
+    onClick={onClick}
     elevation={0}
     sx={{
+      cursor: onClick ? 'pointer' : 'default',
       background: `linear-gradient(135deg, ${color}10 0%, #ffffff 100%)`,
       border: `1px solid ${color}20`,
-      borderRadius: 4,
+      borderRadius: 3,
       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       height: '100%',
+      minHeight: 80,
       display: 'flex',
       flexDirection: 'column',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.02)',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
       '&:hover': {
-        transform: 'translateY(-6px)',
-        boxShadow: `0 20px 40px ${color}15`,
-        border: `1px solid ${color}40`,
+        transform: onClick ? 'translateY(-6px)' : 'none',
+        boxShadow: onClick ? `0 20px 40px ${color}15` : '0 4px 20px rgba(0,0,0,0.03)',
+        border: onClick ? `1px solid ${color}40` : `1px solid ${color}20`,
       }
     }}
   >
@@ -87,17 +90,32 @@ const StatCard = ({ title, value, icon, color, subtitle, compact = false }) => (
       flexDirection: 'column',
       justifyContent: 'center'
     }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', height: '100%', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 2 }}>
         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem', opacity: 0.8 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1, fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1, fontSize: '0.7rem', opacity: 0.8 }}>
             {title}
           </Typography>
-          <Typography variant={compact ? "h5" : "h4"} fontWeight="800" color={color} sx={{ lineHeight: 1.2, wordBreak: 'break-word' }}>
+          <Typography variant={compact ? 'subtitle1' : 'h4'} fontWeight="800" color={color} sx={{ lineHeight: 1.3, wordBreak: 'break-word', fontSize: compact ? { xs: '1rem', sm: '1.1rem', md: '1.15rem' } : undefined }}>
             {value}
           </Typography>
-          {subtitle && (
+          {(subtitle || trend) && (
             <Box sx={{ mt: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
-              <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.75rem' }}>{subtitle}</Typography>
+              {subtitle && <Typography component="div" variant="caption" color="text.secondary" sx={{ fontWeight: 500, fontSize: '0.75rem', width: '100%' }}>{subtitle}</Typography>}
+              {trend && (
+                <Chip 
+                  label={`+${trend}`}
+                  size="small"
+                  icon={<TrendingUp sx={{ fontSize: '12px !important', color: 'inherit !important' }} />}
+                  sx={{ 
+                    height: 20, 
+                    fontSize: '0.7rem', 
+                    fontWeight: 700,
+                    bgcolor: 'success.main', 
+                    color: 'white',
+                    '& .MuiChip-icon': { ml: 0.5 }
+                  }}
+                />
+              )}
             </Box>
           )}
         </Box>
