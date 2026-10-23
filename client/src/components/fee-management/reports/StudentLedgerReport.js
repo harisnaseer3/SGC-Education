@@ -204,7 +204,7 @@ const StudentLedgerReport = ({ onBack }) => {
         {
           'Student Name': student.name || 'N/A',
           'Roll No': student.rollNumber || 'N/A',
-          'Class': student.className || 'N/A',
+          'Class': student.class || student.className || 'N/A',
           'Enrollment No': student.enrollmentNumber || 'N/A'
         }
     );

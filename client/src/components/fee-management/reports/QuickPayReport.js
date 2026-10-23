@@ -164,7 +164,7 @@ const QuickPayReport = ({ onBack }) => {
         
         const studentObj = studentData.student || {};
         const admission = studentObj.admission || {};
-        const className = admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || 'Unassigned';
+        const className = studentObj.class?.name || studentObj.className || admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || 'Unassigned';
 
         let rawVNo = firstVoucher.voucherNumber || '';
         let shortVNo = rawVNo.includes('-') ? rawVNo.split('-').pop() : rawVNo;

@@ -188,8 +188,12 @@ const RemainingBalanceReport = ({ onBack }) => {
         if (!studentId) return;
 
         if (filters.classId !== 'all') {
-          const classId = admission.class?._id || student.currentClass?._id || admission.class || student.currentClass;
-          if (classId?.toString() !== filters.classId) return;
+          const studentClassObj = student.class || {};
+          const classId = studentClassObj._id || student.class || admission.class?._id || admission.class || student.currentClass?._id || student.currentClass || sf.class?._id || sf.class;
+          const className = studentClassObj.name || student.className || admission.class?.name || sf.class?.name || '';
+          const matchById = classId?.toString() === filters.classId.toString();
+          const matchByName = className.toLowerCase() === (classes.find(c => c._id === filters.classId)?.name || '').toLowerCase();
+          if (!matchById && !matchByName) return;
         }
 
         const rawStatus = (student.status || admission.status || '').toLowerCase().trim();
@@ -399,8 +403,8 @@ const RemainingBalanceReport = ({ onBack }) => {
           rollNumber: studentObj?.rollNumber || 'N/A',
           studentName: studentObj?.user?.name || admission.personalInfo?.name || studentObj?.name || 'N/A',
           fatherName: admission.guardianInfo?.fatherName || 'N/A',
-          class: admission.class?.name || studentObj?.currentClass?.name || 'Unassigned',
-          section: admission.section?.name || 'Unassigned',
+          class: studentObj?.class?.name || studentObj?.className || admission.class?.name || studentObj?.currentClass?.name || 'Unassigned',
+          section: studentObj?.section?.name || admission.section?.name || 'Unassigned',
           isStruckOff: isEffectiveStruckOff,
           previousBalance,
           currentBalance,

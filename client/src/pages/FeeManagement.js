@@ -1157,8 +1157,8 @@ const FeeManagement = () => {
           rollNumber: student?.rollNumber || admission?.rollNumber || 'N/A',
           name: studentName,
           fatherName: admission?.guardianInfo?.fatherName || 'N/A',
-          class: firstStudentFee.class?.name || admission?.class?.name || 'N/A',
-          section: admission?.section?.name || 'N/A',
+          class: student?.class?.name || student?.className || firstStudentFee.class?.name || admission?.class?.name || 'N/A',
+          section: student?.section?.name || admission?.section?.name || 'N/A',
           voucherStatus: voucherStatus,
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount,
@@ -1261,9 +1261,9 @@ const FeeManagement = () => {
             admissionNo: admission?.applicationNumber || student?.enrollmentNumber || 'N/A',
             name: studentName,
             fatherName: admission?.guardianInfo?.fatherName || 'N/A',
-            class: admission?.class?.name || student?.class?.name || studentFee.class?.name || 'N/A',
-            classId: admission?.class?._id || student?.class?._id || studentFee.class?._id || null,
-            section: admission?.section?.name || 'N/A',
+            class: student?.class?.name || student?.className || admission?.class?.name || studentFee.class?.name || 'N/A',
+            classId: student?.class?._id || student?.class || admission?.class?._id || studentFee.class?._id || null,
+            section: student?.section?.name || admission?.section?.name || 'N/A',
             status: (student?.status === 'struck_off' || admission?.status === 'struck_off') ? 'Struck Off' : (student?.status || admission?.status || 'Active').replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
             voucherStatus: voucherStatus
           });
@@ -3210,12 +3210,20 @@ const FeeManagement = () => {
       let sectionName = 'N/A';
       if (admission.class?.name) {
         className = admission.class.name;
+      } else if (admission.className) {
+        className = admission.className;
+      } else if (studentFees && studentFees.length > 0 && studentFees[0].student?.class?.name) {
+        className = studentFees[0].student.class.name;
       } else if (studentFees && studentFees.length > 0 && studentFees[0].class?.name) {
         className = studentFees[0].class.name;
       }
       
       if (admission.section?.name) {
         sectionName = admission.section.name;
+      } else if (admission.sectionName) {
+        sectionName = admission.sectionName;
+      } else if (studentFees && studentFees.length > 0 && studentFees[0].student?.section?.name) {
+        sectionName = studentFees[0].student.section.name;
       }
 
       // Format fee month for display (e.g., "Jan 2026")

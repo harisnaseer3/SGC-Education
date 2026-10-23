@@ -151,7 +151,7 @@ const BankVouchersReport = ({ onBack }) => {
         
         const studentObj = studentData.student || {};
         const admission = studentObj.admission || {};
-        const className = admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || 'Unassigned';
+        const className = studentObj.class?.name || studentObj.className || admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || 'Unassigned';
 
         let vNo = firstVoucher.voucherNumber;
         if (vNo && vNo.startsWith('17340-')) {

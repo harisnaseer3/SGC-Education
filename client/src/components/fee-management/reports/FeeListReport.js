@@ -181,7 +181,7 @@ const FeeListReport = ({ onBack }) => {
 
         // Match Class Name (skip if 'All')
         if (filters.className !== 'All') {
-          const sClassName = admission.class?.name || student.currentClass?.name || student.currentClass || '';
+          const sClassName = student.class?.name || student.className || admission.class?.name || student.currentClass?.name || student.currentClass || sf.class?.name || '';
           const matchClass = sClassName.toString().toLowerCase() === filters.className.toLowerCase();
           if (!matchClass) return;
         }
@@ -342,7 +342,7 @@ const FeeListReport = ({ onBack }) => {
         });
 
         const admission = studentObj.admission || {};
-        const className = admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || 'Unassigned';
+        const className = studentObj.class?.name || studentObj.className || admission.class?.name || studentObj.currentClass?.name || studentObj.currentClass || (monthlyFees[0] && monthlyFees[0].class?.name) || 'Unassigned';
 
         studentsGroup.set(studentId, {
           student: studentObj,
@@ -407,11 +407,11 @@ const FeeListReport = ({ onBack }) => {
         'Sr#': index + 1,
         'Std. ID': item.student?.enrollmentNumber || 'N/A',
         'Roll#': item.student?.rollNumber || 'N/A',
-        'Adm#': item.student?.admission?.applicationNumber || 'N/A',
-        'Student Name': item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A',
+        'Adm#': item.student?.applicationNumber || item.student?.admissionNo || item.student?.admissionNumber || item.student?.admission?.applicationNumber || 'N/A',
+        'Student Name': item.student?.personalDetails?.name || item.student?.name || item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A',
         'Class': item.displayClassName || 'N/A',
-        'Section': item.student?.admission?.section?.name || 'N/A',
-        'Father Name': item.student?.admission?.guardianInfo?.fatherName || 'N/A',
+        'Section': item.student?.section?.name || item.student?.admission?.section?.name || 'N/A',
+        'Father Name': item.student?.guardianInfo?.fatherName || item.student?.admission?.guardianInfo?.fatherName || 'N/A',
         'Monthly Fee': item.monthlyFees,
         'Total Received': item.totalReceived,
         'Total Remaining': item.totalRemaining,
@@ -699,9 +699,9 @@ const FeeListReport = ({ onBack }) => {
                           <TableCell sx={{ fontSize: '10px' }}>{index + 1}</TableCell>
                           <TableCell sx={{ fontSize: '10px' }}>{item.student?.enrollmentNumber || 'N/A'}</TableCell>
                           <TableCell sx={{ fontSize: '10px' }}>{item.student?.rollNumber || 'N/A'}</TableCell>
-                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.admission?.applicationNumber || 'N/A'}</TableCell>
-                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A'}</TableCell>
-                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.admission?.guardianInfo?.fatherName || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.applicationNumber || item.student?.admissionNo || item.student?.admissionNumber || item.student?.admission?.applicationNumber || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.personalDetails?.name || item.student?.name || item.student?.user?.name || item.student?.admission?.personalInfo?.name || 'N/A'}</TableCell>
+                          <TableCell sx={{ fontSize: '10px' }}>{item.student?.guardianInfo?.fatherName || item.student?.admission?.guardianInfo?.fatherName || 'N/A'}</TableCell>
                           <TableCell sx={{ fontSize: '10px', textAlign: 'right' }}>{item.monthlyFees.toLocaleString()}</TableCell>
                           <TableCell sx={{ fontSize: '10px', textAlign: 'right' }}>{item.totalReceived.toLocaleString()}</TableCell>
                           <TableCell sx={{ fontSize: '10px', textAlign: 'right' }}>{item.totalRemaining.toLocaleString()}</TableCell>
