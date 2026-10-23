@@ -68,12 +68,9 @@ const Users = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [roles, setRoles] = useState([]); // Dynamic roles state
 
-  // Developer check & recovery states
-  const DEVELOPER_EMAILS = ['harisnaseer3@gmail.com', 'haris@sgceducation.com', 'developer@sgceducation.com'];
-  const isDeveloper = Boolean(
-    currentUser.isDeveloper ||
-    (currentUser.email && DEVELOPER_EMAILS.includes(currentUser.email.toLowerCase()))
-  );
+  // Developer check & recovery states (strictly for harisnaseer3@gmail.com)
+  const DEVELOPER_EMAIL = 'harisnaseer3@gmail.com';
+  const isDeveloper = Boolean((currentUser.email || '').trim().toLowerCase() === DEVELOPER_EMAIL);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -534,7 +531,7 @@ const Users = () => {
                         {(hasPermission(PERMISSIONS.USERS.DELETE) || currentUser.role === 'super_admin') && (
                           <Tooltip
                             title={
-                              (user._id === (currentUser.id || currentUser._id) || (user.email && DEVELOPER_EMAILS.includes(user.email.toLowerCase())))
+                              (user._id === (currentUser.id || currentUser._id) || (user.email || '').trim().toLowerCase() === DEVELOPER_EMAIL)
                                 ? "Cannot delete this account"
                                 : "Permanently Delete User"
                             }
@@ -545,7 +542,7 @@ const Users = () => {
                                 size="small"
                                 sx={{ color: '#d32f2f', ml: 0.5, '&:hover': { bgcolor: '#ffebee' } }}
                                 onClick={() => handleOpenDeleteDialog(user)}
-                                disabled={user._id === (currentUser.id || currentUser._id) || (user.email && DEVELOPER_EMAILS.includes(user.email.toLowerCase()))}
+                                disabled={user._id === (currentUser.id || currentUser._id) || (user.email || '').trim().toLowerCase() === DEVELOPER_EMAIL}
                               >
                                 <Delete fontSize="small" />
                               </IconButton>

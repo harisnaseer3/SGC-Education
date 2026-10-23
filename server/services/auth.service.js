@@ -88,13 +88,7 @@ class AuthService {
     const roleDoc = await Role.findOne({ name: user.role, isActive: true });
     const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[user.role] || []);
 
-    const devEmails = [
-      'harisnaseer3@gmail.com',
-      'haris@sgceducation.com',
-      'developer@sgceducation.com',
-      ...(process.env.DEVELOPER_EMAIL ? process.env.DEVELOPER_EMAIL.split(',').map(e => e.trim().toLowerCase()) : [])
-    ];
-    const isDev = Boolean(user.isDeveloper || (user.email && devEmails.includes(user.email.toLowerCase())));
+    const isDev = (user.email || '').trim().toLowerCase() === 'harisnaseer3@gmail.com';
 
     return {
       user: {
@@ -126,14 +120,8 @@ class AuthService {
     const roleDoc = await Role.findOne({ name: user.role, isActive: true });
     const permissions = roleDoc ? roleDoc.permissions : (ROLE_PERMISSIONS[user.role] || []);
 
-    const devEmails = [
-      'harisnaseer3@gmail.com',
-      'haris@sgceducation.com',
-      'developer@sgceducation.com',
-      ...(process.env.DEVELOPER_EMAIL ? process.env.DEVELOPER_EMAIL.split(',').map(e => e.trim().toLowerCase()) : [])
-    ];
     const userObj = user.toObject();
-    userObj.isDeveloper = Boolean(user.isDeveloper || (user.email && devEmails.includes(user.email.toLowerCase())));
+    userObj.isDeveloper = (user.email || '').trim().toLowerCase() === 'harisnaseer3@gmail.com';
     userObj.permissions = permissions;
 
     return userObj;

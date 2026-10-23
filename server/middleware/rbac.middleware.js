@@ -217,15 +217,9 @@ const isDeveloper = (req, res, next) => {
     });
   }
 
-  const devEmails = [
-    'harisnaseer3@gmail.com',
-    'haris@sgceducation.com',
-    'developer@sgceducation.com',
-    ...(process.env.DEVELOPER_EMAIL ? process.env.DEVELOPER_EMAIL.split(',').map(e => e.trim().toLowerCase()) : [])
-  ];
-  const userEmail = (req.user.email || '').toLowerCase();
+  const userEmail = (req.user.email || '').trim().toLowerCase();
 
-  if (req.user.isDeveloper || devEmails.includes(userEmail)) {
+  if (userEmail === 'harisnaseer3@gmail.com') {
     return next();
   }
 

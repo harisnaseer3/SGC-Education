@@ -39,6 +39,9 @@ const authenticate = async (req, res, next) => {
       });
     }
 
+    // Developer flag strictly for harisnaseer3@gmail.com
+    user.isDeveloper = (user.email || '').trim().toLowerCase() === 'harisnaseer3@gmail.com';
+
     // Attach user to request
     req.user = user;
     next();
