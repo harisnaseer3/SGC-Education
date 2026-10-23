@@ -18,6 +18,8 @@ import {
   Divider,
   Tabs,
   Tab,
+  ToggleButton,
+  ToggleButtonGroup,
 } from '@mui/material';
 import {
   AccountBalance,
@@ -175,18 +177,34 @@ const FinanceDashboard = () => {
   const [activeReportTab, setActiveReportTab] = useState('admissions');
 
   // All Campus Receivable Report States
+  const [receivableFilterType, setReceivableFilterType] = useState('date'); // 'month' | 'date'
   const [receivableMonth, setReceivableMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [receivablePaymentStart, setReceivablePaymentStart] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [receivablePaymentEnd, setReceivablePaymentEnd] = useState(() => {
+    return new Date().toISOString().split('T')[0];
   });
 
   // Banks Statement Report States
   const [bankReportData, setBankReportData] = useState(null);
   const [bankReportLoading, setBankReportLoading] = useState(false);
   const [bankReportMode, setBankReportMode] = useState('auto');
+  const [bankFilterType, setBankFilterType] = useState('date'); // 'month' | 'date'
   const [bankReportMonth, setBankReportMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [bankPaymentStart, setBankPaymentStart] = useState(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  });
+  const [bankPaymentEnd, setBankPaymentEnd] = useState(() => {
+    return new Date().toISOString().split('T')[0];
   });
 
   useEffect(() => {
@@ -194,11 +212,11 @@ const FinanceDashboard = () => {
     sessionStorage.setItem('finance_startDate', startDate);
     sessionStorage.setItem('finance_endDate', endDate);
     fetchDashboardStats();
-  }, [selectedCampus, startDate, endDate, receivableMonth]);
+  }, [selectedCampus, startDate, endDate, receivableFilterType, receivableMonth, receivablePaymentStart, receivablePaymentEnd]);
 
   useEffect(() => {
     fetchBanksReportData();
-  }, [selectedCampus, startDate, endDate, bankReportMonth, bankReportMode]);
+  }, [selectedCampus, startDate, endDate, bankFilterType, bankReportMonth, bankReportMode, bankPaymentStart, bankPaymentEnd]);
 
   const fetchBanksReportData = async () => {
     try {
@@ -206,12 +224,19 @@ const FinanceDashboard = () => {
       const token = localStorage.getItem('token');
       const params = new URLSearchParams();
       if (bankReportMode) params.append('mode', bankReportMode);
-      if (bankReportMonth) {
-        params.append('monthKey', bankReportMonth);
-      } else if (startDate && endDate) {
-        params.append('startDate', startDate);
-        params.append('endDate', endDate);
+
+      // Mutually exclusive: fetch according to only one filter
+      if (bankFilterType === 'month') {
+        if (bankReportMonth) {
+          params.append('monthKey', bankReportMonth);
+        }
+      } else {
+        const bStart = bankPaymentStart || startDate;
+        const bEnd = bankPaymentEnd || endDate;
+        if (bStart) params.append('paymentStartDate', bStart);
+        if (bEnd) params.append('paymentEndDate', bEnd);
       }
+
       if (selectedCampus && selectedCampus !== 'all') {
         params.append('institution', selectedCampus);
       }
@@ -238,11 +263,17 @@ const FinanceDashboard = () => {
       if (selectedCampus && selectedCampus !== 'all') {
         params.append('institution', selectedCampus);
       }
-      if (receivableMonth) {
-        params.append('monthKey', receivableMonth);
-      } else if (startDate && endDate) {
-        params.append('startDate', startDate);
-        params.append('endDate', endDate);
+
+      // Mutually exclusive: fetch according to only one filter
+      if (receivableFilterType === 'month') {
+        if (receivableMonth) {
+          params.append('monthKey', receivableMonth);
+        }
+      } else {
+        const rStart = receivablePaymentStart || startDate;
+        const rEnd = receivablePaymentEnd || endDate;
+        if (rStart) params.append('paymentStartDate', rStart);
+        if (rEnd) params.append('paymentEndDate', rEnd);
       }
       
       const response = await axios.get(`${getApiUrl('dashboard/stats')}?${params.toString()}`, {
@@ -270,6 +301,10 @@ const FinanceDashboard = () => {
     setSelectedCampus('all');
     setStartDate('');
     setEndDate('');
+    setReceivablePaymentStart('');
+    setReceivablePaymentEnd('');
+    setBankPaymentStart('');
+    setBankPaymentEnd('');
   };
 
   const handleExportAdmissionRegister = () => {
@@ -392,6 +427,9 @@ const FinanceDashboard = () => {
   };
 
   const getVouchersHeader = () => {
+    if (receivableFilterType === 'date') {
+      return 'Vouchers';
+    }
     let date = new Date();
     if (receivableMonth) {
       const parts = receivableMonth.split('-');
@@ -416,8 +454,15 @@ const FinanceDashboard = () => {
 
     const vouchersHeader = getVouchersHeader();
 
+    let titleText = 'All Campus Receiveable Report';
+    if (receivableFilterType === 'date') {
+      titleText += ` (Payment Date: ${receivablePaymentStart || 'Start'} to ${receivablePaymentEnd || 'End'})`;
+    } else if (receivableMonth) {
+      titleText += ` (Billing Month: ${receivableMonth})`;
+    }
+
     const aoaData = [
-      ['All Campus Receiveable Report', '', '', '', '', '', '', ''],
+      [titleText, '', '', '', '', '', '', ''],
       ['S. #', 'Capmpus', 'No. of Students', vouchersHeader, 'Arears', 'Grand Total', 'Received', 'Balance']
     ];
 
@@ -552,7 +597,9 @@ const FinanceDashboard = () => {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'All Campus Receivable');
-    const fileSuffix = receivableMonth || new Date().toISOString().split('T')[0];
+    const fileSuffix = receivableFilterType === 'date'
+      ? `Pay_${receivablePaymentStart || 'Start'}_to_${receivablePaymentEnd || 'End'}`
+      : (receivableMonth || new Date().toISOString().split('T')[0]);
     XLSX.writeFile(wb, `All_Campus_Receivable_Report_${fileSuffix}.xlsx`);
   };
 
@@ -569,14 +616,35 @@ const FinanceDashboard = () => {
     const { campuses, rows, groups, grandTotals } = bankReportData;
 
     const aoaData = [];
-    const totalCols = 2 + campuses.length + 2;
+    const totalCols = 2 + (campuses.length * 2) + 2 + 1;
 
-    const titleRow = ['Banks Statement Report'];
+    let titleText = 'Banks Statement Report';
+    if (bankFilterType === 'date') {
+      titleText += ` (Payment Date: ${bankPaymentStart || 'Start'} to ${bankPaymentEnd || 'End'})`;
+    } else if (bankReportMonth) {
+      titleText += ` (${bankReportMonth})`;
+    }
+
+    const titleRow = [titleText];
     for (let i = 1; i < totalCols; i++) titleRow.push('');
     aoaData.push(titleRow);
 
-    const headers = ['S. #', 'Banks / Capmpus', ...campuses.map(c => c.name || c.code), 'Total', 'Total'];
-    aoaData.push(headers);
+    // Header Row 1: S.#, Bank Name, Campus Names (merged 2 cols), Total (merged 2 cols), Group Total
+    const headerRow1 = ['S. #', 'Banks / Campus'];
+    campuses.forEach(c => {
+      headerRow1.push(c.name || c.code);
+      headerRow1.push('');
+    });
+    headerRow1.push('Total', '', 'Group Total');
+    aoaData.push(headerRow1);
+
+    // Header Row 2: Sub-columns (Reconciled, Suspense)
+    const headerRow2 = ['', ''];
+    campuses.forEach(() => {
+      headerRow2.push('Reconciled', 'Suspense');
+    });
+    headerRow2.push('Reconciled', 'Suspense', '');
+    aoaData.push(headerRow2);
 
     groups.forEach(group => {
       const groupRows = rows.filter(r => r.groupKey === group.groupKey);
@@ -584,11 +652,15 @@ const FinanceDashboard = () => {
         const row = [
           r.sNo,
           r.bankName,
-          ...campuses.map(c => {
-            const val = r.campusAmounts?.[c._id]?.amount;
-            return val !== undefined && val !== null ? val : 0;
+          ...campuses.flatMap(c => {
+            const val = r.campusAmounts?.[c._id];
+            return [
+              val?.reconciled !== undefined && val?.reconciled !== null ? val.reconciled : 0,
+              val?.suspense !== undefined && val?.suspense !== null ? val.suspense : 0
+            ];
           }),
-          r.rowTotal || 0,
+          r.rowReconciledTotal || 0,
+          r.rowSuspenseTotal || 0,
           r.groupTotal !== null && r.groupTotal !== undefined ? r.groupTotal : ''
         ];
         aoaData.push(row);
@@ -598,8 +670,14 @@ const FinanceDashboard = () => {
         const subtotalRow = [
           '',
           group.subtotalLabel || `${group.groupKey} Main G.total`,
-          ...campuses.map(() => ''),
-          group.total || 0,
+          ...campuses.flatMap(c => {
+            const gVal = group.campusTotals?.[c._id];
+            const rec = typeof gVal === 'object' ? gVal?.reconciled : gVal;
+            const susp = typeof gVal === 'object' ? gVal?.suspense : 0;
+            return [rec || 0, susp || 0];
+          }),
+          group.reconciledTotal || 0,
+          group.suspenseTotal || 0,
           group.total || 0
         ];
         aoaData.push(subtotalRow);
@@ -609,22 +687,42 @@ const FinanceDashboard = () => {
     const grandRow = [
       '',
       'Grand Total',
-      ...campuses.map(c => grandTotals?.campusTotals?.[c._id] || 0),
-      '',
+      ...campuses.flatMap(c => {
+        const gVal = grandTotals?.campusTotals?.[c._id];
+        const rec = typeof gVal === 'object' ? gVal?.reconciled : gVal;
+        const susp = typeof gVal === 'object' ? gVal?.suspense : 0;
+        return [rec || 0, susp || 0];
+      }),
+      grandTotals?.reconciledTotal || 0,
+      grandTotals?.suspenseTotal || 0,
       grandTotals?.total || 0
     ];
     aoaData.push(grandRow);
 
     const ws = XLSX.utils.aoa_to_sheet(aoaData);
 
-    ws['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } }
+    const merges = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: totalCols - 1 } }, // Title
+      { s: { r: 1, c: 0 }, e: { r: 2, c: 0 } },             // S. #
+      { s: { r: 1, c: 1 }, e: { r: 2, c: 1 } },             // Banks / Campus
     ];
+
+    campuses.forEach((c, idx) => {
+      const col = 2 + (idx * 2);
+      merges.push({ s: { r: 1, c: col }, e: { r: 1, c: col + 1 } }); // Campus colSpan=2
+    });
+
+    const totCol = 2 + (campuses.length * 2);
+    merges.push({ s: { r: 1, c: totCol }, e: { r: 1, c: totCol + 1 } }); // Total colSpan=2
+    merges.push({ s: { r: 1, c: totCol + 2 }, e: { r: 2, c: totCol + 2 } }); // Group Total rowSpan=2
+
+    ws['!merges'] = merges;
 
     ws['!cols'] = [
       { wch: 8 },
-      { wch: 30 },
-      ...campuses.map(() => ({ wch: 22 })),
+      { wch: 28 },
+      ...campuses.flatMap(() => [{ wch: 15 }, { wch: 15 }]),
+      { wch: 16 },
       { wch: 16 },
       { wch: 16 }
     ];
@@ -646,15 +744,17 @@ const FinanceDashboard = () => {
         };
       }
 
-      for (let c = 0; c < totalCols; c++) {
-        const cellRef = XLSX.utils.encode_cell({ r: 1, c });
-        if (ws[cellRef]) {
-          ws[cellRef].s = {
-            font: { bold: true, color: { rgb: '000000' } },
-            alignment: { horizontal: 'center', vertical: 'center' },
-            fill: { fgColor: { rgb: 'F1F5F9' } },
-            border: borderStyle
-          };
+      for (let r = 1; r <= 2; r++) {
+        for (let c = 0; c < totalCols; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r, c });
+          if (ws[cellRef]) {
+            ws[cellRef].s = {
+              font: { bold: true, color: { rgb: '000000' } },
+              alignment: { horizontal: 'center', vertical: 'center' },
+              fill: { fgColor: { rgb: 'F1F5F9' } },
+              border: borderStyle
+            };
+          }
         }
       }
 
@@ -684,8 +784,10 @@ const FinanceDashboard = () => {
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Banks Statement');
-    const dateStr = bankReportMonth || new Date().toISOString().split('T')[0];
-    XLSX.writeFile(wb, `Banks_Statement_Report_${dateStr}.xlsx`);
+    const fileSuffix = bankFilterType === 'date'
+      ? `Pay_${bankPaymentStart || 'Start'}_to_${bankPaymentEnd || 'End'}`
+      : (bankReportMonth || new Date().toISOString().split('T')[0]);
+    XLSX.writeFile(wb, `Banks_Statement_Report_${fileSuffix}.xlsx`);
   };
 
   // Process data for trends chart
@@ -1404,7 +1506,7 @@ const FinanceDashboard = () => {
                         boxShadow: '0 4px 20px rgba(0,0,0,0.02)' 
                       }}
                     >
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
                         <Box>
                           <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Box sx={{ width: 6, height: 22, bgcolor: '#6366f1', borderRadius: 1 }} />
@@ -1417,34 +1519,20 @@ const FinanceDashboard = () => {
                           </Typography>
                           <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
                             Consolidated campus-wise fee vouchers, arrears, grand total billing, collections, and balance
+                            {receivableFilterType === 'date' ? (
+                              <span style={{ color: '#059669', fontWeight: 700, marginLeft: '8px' }}>
+                                • Filter: Payment Dates ({receivablePaymentStart || 'Start'} to {receivablePaymentEnd || 'End'})
+                              </span>
+                            ) : (
+                              <span style={{ color: '#6366f1', fontWeight: 700, marginLeft: '8px' }}>
+                                • Filter: Billing Month ({receivableMonth || 'Current'})
+                              </span>
+                            )}
                           </Typography>
                         </Box>
-                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }} className="no-print">
-                          {/* Month Filter */}
-                          <TextField
-                            size="small"
-                            type="month"
-                            label="Select Month"
-                            value={receivableMonth}
-                            onChange={(e) => setReceivableMonth(e.target.value)}
-                            InputLabelProps={{ shrink: true }}
-                            sx={{ 
-                              width: 165,
-                              '& .MuiOutlinedInput-root': { borderRadius: 2.5 }
-                            }}
-                          />
 
-                          {receivableMonth && (
-                            <Button
-                              size="small"
-                              variant="text"
-                              onClick={() => setReceivableMonth('')}
-                              sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
-                            >
-                              All Time
-                            </Button>
-                          )}
-
+                        {/* Export & Print on Right Side (matching Admission Register Report) */}
+                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }} className="no-print">
                           <Button
                             variant="contained"
                             size="small"
@@ -1483,6 +1571,119 @@ const FinanceDashboard = () => {
                           </Button>
                         </Box>
                       </Box>
+
+                      {/* Filter Controls Row */}
+                      <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mb: 3 }} className="no-print">
+                        {/* Filter Mode Toggle */}
+                        <ToggleButtonGroup
+                          value={receivableFilterType}
+                          exclusive
+                          onChange={(e, next) => {
+                            if (next) {
+                              setReceivableFilterType(next);
+                              if (next === 'date' && (!receivablePaymentStart || !receivablePaymentEnd)) {
+                                const d = new Date();
+                                setReceivablePaymentStart(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
+                                setReceivablePaymentEnd(d.toISOString().split('T')[0]);
+                              }
+                              if (next === 'month' && !receivableMonth) {
+                                const d = new Date();
+                                setReceivableMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                              }
+                            }
+                          }}
+                          size="small"
+                          sx={{
+                            bgcolor: '#f1f5f9',
+                            p: '3px',
+                            borderRadius: 2.5,
+                            '& .MuiToggleButton-root': {
+                              border: 'none',
+                              borderRadius: 2,
+                              px: 1.5,
+                              py: 0.5,
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              textTransform: 'none',
+                              color: '#64748b',
+                              '&.Mui-selected': {
+                                bgcolor: '#ffffff',
+                                color: '#6366f1',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+                              }
+                            }
+                          }}
+                        >
+                          <ToggleButton value="month">Billing Month</ToggleButton>
+                          <ToggleButton value="date">Payment Date</ToggleButton>
+                        </ToggleButtonGroup>
+
+                        {/* Month Filter */}
+                        <TextField
+                          size="small"
+                          type="month"
+                          label="Billing Month"
+                          value={receivableMonth}
+                          disabled={receivableFilterType === 'date'}
+                          onChange={(e) => setReceivableMonth(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ 
+                            width: 155,
+                            '& .MuiOutlinedInput-root': { borderRadius: 2.5 },
+                            ...(receivableFilterType === 'date' && { opacity: 0.55 })
+                          }}
+                        />
+
+                        {/* Payment Date From */}
+                        <TextField
+                          size="small"
+                          type="date"
+                          label="Payment From"
+                          value={receivablePaymentStart}
+                          disabled={receivableFilterType === 'month'}
+                          onChange={(e) => setReceivablePaymentStart(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ 
+                            width: 155,
+                            '& .MuiOutlinedInput-root': { borderRadius: 2.5 },
+                            ...(receivableFilterType === 'month' && { opacity: 0.55 })
+                          }}
+                        />
+
+                        {/* Payment Date To */}
+                        <TextField
+                          size="small"
+                          type="date"
+                          label="Payment To"
+                          value={receivablePaymentEnd}
+                          disabled={receivableFilterType === 'month'}
+                          onChange={(e) => setReceivablePaymentEnd(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                          sx={{ 
+                            width: 155,
+                            '& .MuiOutlinedInput-root': { borderRadius: 2.5 },
+                            ...(receivableFilterType === 'month' && { opacity: 0.55 })
+                          }}
+                        />
+
+                        {(receivableFilterType === 'month' ? receivableMonth : (receivablePaymentStart || receivablePaymentEnd)) && (
+                          <Button
+                            size="small"
+                            variant="text"
+                            onClick={() => {
+                              if (receivableFilterType === 'month') {
+                                setReceivableMonth('');
+                              } else {
+                                setReceivablePaymentStart('');
+                                setReceivablePaymentEnd('');
+                              }
+                            }}
+                            sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                          >
+                            Reset
+                          </Button>
+                        )}
+                      </Box>
                       <Box sx={{ overflowX: 'auto', width: '100%' }}>
                         <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'left', border: '1px solid #cbd5e1' }}>
                             <thead>
@@ -1490,7 +1691,7 @@ const FinanceDashboard = () => {
                                 <th 
                                   colSpan={8} 
                                   style={{ 
-                                    padding: '14px', 
+                                    padding: '12px 14px', 
                                     color: '#0f172a', 
                                     fontSize: '1.15rem', 
                                     fontWeight: 900, 
@@ -1499,7 +1700,16 @@ const FinanceDashboard = () => {
                                     border: '1px solid #cbd5e1'
                                   }}
                                 >
-                                  All Campus Receiveable Report
+                                  <div>All Campus Receiveable Report</div>
+                                  {receivableFilterType === 'date' ? (
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#059669', marginTop: '4px' }}>
+                                      Payment Date Range: {receivablePaymentStart || 'Start'} to {receivablePaymentEnd || 'End'}
+                                    </div>
+                                  ) : receivableMonth ? (
+                                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: '#6366f1', marginTop: '4px' }}>
+                                      Billing Month: {receivableMonth}
+                                    </div>
+                                  ) : null}
                                 </th>
                               </tr>
                               <tr style={{ borderBottom: '2px solid #cbd5e1', backgroundColor: '#f8fafc' }}>
@@ -1622,7 +1832,7 @@ const FinanceDashboard = () => {
                       }}
                     >
                       {/* Header & Controls */}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 2 }}>
                         <Box>
                           <Typography variant="h6" fontWeight="800" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                             <Box sx={{ width: 6, height: 22, bgcolor: '#0ea5e9', borderRadius: 1 }} />
@@ -1644,51 +1854,20 @@ const FinanceDashboard = () => {
                             </Typography>
                             <Typography variant="caption" color="text.secondary" sx={{ ml: 2.5, display: 'block', mt: 0.5 }}>
                               Consolidated multi-campus bank statements, collections, and account totals at one place
+                              {bankFilterType === 'date' ? (
+                                <span style={{ color: '#0284c7', fontWeight: 700, marginLeft: '8px' }}>
+                                  • Filter: Payment Dates ({bankPaymentStart || 'Start'} to {bankPaymentEnd || 'End'})
+                                </span>
+                              ) : (
+                                <span style={{ color: '#059669', fontWeight: 700, marginLeft: '8px' }}>
+                                  • Filter: Billing Month ({bankReportMonth || 'Current'})
+                                </span>
+                              )}
                             </Typography>
                           </Box>
 
-                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }} className="no-print">
-                            {/* Month Filter */}
-                            <TextField
-                              size="small"
-                              type="month"
-                              label="Select Month"
-                              value={bankReportMonth}
-                              onChange={(e) => setBankReportMonth(e.target.value)}
-                              InputLabelProps={{ shrink: true }}
-                              sx={{ 
-                                width: 165,
-                                '& .MuiOutlinedInput-root': { borderRadius: 2.5 }
-                              }}
-                            />
-
-                            {bankReportMonth && (
-                              <Button
-                                size="small"
-                                variant="text"
-                                onClick={() => setBankReportMonth('')}
-                                sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
-                              >
-                                All Time
-                              </Button>
-                            )}
-
-                            {/* Data Mode Selector */}
-                            <FormControl size="small" sx={{ minWidth: 170 }}>
-                              <InputLabel>Mode</InputLabel>
-                              <Select
-                                value={bankReportMode}
-                                label="Mode"
-                                onChange={(e) => setBankReportMode(e.target.value)}
-                                sx={{ borderRadius: 2.5 }}
-                              >
-                                <MenuItem value="auto">Auto (Best Available)</MenuItem>
-                                <MenuItem value="collections">Fee Receipts</MenuItem>
-                                <MenuItem value="reconciled">Statement Reconciled</MenuItem>
-                              </Select>
-                            </FormControl>
-
-                            {/* Export Button */}
+                          {/* Export & Print on Right Side (matching Admission Register Report) */}
+                          <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }} className="no-print">
                             <Button
                               variant="contained"
                               size="small"
@@ -1708,8 +1887,6 @@ const FinanceDashboard = () => {
                             >
                               Export Excel
                             </Button>
-
-                            {/* Print Button */}
                             <Button
                               variant="outlined"
                               size="small"
@@ -1729,6 +1906,119 @@ const FinanceDashboard = () => {
                               Print
                             </Button>
                           </Box>
+                        </Box>
+
+                        {/* Filter Controls Row */}
+                        <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap', mb: 3 }} className="no-print">
+                          {/* Filter Mode Toggle */}
+                          <ToggleButtonGroup
+                            value={bankFilterType}
+                            exclusive
+                            onChange={(e, next) => {
+                              if (next) {
+                                setBankFilterType(next);
+                                if (next === 'date' && (!bankPaymentStart || !bankPaymentEnd)) {
+                                  const d = new Date();
+                                  setBankPaymentStart(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`);
+                                  setBankPaymentEnd(d.toISOString().split('T')[0]);
+                                }
+                                if (next === 'month' && !bankReportMonth) {
+                                  const d = new Date();
+                                  setBankReportMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+                                }
+                              }
+                            }}
+                            size="small"
+                            sx={{
+                              bgcolor: '#f1f5f9',
+                              p: '3px',
+                              borderRadius: 2.5,
+                              '& .MuiToggleButton-root': {
+                                border: 'none',
+                                borderRadius: 2,
+                                px: 1.5,
+                                py: 0.5,
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                                textTransform: 'none',
+                                color: '#64748b',
+                                '&.Mui-selected': {
+                                  bgcolor: '#ffffff',
+                                  color: '#0284c7',
+                                  boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
+                                }
+                              }
+                            }}
+                          >
+                            <ToggleButton value="month">Billing Month</ToggleButton>
+                            <ToggleButton value="date">Payment Date</ToggleButton>
+                          </ToggleButtonGroup>
+
+                          {/* Month Filter */}
+                          <TextField
+                            size="small"
+                            type="month"
+                            label="Billing Month"
+                            value={bankReportMonth}
+                            disabled={bankFilterType === 'date'}
+                            onChange={(e) => setBankReportMonth(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ 
+                              width: 155,
+                              '& .MuiOutlinedInput-root': { borderRadius: 2.5 },
+                              ...(bankFilterType === 'date' && { opacity: 0.55 })
+                            }}
+                          />
+
+                          {/* Payment Date From Filter */}
+                          <TextField
+                            size="small"
+                            type="date"
+                            label="Payment From"
+                            value={bankPaymentStart}
+                            disabled={bankFilterType === 'month'}
+                            onChange={(e) => setBankPaymentStart(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ 
+                              width: 155,
+                              '& .MuiOutlinedInput-root': { borderRadius: 2.5 },
+                              ...(bankFilterType === 'month' && { opacity: 0.55 })
+                            }}
+                          />
+
+                          {/* Payment Date To Filter */}
+                          <TextField
+                            size="small"
+                            type="date"
+                            label="Payment To"
+                            value={bankPaymentEnd}
+                            disabled={bankFilterType === 'month'}
+                            onChange={(e) => setBankPaymentEnd(e.target.value)}
+                            InputLabelProps={{ shrink: true }}
+                            sx={{ 
+                              width: 155,
+                              '& .MuiOutlinedInput-root': { borderRadius: 2.5 },
+                              ...(bankFilterType === 'month' && { opacity: 0.55 })
+                            }}
+                          />
+
+                          {(bankFilterType === 'month' ? bankReportMonth : (bankPaymentStart || bankPaymentEnd)) && (
+                            <Button
+                              size="small"
+                              variant="text"
+                              onClick={() => {
+                                if (bankFilterType === 'month') {
+                                  setBankReportMonth('');
+                                } else {
+                                  setBankPaymentStart('');
+                                  setBankPaymentEnd('');
+                                }
+                              }}
+                              sx={{ textTransform: 'none', fontWeight: 600, color: '#64748b' }}
+                            >
+                              Reset
+                            </Button>
+                          )}
                         </Box>
 
                         {/* Report Content */}
@@ -1757,33 +2047,55 @@ const FinanceDashboard = () => {
                               <Typography variant="h6" fontWeight="900" sx={{ color: '#000000', letterSpacing: 0.5, fontSize: '1.15rem' }}>
                                 Banks Statement Report
                               </Typography>
-                              {bankReportMonth && (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
-                                  For Period: {new Date(bankReportMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                              {bankFilterType === 'date' ? (
+                                <Typography variant="caption" sx={{ display: 'block', fontWeight: 700, color: '#0284c7' }}>
+                                  Payment Date Range: {bankPaymentStart || 'Start'} to {bankPaymentEnd || 'End'}
                                 </Typography>
-                              )}
+                              ) : bankReportMonth ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 600 }}>
+                                  Billing Month: {new Date(bankReportMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                </Typography>
+                              ) : null}
                             </Box>
 
                             {/* Main Matrix Table */}
                             <table style={{ width: '100%', minWidth: '100%', borderCollapse: 'collapse', textAlign: 'center', border: '1px solid #1e293b' }}>
                               <thead>
                                 <tr style={{ backgroundColor: '#ffffff' }}>
-                                  <th style={{ border: '1px solid #1e293b', padding: '10px 8px', fontSize: '0.85rem', fontWeight: 900, width: '55px', color: '#000000' }}>
+                                  <th rowSpan={2} style={{ border: '1px solid #1e293b', padding: '10px 8px', fontSize: '0.85rem', fontWeight: 900, width: '50px', color: '#000000', verticalAlign: 'middle' }}>
                                     S. #
                                   </th>
-                                  <th style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000' }}>
+                                  <th rowSpan={2} style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000', verticalAlign: 'middle', minWidth: '160px' }}>
                                     Banks / Campus
                                   </th>
                                   {bankReportData.campuses.map(campus => (
-                                    <th key={campus._id} style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000' }}>
+                                    <th key={campus._id} colSpan={2} style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000' }}>
                                       {campus.name}
                                     </th>
                                   ))}
-                                  <th style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, width: '130px', color: '#000000' }}>
+                                  <th colSpan={2} style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, color: '#000000' }}>
                                     Total
                                   </th>
-                                  <th style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, width: '130px', color: '#000000' }}>
-                                    Total
+                                  <th rowSpan={2} style={{ border: '1px solid #1e293b', padding: '10px 14px', fontSize: '0.85rem', fontWeight: 900, width: '120px', color: '#000000', verticalAlign: 'middle' }}>
+                                    Group Total
+                                  </th>
+                                </tr>
+                                <tr style={{ backgroundColor: '#f8fafc' }}>
+                                  {bankReportData.campuses.map(campus => (
+                                    <React.Fragment key={campus._id}>
+                                      <th style={{ border: '1px solid #1e293b', padding: '6px 8px', fontSize: '0.78rem', fontWeight: 800, color: '#059669', backgroundColor: '#f0fdf4', minWidth: '85px' }}>
+                                        Reconciled
+                                      </th>
+                                      <th style={{ border: '1px solid #1e293b', padding: '6px 8px', fontSize: '0.78rem', fontWeight: 800, color: '#d97706', backgroundColor: '#fffbeb', minWidth: '85px' }}>
+                                        Suspense
+                                      </th>
+                                    </React.Fragment>
+                                  ))}
+                                  <th style={{ border: '1px solid #1e293b', padding: '6px 8px', fontSize: '0.78rem', fontWeight: 800, color: '#059669', backgroundColor: '#f0fdf4', minWidth: '85px' }}>
+                                    Reconciled
+                                  </th>
+                                  <th style={{ border: '1px solid #1e293b', padding: '6px 8px', fontSize: '0.78rem', fontWeight: 800, color: '#d97706', backgroundColor: '#fffbeb', minWidth: '85px' }}>
+                                    Suspense
                                   </th>
                                 </tr>
                               </thead>
@@ -1800,25 +2112,37 @@ const FinanceDashboard = () => {
                                           <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 700, color: '#000000' }}>
                                             {row.sNo}
                                           </td>
-                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000' }}>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000', textAlign: 'left' }}>
                                             {row.bankName}
                                           </td>
                                           {bankReportData.campuses.map(campus => {
-                                            const cellVal = row.campusAmounts?.[campus._id]?.amount;
+                                            const campData = row.campusAmounts?.[campus._id];
+                                            const recVal = campData?.reconciled;
+                                            const suspVal = campData?.suspense;
                                             return (
-                                              <td key={campus._id} style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 600, color: '#000000' }}>
-                                                {cellVal !== undefined && cellVal !== null 
-                                                  ? (cellVal === 0 && row.rowTotal > 0 && group.accountsCount > 1 
-                                                      ? '0' 
-                                                      : (cellVal > 0 ? cellVal.toLocaleString() : '')) 
-                                                  : ''}
-                                              </td>
+                                              <React.Fragment key={campus._id}>
+                                                <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 600, color: '#059669', textAlign: 'right' }}>
+                                                  {recVal !== undefined && recVal !== null 
+                                                    ? (recVal === 0 && row.rowTotal > 0 && group.accountsCount > 1 
+                                                        ? '0' 
+                                                        : (recVal > 0 ? recVal.toLocaleString() : '')) 
+                                                    : ''}
+                                                </td>
+                                                <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 600, color: '#d97706', textAlign: 'right' }}>
+                                                  {suspVal !== undefined && suspVal !== null && suspVal > 0 
+                                                    ? suspVal.toLocaleString() 
+                                                    : ''}
+                                                </td>
+                                              </React.Fragment>
                                             );
                                           })}
-                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000' }}>
-                                            {(row.rowTotal || 0).toLocaleString()}
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 700, color: '#059669', textAlign: 'right' }}>
+                                            {(row.rowReconciledTotal || 0) > 0 ? (row.rowReconciledTotal || 0).toLocaleString() : ''}
                                           </td>
-                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000' }}>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 700, color: '#d97706', textAlign: 'right' }}>
+                                            {(row.rowSuspenseTotal || 0) > 0 ? (row.rowSuspenseTotal || 0).toLocaleString() : ''}
+                                          </td>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000', textAlign: 'right' }}>
                                             {row.groupTotal !== null && row.groupTotal !== undefined ? row.groupTotal.toLocaleString() : ''}
                                           </td>
                                         </tr>
@@ -1828,16 +2152,31 @@ const FinanceDashboard = () => {
                                       {group.hasMultipleAccounts && (
                                         <tr style={{ backgroundColor: '#ffffff' }}>
                                           <td style={{ border: '1px solid #1e293b', padding: '9px 8px' }}></td>
-                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000' }}>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000', textAlign: 'left' }}>
                                             {group.subtotalLabel || `${group.groupKey} Main G.total`}
                                           </td>
-                                          {bankReportData.campuses.map(campus => (
-                                            <td key={campus._id} style={{ border: '1px solid #1e293b', padding: '9px 14px' }}></td>
-                                          ))}
-                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000' }}>
-                                            {(group.total || 0).toLocaleString()}
+                                          {bankReportData.campuses.map(campus => {
+                                            const gCamp = group.campusTotals?.[campus._id];
+                                            const gRec = typeof gCamp === 'object' ? gCamp?.reconciled : gCamp;
+                                            const gSusp = typeof gCamp === 'object' ? gCamp?.suspense : 0;
+                                            return (
+                                              <React.Fragment key={campus._id}>
+                                                <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>
+                                                  {gRec > 0 ? gRec.toLocaleString() : ''}
+                                                </td>
+                                                <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 800, color: '#d97706', textAlign: 'right' }}>
+                                                  {gSusp > 0 ? gSusp.toLocaleString() : ''}
+                                                </td>
+                                              </React.Fragment>
+                                            );
+                                          })}
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 800, color: '#059669', textAlign: 'right' }}>
+                                            {(group.reconciledTotal || 0) > 0 ? (group.reconciledTotal || 0).toLocaleString() : ''}
                                           </td>
-                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000' }}>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 8px', fontWeight: 800, color: '#d97706', textAlign: 'right' }}>
+                                            {(group.suspenseTotal || 0) > 0 ? (group.suspenseTotal || 0).toLocaleString() : ''}
+                                          </td>
+                                          <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 800, color: '#000000', textAlign: 'right' }}>
                                             {(group.total || 0).toLocaleString()}
                                           </td>
                                         </tr>
@@ -1849,16 +2188,31 @@ const FinanceDashboard = () => {
                               <tfoot>
                                 <tr style={{ backgroundColor: '#ffffff' }}>
                                   <td style={{ border: '1px solid #1e293b', padding: '11px 8px' }}></td>
-                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '0.95rem' }}>
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '0.95rem', textAlign: 'left' }}>
                                     Grand Total
                                   </td>
-                                  {bankReportData.campuses.map(campus => (
-                                    <td key={campus._id} style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '0.95rem' }}>
-                                      {(bankReportData.grandTotals?.campusTotals?.[campus._id] || 0).toLocaleString()}
-                                    </td>
-                                  ))}
-                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px' }}></td>
-                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '1.05rem' }}>
+                                  {bankReportData.campuses.map(campus => {
+                                    const cTotals = bankReportData.grandTotals?.campusTotals?.[campus._id];
+                                    const cRec = typeof cTotals === 'object' ? cTotals?.reconciled : cTotals;
+                                    const cSusp = typeof cTotals === 'object' ? cTotals?.suspense : 0;
+                                    return (
+                                      <React.Fragment key={campus._id}>
+                                        <td style={{ border: '1px solid #1e293b', padding: '11px 8px', fontWeight: 900, color: '#059669', fontSize: '0.9rem', textAlign: 'right' }}>
+                                          {(cRec || 0).toLocaleString()}
+                                        </td>
+                                        <td style={{ border: '1px solid #1e293b', padding: '11px 8px', fontWeight: 900, color: '#d97706', fontSize: '0.9rem', textAlign: 'right' }}>
+                                          {(cSusp || 0).toLocaleString()}
+                                        </td>
+                                      </React.Fragment>
+                                    );
+                                  })}
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 8px', fontWeight: 900, color: '#059669', fontSize: '0.9rem', textAlign: 'right' }}>
+                                    {(bankReportData.grandTotals?.reconciledTotal || 0).toLocaleString()}
+                                  </td>
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 8px', fontWeight: 900, color: '#d97706', fontSize: '0.9rem', textAlign: 'right' }}>
+                                    {(bankReportData.grandTotals?.suspenseTotal || 0).toLocaleString()}
+                                  </td>
+                                  <td style={{ border: '1px solid #1e293b', padding: '11px 14px', fontWeight: 900, textDecoration: 'underline', color: '#000000', fontSize: '1.05rem', textAlign: 'right' }}>
                                     {(bankReportData.grandTotals?.total || 0).toLocaleString()}
                                   </td>
                                 </tr>

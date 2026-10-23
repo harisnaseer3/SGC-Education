@@ -287,7 +287,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Access denied.');
     }
 
-    const { startDate, endDate, institution, monthKey } = req.query;
+    const { startDate, endDate, institution, monthKey, paymentStartDate, paymentEndDate } = req.query;
 
     let targetMonth = null;
     let targetYear = null;
@@ -309,6 +309,18 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     } else if (targetYear && targetMonth) {
       parsedStartDate = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
       parsedEndDate = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+    }
+
+    // Payment date range parsing
+    let parsedPaymentStartDate = null;
+    let parsedPaymentEndDate = null;
+    if (paymentStartDate) {
+      parsedPaymentStartDate = new Date(paymentStartDate);
+      parsedPaymentStartDate.setHours(0, 0, 0, 0);
+    }
+    if (paymentEndDate) {
+      parsedPaymentEndDate = new Date(paymentEndDate);
+      parsedPaymentEndDate.setHours(23, 59, 59, 999);
     }
 
     let selectedInstitutionIds = institutionIds;
@@ -379,11 +391,97 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       }
     }
 
-    const totalCollected = overallFinStats.totalCollected || 0;
-    const totalBilled = overallFinStats.totalBilled || 0;
-    const totalOutstanding = overallFinStats.totalOutstanding || 0;
+    // Payment Date Filter: if specified, query FeePayment for collections within that date range
+    let paymentsByCampus = null;
+    if (parsedPaymentStartDate || parsedPaymentEndDate) {
+      paymentsByCampus = new Map();
+      const paymentDateMatch = {
+        institution: { $in: selectedInstitutionIds },
+        status: 'completed'
+      };
+      const dateConds = [];
+      if (parsedPaymentStartDate && parsedPaymentEndDate) {
+        dateConds.push(
+          { paymentDate: { $gte: parsedPaymentStartDate, $lte: parsedPaymentEndDate } },
+          { createdAt: { $gte: parsedPaymentStartDate, $lte: parsedPaymentEndDate } }
+        );
+      } else if (parsedPaymentStartDate) {
+        dateConds.push(
+          { paymentDate: { $gte: parsedPaymentStartDate } },
+          { createdAt: { $gte: parsedPaymentStartDate } }
+        );
+      } else if (parsedPaymentEndDate) {
+        dateConds.push(
+          { paymentDate: { $lte: parsedPaymentEndDate } },
+          { createdAt: { $lte: parsedPaymentEndDate } }
+        );
+      }
+      if (dateConds.length > 0) {
+        paymentDateMatch.$or = dateConds;
+      }
+
+      const pipeline = [{ $match: paymentDateMatch }];
+
+      if (targetYear && targetMonth) {
+        pipeline.push(
+          {
+            $lookup: {
+              from: 'studentfees',
+              localField: 'studentFee',
+              foreignField: '_id',
+              as: 'sfDoc'
+            }
+          },
+          { $unwind: { path: '$sfDoc', preserveNullAndEmptyArrays: false } },
+          {
+            $match: {
+              $or: [
+                {
+                  'sfDoc.vouchers': {
+                    $elemMatch: {
+                      month: targetMonth,
+                      year: targetYear
+                    }
+                  }
+                },
+                {
+                  voucherNumber: {
+                    $regex: new RegExp(`${String(targetMonth).padStart(2, '0')}[-/]${targetYear}|${targetMonth}[-/]${targetYear}`, 'i')
+                  }
+                }
+              ]
+            }
+          }
+        );
+      }
+
+      pipeline.push({
+        $group: {
+          _id: '$institution',
+          totalPaid: { $sum: '$amount' }
+        }
+      });
+
+      const paymentAgg = await FeePayment.aggregate(pipeline);
+      paymentAgg.forEach(item => {
+        if (item._id) {
+          paymentsByCampus.set(item._id.toString(), item.totalPaid || 0);
+        }
+      });
+    }
+
+    let totalCollected = overallFinStats.totalCollected || 0;
+    let totalBilled = overallFinStats.totalBilled || 0;
+    let totalOutstanding = overallFinStats.totalOutstanding || 0;
     const previousReceivableVal = overallFinStats.totalArrears || 0;
     const recoveryVal = overallFinStats.collectedPaid || 0;
+
+    if (paymentsByCampus !== null) {
+      let filteredSum = 0;
+      paymentsByCampus.forEach(amt => { filteredSum += amt; });
+      totalCollected = filteredSum;
+      totalOutstanding = Math.max(0, totalBilled - totalCollected);
+    }
 
     // Campus Breakdown
     const campusBreakdown = await Promise.all(institutions.map(async (inst) => {
@@ -441,8 +539,11 @@ const getDashboardStats = asyncHandler(async (req, res) => {
 
       const totalBilled = instFinStats.totalBilled || 0;
       const totalArrears = instFinStats.totalArrears || 0;
-      const totalCollected = instFinStats.totalCollected || 0;
-      const totalOutstanding = instFinStats.totalOutstanding || 0;
+      let instCollected = instFinStats.totalCollected || 0;
+      if (paymentsByCampus !== null) {
+        instCollected = paymentsByCampus.get(instId.toString()) || 0;
+      }
+      const instOutstanding = Math.max(0, totalBilled - instCollected);
       const currentVouchers = Math.max(0, totalBilled - totalArrears);
 
       return {
@@ -460,15 +561,15 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         pending: resolvedPending,
         newAdmissions: newAdmissionsCount,
         feesGenerated: totalBilled,
-        feesCollected: totalCollected,
-        outstandingDues: totalOutstanding,
+        feesCollected: instCollected,
+        outstandingDues: instOutstanding,
         previousReceivable: totalArrears,
         recovery: instFinStats.collectedPaid || 0,
         vouchers: currentVouchers,
         arrears: totalArrears,
         grandTotal: totalBilled,
-        received: totalCollected,
-        balance: totalOutstanding
+        received: instCollected,
+        balance: instOutstanding
       };
     }));
 
@@ -1054,7 +1155,7 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
   }
 
   // Parse filters
-  const { startDate, endDate, monthKey, mode = 'auto', institution } = req.query;
+  const { startDate, endDate, monthKey, mode = 'auto', institution, paymentStartDate, paymentEndDate } = req.query;
   let parsedStartDate = null;
   let parsedEndDate = null;
 
@@ -1064,7 +1165,19 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     institutionIds = institutions.map(i => i._id);
   }
 
-  if (monthKey) {
+  const effectiveStart = paymentStartDate || startDate;
+  const effectiveEnd = paymentEndDate || endDate;
+
+  if (effectiveStart || effectiveEnd) {
+    if (effectiveStart) {
+      parsedStartDate = new Date(effectiveStart);
+      parsedStartDate.setHours(0, 0, 0, 0);
+    }
+    if (effectiveEnd) {
+      parsedEndDate = new Date(effectiveEnd);
+      parsedEndDate.setHours(23, 59, 59, 999);
+    }
+  } else if (monthKey) {
     const parts = monthKey.split('-');
     if (parts.length === 2) {
       const year = parseInt(parts[0], 10);
@@ -1072,11 +1185,6 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
       parsedStartDate = new Date(year, month - 1, 1, 0, 0, 0, 0);
       parsedEndDate = new Date(year, month, 0, 23, 59, 59, 999);
     }
-  } else if (startDate && endDate) {
-    parsedStartDate = new Date(startDate);
-    parsedStartDate.setHours(0, 0, 0, 0);
-    parsedEndDate = new Date(endDate);
-    parsedEndDate.setHours(23, 59, 59, 999);
   }
 
   // 1. Fetch active bank accounts
@@ -1102,16 +1210,36 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
       { paymentDate: { $gte: parsedStartDate, $lte: parsedEndDate } },
       { createdAt: { $gte: parsedStartDate, $lte: parsedEndDate } }
     ];
+  } else if (parsedStartDate) {
+    paymentQuery.$or = [
+      { paymentDate: { $gte: parsedStartDate } },
+      { createdAt: { $gte: parsedStartDate } }
+    ];
+  } else if (parsedEndDate) {
+    paymentQuery.$or = [
+      { paymentDate: { $lte: parsedEndDate } },
+      { createdAt: { $lte: parsedEndDate } }
+    ];
   }
 
   const suspenseQuery = {
     institution: { $in: institutionIds },
-    status: 'reconciled'
+    status: { $in: ['unidentified', 'reconciled'] }
   };
   if (parsedStartDate && parsedEndDate) {
     suspenseQuery.$or = [
       { paymentDate: { $gte: parsedStartDate, $lte: parsedEndDate } },
       { createdAt: { $gte: parsedStartDate, $lte: parsedEndDate } }
+    ];
+  } else if (parsedStartDate) {
+    suspenseQuery.$or = [
+      { paymentDate: { $gte: parsedStartDate } },
+      { createdAt: { $gte: parsedStartDate } }
+    ];
+  } else if (parsedEndDate) {
+    suspenseQuery.$or = [
+      { paymentDate: { $lte: parsedEndDate } },
+      { createdAt: { $lte: parsedEndDate } }
     ];
   }
 
@@ -1143,7 +1271,7 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
   const [feePayments, suspenseEntries, reconRecords] = await Promise.all([
     FeePayment.find(paymentQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate').lean(),
-    SuspenseEntry.find(suspenseQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate').lean(),
+    SuspenseEntry.find(suspenseQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate status').lean(),
     MonthReconciliation.find(reconQuery).select('institution bankAccount monthKey reconcileAmount').lean()
   ]);
 
@@ -1194,13 +1322,13 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     return null;
   };
 
-  // Matrix: [bankId][instId] = { collections: 0, reconciled: 0 }
+  // Matrix: [bankId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 }
   const matrix = {};
   bankAccounts.forEach(b => {
     const bId = b._id.toString();
     matrix[bId] = {};
     institutions.forEach(inst => {
-      matrix[bId][inst._id.toString()] = { collections: 0, reconciled: 0 };
+      matrix[bId][inst._id.toString()] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
     });
   });
 
@@ -1215,13 +1343,14 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     if (matchedBank) {
       const bId = matchedBank._id.toString();
       if (!matrix[bId]) matrix[bId] = {};
-      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0 };
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
       matrix[bId][instId].collections += (p.amount || 0);
     } else if (p.bankName) {
       const key = p.bankName.trim();
       if (!unmappedBanks.has(key)) unmappedBanks.set(key, {});
       const entry = unmappedBanks.get(key);
-      entry[instId] = (entry[instId] || 0) + (p.amount || 0);
+      if (!entry[instId]) entry[instId] = { collections: 0, reconciledSuspense: 0, suspense: 0 };
+      entry[instId].collections += (p.amount || 0);
     }
   });
 
@@ -1234,13 +1363,22 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     if (matchedBank) {
       const bId = matchedBank._id.toString();
       if (!matrix[bId]) matrix[bId] = {};
-      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0 };
-      matrix[bId][instId].collections += (s.amount || 0);
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
+      if (s.status === 'unidentified') {
+        matrix[bId][instId].suspense += (s.amount || 0);
+      } else {
+        matrix[bId][instId].reconciledSuspense += (s.amount || 0);
+      }
     } else if (s.bankName) {
       const key = s.bankName.trim();
       if (!unmappedBanks.has(key)) unmappedBanks.set(key, {});
       const entry = unmappedBanks.get(key);
-      entry[instId] = (entry[instId] || 0) + (s.amount || 0);
+      if (!entry[instId]) entry[instId] = { collections: 0, reconciledSuspense: 0, suspense: 0 };
+      if (s.status === 'unidentified') {
+        entry[instId].suspense += (s.amount || 0);
+      } else {
+        entry[instId].reconciledSuspense += (s.amount || 0);
+      }
     }
   });
 
@@ -1252,7 +1390,7 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     if (r.bankAccount) {
       const bId = (r.bankAccount._id || r.bankAccount).toString();
       if (!matrix[bId]) matrix[bId] = {};
-      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0 };
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
       matrix[bId][instId].reconciled += (r.reconcileAmount || 0);
     }
   });
@@ -1296,9 +1434,13 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     groupedAccounts.get(groupKey).push(virtualAcc);
     matrix[virtualAcc._id] = {};
     institutions.forEach(inst => {
-      matrix[virtualAcc._id][inst._id.toString()] = {
-        collections: instMap[inst._id.toString()] || 0,
-        reconciled: 0
+      const instId = inst._id.toString();
+      const uEntry = instMap[instId] || { collections: 0, reconciledSuspense: 0, suspense: 0 };
+      matrix[virtualAcc._id][instId] = {
+        collections: uEntry.collections || 0,
+        reconciledSuspense: uEntry.reconciledSuspense || 0,
+        reconciled: 0,
+        suspense: uEntry.suspense || 0
       };
     });
   });
@@ -1308,48 +1450,71 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
   const processedGroups = [];
   const grandCampusTotals = {};
   institutions.forEach(inst => {
-    grandCampusTotals[inst._id.toString()] = 0;
+    grandCampusTotals[inst._id.toString()] = { reconciled: 0, suspense: 0, total: 0 };
   });
   let grandTotalSum = 0;
+  let grandReconciledSum = 0;
+  let grandSuspenseSum = 0;
 
   groupedAccounts.forEach((accList, groupKey) => {
     const groupRows = [];
     const groupCampusTotals = {};
     institutions.forEach(inst => {
-      groupCampusTotals[inst._id.toString()] = 0;
+      groupCampusTotals[inst._id.toString()] = { reconciled: 0, suspense: 0, total: 0 };
     });
     let groupTotalSum = 0;
+    let groupReconciledSum = 0;
+    let groupSuspenseSum = 0;
 
     accList.forEach(acc => {
       const bId = acc._id.toString();
       const campusAmounts = {};
       let rowTotal = 0;
+      let rowReconciledTotal = 0;
+      let rowSuspenseTotal = 0;
 
       institutions.forEach(inst => {
         const instId = inst._id.toString();
-        const cell = matrix[bId]?.[instId] || { collections: 0, reconciled: 0 };
+        const cell = matrix[bId]?.[instId] || { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
         
-        let amount = 0;
+        let recAmount = 0;
         if (mode === 'collections') {
-          amount = cell.collections;
+          recAmount = cell.collections + (cell.reconciledSuspense || 0);
         } else if (mode === 'reconciled') {
-          amount = cell.reconciled;
+          recAmount = cell.reconciled > 0 ? cell.reconciled : (cell.collections + (cell.reconciledSuspense || 0));
         } else {
-          // auto mode: if reconciled is set and > 0, prefer it; otherwise use collections
-          amount = cell.reconciled > 0 ? cell.reconciled : cell.collections;
+          // auto mode: if custom payment dates are set, use collections because bank reconciliation is recorded at whole-month granularity
+          if (effectiveStart || effectiveEnd) {
+            recAmount = cell.collections + (cell.reconciledSuspense || 0);
+          } else {
+            recAmount = cell.reconciled > 0 ? cell.reconciled : (cell.collections + (cell.reconciledSuspense || 0));
+          }
         }
+        const suspAmount = cell.suspense || 0;
+        const totalAmount = recAmount + suspAmount;
 
         campusAmounts[instId] = {
-          amount,
-          collections: cell.collections,
-          reconciled: cell.reconciled
+          amount: totalAmount,
+          reconciled: recAmount,
+          suspense: suspAmount,
+          collections: cell.collections
         };
-        rowTotal += amount;
-        groupCampusTotals[instId] += amount;
-        grandCampusTotals[instId] += amount;
+        rowReconciledTotal += recAmount;
+        rowSuspenseTotal += suspAmount;
+        rowTotal += totalAmount;
+
+        groupCampusTotals[instId].reconciled += recAmount;
+        groupCampusTotals[instId].suspense += suspAmount;
+        groupCampusTotals[instId].total += totalAmount;
+
+        grandCampusTotals[instId].reconciled += recAmount;
+        grandCampusTotals[instId].suspense += suspAmount;
+        grandCampusTotals[instId].total += totalAmount;
       });
 
       groupTotalSum += rowTotal;
+      groupReconciledSum += rowReconciledTotal;
+      groupSuspenseSum += rowSuspenseTotal;
 
       const rowData = {
         sNo: serial++,
@@ -1359,14 +1524,20 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
         accountNumber: acc.accountNumber,
         groupKey,
         campusAmounts,
+        rowReconciledTotal,
+        rowSuspenseTotal,
         rowTotal,
-        groupTotal: accList.length === 1 ? rowTotal : null
+        groupTotal: accList.length === 1 ? rowTotal : null,
+        groupReconciledTotal: accList.length === 1 ? rowReconciledTotal : null,
+        groupSuspenseTotal: accList.length === 1 ? rowSuspenseTotal : null
       };
       groupRows.push(rowData);
       allRows.push(rowData);
     });
 
     grandTotalSum += groupTotalSum;
+    grandReconciledSum += groupReconciledSum;
+    grandSuspenseSum += groupSuspenseSum;
 
     const hasMain = accList.some(a => (a.bankName || '').toLowerCase().includes('main'));
     const subtotalLabel = hasMain ? `${groupKey} Main G.total` : `${groupKey} G.total`;
@@ -1377,6 +1548,8 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
       hasMultipleAccounts: accList.length > 1,
       subtotalLabel,
       campusTotals: groupCampusTotals,
+      reconciledTotal: groupReconciledSum,
+      suspenseTotal: groupSuspenseSum,
       total: groupTotalSum,
       accountsCount: accList.length
     });
@@ -1390,6 +1563,8 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
       groups: processedGroups,
       grandTotals: {
         campusTotals: grandCampusTotals,
+        reconciledTotal: grandReconciledSum,
+        suspenseTotal: grandSuspenseSum,
         total: grandTotalSum
       },
       filters: {
