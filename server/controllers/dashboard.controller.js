@@ -287,7 +287,7 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       throw new ApiError(403, 'Access denied.');
     }
 
-    const { startDate, endDate, institution, monthKey, paymentStartDate, paymentEndDate } = req.query;
+    const { startDate, endDate, institution, monthKey, paymentStartDate, paymentEndDate, allTime } = req.query;
 
     let targetMonth = null;
     let targetYear = null;
@@ -312,14 +312,16 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     }
 
     // Payment date range parsing
+    const effectivePaymentStartDate = paymentStartDate || startDate;
+    const effectivePaymentEndDate = paymentEndDate || endDate;
     let parsedPaymentStartDate = null;
     let parsedPaymentEndDate = null;
-    if (paymentStartDate) {
-      parsedPaymentStartDate = new Date(paymentStartDate);
+    if (effectivePaymentStartDate) {
+      parsedPaymentStartDate = new Date(effectivePaymentStartDate);
       parsedPaymentStartDate.setHours(0, 0, 0, 0);
     }
-    if (paymentEndDate) {
-      parsedPaymentEndDate = new Date(paymentEndDate);
+    if (effectivePaymentEndDate) {
+      parsedPaymentEndDate = new Date(effectivePaymentEndDate);
       parsedPaymentEndDate.setHours(23, 59, 59, 999);
     }
 
@@ -351,6 +353,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     
     if (hasDates) {
       studentNewAdmissionsFilter.admissionDate = { $gte: parsedStartDate, $lte: parsedEndDate };
+    } else if (allTime === 'true' || (!startDate && !endDate && !paymentStartDate && !paymentEndDate)) {
+      // All time: no date boundary on new admissions filter
     } else {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -500,9 +504,10 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         Admission.countDocuments({ 
           institution: instId, 
           status: { $regex: /^enrolled$/i },
-          admissionDate: hasDates 
-            ? { $gte: parsedStartDate, $lte: parsedEndDate } 
-            : { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } 
+          ...(hasDates 
+            ? { admissionDate: { $gte: parsedStartDate, $lte: parsedEndDate } } 
+            : ((allTime === 'true' || (!startDate && !endDate && !paymentStartDate && !paymentEndDate)) ? {} : { admissionDate: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) } })
+          )
         }),
         Student.countDocuments({ institution: instId, status: { $regex: /struck.*off/i }, ...(endDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),
         Student.countDocuments({ institution: instId, status: { $regex: /^pending$/i }, ...(endDate ? { createdAt: { $lte: parsedEndDate } } : {}) }),

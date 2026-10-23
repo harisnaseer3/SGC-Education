@@ -29,6 +29,7 @@ import {
   Domain,
   People,
   ClearAll,
+  AllInclusive,
   MonetizationOn,
   TrendingDown,
   Assessment,
@@ -138,6 +139,22 @@ const StatCard = ({ title, value, icon, color, subtitle, trend, compact = false,
   </Card>
 );
 
+// Helper functions for date formatting in local time
+const getStartOfMonth = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}-01`;
+};
+
+const getTodayDate = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const FinanceDashboard = () => {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -159,18 +176,20 @@ const FinanceDashboard = () => {
 
   const [startDate, setStartDate] = useState(() => {
     if (preserveFilters) {
-      return sessionStorage.getItem('finance_startDate') || '';
+      const saved = sessionStorage.getItem('finance_startDate');
+      if (saved !== null) return saved;
     }
     sessionStorage.removeItem('finance_startDate');
-    return '';
+    return getStartOfMonth();
   });
 
   const [endDate, setEndDate] = useState(() => {
     if (preserveFilters) {
-      return sessionStorage.getItem('finance_endDate') || '';
+      const saved = sessionStorage.getItem('finance_endDate');
+      if (saved !== null) return saved;
     }
     sessionStorage.removeItem('finance_endDate');
-    return '';
+    return getTodayDate();
   });
 
   const [campusList, setCampusList] = useState([]);
@@ -183,11 +202,18 @@ const FinanceDashboard = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [receivablePaymentStart, setReceivablePaymentStart] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    if (preserveFilters) {
+      const saved = sessionStorage.getItem('finance_startDate');
+      if (saved !== null) return saved;
+    }
+    return getStartOfMonth();
   });
   const [receivablePaymentEnd, setReceivablePaymentEnd] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    if (preserveFilters) {
+      const saved = sessionStorage.getItem('finance_endDate');
+      if (saved !== null) return saved;
+    }
+    return getTodayDate();
   });
 
   // Banks Statement Report States
@@ -200,12 +226,59 @@ const FinanceDashboard = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [bankPaymentStart, setBankPaymentStart] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+    if (preserveFilters) {
+      const saved = sessionStorage.getItem('finance_startDate');
+      if (saved !== null) return saved;
+    }
+    return getStartOfMonth();
   });
   const [bankPaymentEnd, setBankPaymentEnd] = useState(() => {
-    return new Date().toISOString().split('T')[0];
+    if (preserveFilters) {
+      const saved = sessionStorage.getItem('finance_endDate');
+      if (saved !== null) return saved;
+    }
+    return getTodayDate();
   });
+
+  const isAllTime = !startDate && !endDate;
+
+  const handleStartDateChange = (val) => {
+    setStartDate(val);
+    setReceivablePaymentStart(val);
+    setBankPaymentStart(val);
+  };
+
+  const handleEndDateChange = (val) => {
+    setEndDate(val);
+    setReceivablePaymentEnd(val);
+    setBankPaymentEnd(val);
+  };
+
+  const handleAllTime = () => {
+    setStartDate('');
+    setEndDate('');
+    setReceivablePaymentStart('');
+    setReceivablePaymentEnd('');
+    setBankPaymentStart('');
+    setBankPaymentEnd('');
+    sessionStorage.setItem('finance_startDate', '');
+    sessionStorage.setItem('finance_endDate', '');
+  };
+
+  const handleClearFilters = () => {
+    const startOfMonth = getStartOfMonth();
+    const today = getTodayDate();
+    setSelectedCampus('all');
+    setStartDate(startOfMonth);
+    setEndDate(today);
+    setReceivablePaymentStart(startOfMonth);
+    setReceivablePaymentEnd(today);
+    setBankPaymentStart(startOfMonth);
+    setBankPaymentEnd(today);
+    sessionStorage.setItem('finance_selectedCampus', 'all');
+    sessionStorage.setItem('finance_startDate', startOfMonth);
+    sessionStorage.setItem('finance_endDate', today);
+  };
 
   useEffect(() => {
     sessionStorage.setItem('finance_selectedCampus', selectedCampus);
@@ -231,14 +304,24 @@ const FinanceDashboard = () => {
           params.append('monthKey', bankReportMonth);
         }
       } else {
-        const bStart = bankPaymentStart || startDate;
-        const bEnd = bankPaymentEnd || endDate;
-        if (bStart) params.append('paymentStartDate', bStart);
-        if (bEnd) params.append('paymentEndDate', bEnd);
+        const bStart = startDate !== undefined && startDate !== null ? startDate : bankPaymentStart;
+        const bEnd = endDate !== undefined && endDate !== null ? endDate : bankPaymentEnd;
+        if (bStart) {
+          params.append('paymentStartDate', bStart);
+          params.append('startDate', bStart);
+        }
+        if (bEnd) {
+          params.append('paymentEndDate', bEnd);
+          params.append('endDate', bEnd);
+        }
       }
 
       if (selectedCampus && selectedCampus !== 'all') {
         params.append('institution', selectedCampus);
+      }
+
+      if (!startDate && !endDate) {
+        params.append('allTime', 'true');
       }
 
       const response = await axios.get(`${getApiUrl('dashboard/banks-statement-report')}?${params.toString()}`, {
@@ -270,10 +353,20 @@ const FinanceDashboard = () => {
           params.append('monthKey', receivableMonth);
         }
       } else {
-        const rStart = receivablePaymentStart || startDate;
-        const rEnd = receivablePaymentEnd || endDate;
-        if (rStart) params.append('paymentStartDate', rStart);
-        if (rEnd) params.append('paymentEndDate', rEnd);
+        const rStart = startDate !== undefined && startDate !== null ? startDate : receivablePaymentStart;
+        const rEnd = endDate !== undefined && endDate !== null ? endDate : receivablePaymentEnd;
+        if (rStart) {
+          params.append('paymentStartDate', rStart);
+          params.append('startDate', rStart);
+        }
+        if (rEnd) {
+          params.append('paymentEndDate', rEnd);
+          params.append('endDate', rEnd);
+        }
+      }
+
+      if (!startDate && !endDate) {
+        params.append('allTime', 'true');
       }
       
       const response = await axios.get(`${getApiUrl('dashboard/stats')}?${params.toString()}`, {
@@ -295,16 +388,6 @@ const FinanceDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleClearFilters = () => {
-    setSelectedCampus('all');
-    setStartDate('');
-    setEndDate('');
-    setReceivablePaymentStart('');
-    setReceivablePaymentEnd('');
-    setBankPaymentStart('');
-    setBankPaymentEnd('');
   };
 
   const handleExportAdmissionRegister = () => {
@@ -888,8 +971,8 @@ const FinanceDashboard = () => {
           boxShadow: '0 4px 20px rgba(0,0,0,0.02)'
         }}
       >
-        <Grid container spacing={3} alignItems="center">
-          <Grid item xs={12} md={4}>
+        <Grid container spacing={2.5} alignItems="center">
+          <Grid item xs={12} md={3.5}>
             <FormControl fullWidth size="small">
               <InputLabel id="campus-select-label">Campus</InputLabel>
               <Select
@@ -911,40 +994,66 @@ const FinanceDashboard = () => {
             </FormControl>
           </Grid>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               fullWidth
               size="small"
               type="date"
               label="From Date"
               value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
+              onChange={(e) => handleStartDateChange(e.target.value)}
               InputLabelProps={{ shrink: true }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
             />
           </Grid>
           
-          <Grid item xs={12} sm={6} md={3}>
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               fullWidth
               size="small"
               type="date"
               label="To Date"
               value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
+              onChange={(e) => handleEndDateChange(e.target.value)}
               InputLabelProps={{ shrink: true }}
               sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
             />
           </Grid>
+
+          <Grid item xs={6} sm={3} md={1.75}>
+            <Button
+              fullWidth
+              variant={isAllTime ? "contained" : "outlined"}
+              onClick={handleAllTime}
+              startIcon={<AllInclusive />}
+              sx={{ 
+                borderRadius: 2.5, 
+                textTransform: 'none', 
+                fontWeight: 700, 
+                height: '40px',
+                ...(isAllTime ? {
+                  bgcolor: '#6366f1',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                  '&:hover': { bgcolor: '#4f46e5' }
+                } : {
+                  borderColor: '#6366f1',
+                  color: '#6366f1',
+                  '&:hover': { borderColor: '#4f46e5', bgcolor: '#6366f10a' }
+                })
+              }}
+            >
+              All Time
+            </Button>
+          </Grid>
           
-          <Grid item xs={12} md={2}>
+          <Grid item xs={6} sm={3} md={1.75}>
             <Button
               fullWidth
               variant="outlined"
               color="secondary"
               onClick={handleClearFilters}
               startIcon={<ClearAll />}
-              disabled={!startDate && !endDate && selectedCampus === 'all'}
               sx={{ borderRadius: 2.5, textTransform: 'none', fontWeight: 600, height: '40px' }}
             >
               Reset
