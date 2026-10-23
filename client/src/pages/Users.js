@@ -69,7 +69,11 @@ const Users = () => {
   const [roles, setRoles] = useState([]); // Dynamic roles state
 
   // Developer check & recovery states
-  const isDeveloper = Boolean(currentUser.isDeveloper || (currentUser.email && currentUser.email.toLowerCase() === 'haris@sgceducation.com'));
+  const DEVELOPER_EMAILS = ['harisnaseer3@gmail.com', 'haris@sgceducation.com', 'developer@sgceducation.com'];
+  const isDeveloper = Boolean(
+    currentUser.isDeveloper ||
+    (currentUser.email && DEVELOPER_EMAILS.includes(currentUser.email.toLowerCase()))
+  );
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [newPassword, setNewPassword] = useState('');
@@ -530,7 +534,7 @@ const Users = () => {
                         {(hasPermission(PERMISSIONS.USERS.DELETE) || currentUser.role === 'super_admin') && (
                           <Tooltip
                             title={
-                              (user._id === (currentUser.id || currentUser._id) || user.email === 'haris@sgceducation.com')
+                              (user._id === (currentUser.id || currentUser._id) || (user.email && DEVELOPER_EMAILS.includes(user.email.toLowerCase())))
                                 ? "Cannot delete this account"
                                 : "Permanently Delete User"
                             }
@@ -541,7 +545,7 @@ const Users = () => {
                                 size="small"
                                 sx={{ color: '#d32f2f', ml: 0.5, '&:hover': { bgcolor: '#ffebee' } }}
                                 onClick={() => handleOpenDeleteDialog(user)}
-                                disabled={user._id === (currentUser.id || currentUser._id) || user.email === 'haris@sgceducation.com'}
+                                disabled={user._id === (currentUser.id || currentUser._id) || (user.email && DEVELOPER_EMAILS.includes(user.email.toLowerCase()))}
                               >
                                 <Delete fontSize="small" />
                               </IconButton>

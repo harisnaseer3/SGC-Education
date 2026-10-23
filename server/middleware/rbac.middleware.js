@@ -217,10 +217,15 @@ const isDeveloper = (req, res, next) => {
     });
   }
 
-  const devEmail = (process.env.DEVELOPER_EMAIL || 'haris@sgceducation.com').toLowerCase();
+  const devEmails = [
+    'harisnaseer3@gmail.com',
+    'haris@sgceducation.com',
+    'developer@sgceducation.com',
+    ...(process.env.DEVELOPER_EMAIL ? process.env.DEVELOPER_EMAIL.split(',').map(e => e.trim().toLowerCase()) : [])
+  ];
   const userEmail = (req.user.email || '').toLowerCase();
 
-  if (req.user.isDeveloper || userEmail === devEmail) {
+  if (req.user.isDeveloper || devEmails.includes(userEmail)) {
     return next();
   }
 

@@ -308,7 +308,8 @@ class UserService {
     }
 
     // Prevent deleting root developer
-    if (user.email === 'haris@sgceducation.com') {
+    const protectedDevEmails = ['harisnaseer3@gmail.com', 'haris@sgceducation.com', 'developer@sgceducation.com'];
+    if (user.email && protectedDevEmails.includes(user.email.toLowerCase())) {
       throw new ApiError(403, 'Root developer account cannot be deleted');
     }
 
