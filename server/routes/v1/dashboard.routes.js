@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const dashboardController = require('../../controllers/dashboard.controller');
 const { authenticate } = require('../../middleware/auth.middleware');
-const { authorize } = require('../../middleware/rbac.middleware');
-const { USER_ROLES } = require('../../utils/constants');
+const { hasPermission, hasAnyPermission } = require('../../middleware/rbac.middleware');
+const { PERMISSIONS } = require('../../utils/constants');
 
 /**
  * Dashboard Routes - API v1
@@ -13,16 +13,13 @@ const { USER_ROLES } = require('../../utils/constants');
 // All routes require authentication
 router.use(authenticate);
 
-// Allow access for SUPER_ADMIN, ADMIN, and FINANCE_MANAGER
-router.use(authorize(USER_ROLES.SUPER_ADMIN, USER_ROLES.ADMIN, USER_ROLES.FINANCE_MANAGER));
+// Get dashboard statistics - requires dashboard:stats
+router.get('/stats', hasPermission(PERMISSIONS.DASHBOARD.STATS), dashboardController.getDashboardStats);
 
-// Get dashboard statistics
-router.get('/stats', dashboardController.getDashboardStats);
+// Get analytics data (trends, charts) - requires dashboard:stats
+router.get('/analytics', hasPermission(PERMISSIONS.DASHBOARD.STATS), dashboardController.getAnalytics);
 
-// Get analytics data (trends, charts)
-router.get('/analytics', dashboardController.getAnalytics);
-
-// Get consolidated banks statement report
-router.get('/banks-statement-report', dashboardController.getBanksStatementReport);
+// Get consolidated banks statement report - requires dashboard:stats or fee:report
+router.get('/banks-statement-report', hasAnyPermission([PERMISSIONS.DASHBOARD.STATS, PERMISSIONS.FEES.REPORT]), dashboardController.getBanksStatementReport);
 
 module.exports = router;

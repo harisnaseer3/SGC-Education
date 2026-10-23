@@ -23,10 +23,13 @@ import {
 } from '@mui/icons-material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getAvailableModules } from '../../config/modules';
+import usePermissions from '../../hooks/usePermissions';
+import { PERMISSIONS } from '../../utils/constants';
 
 const Sidebar = ({ collapsed, onToggle }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { hasPermission } = usePermissions();
   const availableModules = getAvailableModules();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -34,6 +37,7 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isFinanceDashboard = location.pathname === '/finance-dashboard' || user.role === 'finance_manager';
+  const canViewDashboard = hasPermission(PERMISSIONS.DASHBOARD.VIEW) || (isFinanceDashboard && hasPermission(PERMISSIONS.FEES.VIEW));
 
   const displayedModules = isFinanceDashboard
     ? availableModules.filter(m => m.name === 'Admissions' || m.name === 'Fee Management')
@@ -198,50 +202,52 @@ const Sidebar = ({ collapsed, onToggle }) => {
 
       <List sx={{ pt: 1 }}>
         {/* Dashboard Link — collapse toggle on right for desktop */}
-        <ListItem disablePadding sx={{ px: 1, mb: 0.5 }}>
-          <ListItemButton
-            selected={location.pathname === '/dashboard' || location.pathname === '/finance-dashboard'}
-            onClick={() => {
-              setOpenMenus({});
-              navigate(location.pathname === '/finance-dashboard' ? '/finance-dashboard' : '/dashboard');
-            }}
-            sx={{
-              minHeight: 48,
-              px: 2.5,
-              borderRadius: 2,
-              justifyContent: collapsed ? 'center' : 'initial',
-              '&.Mui-selected': {
-                bgcolor: 'rgba(102, 126, 234, 0.15)',
-                color: '#667eea',
-                '& .MuiListItemIcon-root': { color: '#667eea' },
-                '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.25)' }
-              }
-            }}
-          >
-            <ListItemIcon sx={{ 
-              minWidth: 0, 
-              mr: collapsed ? 'auto' : 3, 
-              justifyContent: 'center' 
-            }}>
-              <DashboardIcon />
-            </ListItemIcon>
-            <ListItemText
-              primary="Dashboard"
-              primaryTypographyProps={{ fontWeight: 700, fontSize: '0.9rem' }}
-              sx={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}
-            />
-            {/* Collapse toggle — desktop only, right-aligned */}
-            {!isMobile && (
-              <IconButton
-                size="small"
-                onClick={(e) => { e.stopPropagation(); onToggle(); }}
-                sx={{ ml: 'auto', color: 'text.secondary', '&:hover': { color: '#667eea' } }}
-              >
-                {collapsed ? <MenuIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
-              </IconButton>
-            )}
-          </ListItemButton>
-        </ListItem>
+        {canViewDashboard && (
+          <ListItem disablePadding sx={{ px: 1, mb: 0.5 }}>
+            <ListItemButton
+              selected={location.pathname === '/dashboard' || location.pathname === '/finance-dashboard'}
+              onClick={() => {
+                setOpenMenus({});
+                navigate(location.pathname === '/finance-dashboard' ? '/finance-dashboard' : '/dashboard');
+              }}
+              sx={{
+                minHeight: 48,
+                px: 2.5,
+                borderRadius: 2,
+                justifyContent: collapsed ? 'center' : 'initial',
+                '&.Mui-selected': {
+                  bgcolor: 'rgba(102, 126, 234, 0.15)',
+                  color: '#667eea',
+                  '& .MuiListItemIcon-root': { color: '#667eea' },
+                  '&:hover': { bgcolor: 'rgba(102, 126, 234, 0.25)' }
+                }
+              }}
+            >
+              <ListItemIcon sx={{ 
+                minWidth: 0, 
+                mr: collapsed ? 'auto' : 3, 
+                justifyContent: 'center' 
+              }}>
+                <DashboardIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary="Dashboard"
+                primaryTypographyProps={{ fontWeight: 700, fontSize: '0.9rem' }}
+                sx={{ opacity: collapsed ? 0 : 1, transition: 'opacity 0.2s' }}
+              />
+              {/* Collapse toggle — desktop only, right-aligned */}
+              {!isMobile && (
+                <IconButton
+                  size="small"
+                  onClick={(e) => { e.stopPropagation(); onToggle(); }}
+                  sx={{ ml: 'auto', color: 'text.secondary', '&:hover': { color: '#667eea' } }}
+                >
+                  {collapsed ? <MenuIcon fontSize="small" /> : <ChevronLeftIcon fontSize="small" />}
+                </IconButton>
+              )}
+            </ListItemButton>
+          </ListItem>
+        )}
 
         <Divider sx={{ my: 1 }} />
 

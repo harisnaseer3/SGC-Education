@@ -51,10 +51,14 @@ import AnalyticsCharts from '../components/dashboard/AnalyticsCharts';
 import DashboardCharts from '../components/dashboard/DashboardCharts';
 import FinanceDashboard from './FinanceDashboard';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import usePermissions from '../hooks/usePermissions';
+import { PERMISSIONS } from '../utils/constants';
 
 const Dashboard = () => {
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const navigate = useNavigate();
+  const { hasPermission } = usePermissions();
+  const canViewStats = hasPermission(PERMISSIONS.DASHBOARD.STATS);
   const [anchorEl, setAnchorEl] = useState(null);
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -83,7 +87,11 @@ const Dashboard = () => {
   const [logoCacheBuster] = useState(() => `?t=${Date.now()}`);
 
   useEffect(() => {
-    fetchDashboardStats();
+    if (canViewStats) {
+      fetchDashboardStats();
+    } else {
+      setLoading(false);
+    }
     fetchClasses();
 
     // Load selected institution
@@ -95,7 +103,7 @@ const Dashboard = () => {
         console.error('Failed to parse institution data', e);
       }
     }
-  }, []);
+  }, [canViewStats]);
 
   const fetchClasses = async () => {
     try {
@@ -416,7 +424,7 @@ const Dashboard = () => {
   };
   const voucherChartData = getVoucherChartData();
 
-  if (loading) {
+  if (loading && canViewStats) {
     return (
       <Box sx={{ minHeight: '60vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
         <CircularProgress />
@@ -426,16 +434,14 @@ const Dashboard = () => {
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-      {error && (
+      {error && canViewStats && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      {dashboardData && (
-        <>
-          {/* Quick Access to Finance Dashboard for Super Admin */}
-          {user.role === 'super_admin' && (
+      {/* Quick Access to Finance Dashboard for Super Admin */}
+      {user.role === 'super_admin' && canViewStats && (
             <Paper
               elevation={0}
               sx={{
@@ -623,7 +629,37 @@ const Dashboard = () => {
             </Box>
           </Paper>
 
-          {/* Row 1: Key Performance Indicators (Compact) */}
+          {/* Mode banner if user has view only access */}
+          {!canViewStats && (
+            <Paper
+              elevation={0}
+              sx={{
+                p: 3,
+                mb: 3,
+                borderRadius: 3,
+                bgcolor: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2
+              }}
+            >
+              <Assessment sx={{ fontSize: 40, color: '#64748b' }} />
+              <Box>
+                <Typography variant="subtitle1" fontWeight="700" color="#334155">
+                  Dashboard View Mode
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  You have access to view this dashboard portal and navigate modules. Detailed statistics, student counters, and financial analytics require the <strong>dashboard:stats</strong> permission.
+                </Typography>
+              </Box>
+            </Paper>
+          )}
+
+          {/* Stats Sections: Rows 1, 2, 3 */}
+          {canViewStats && dashboardData && (
+            <>
+              {/* Row 1: Key Performance Indicators (Compact) */}
               <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }, gap: 3, width: '100%', mb: 4 }}>
                 {[
                   { 
@@ -940,8 +976,10 @@ const Dashboard = () => {
                   )}
                 </Box>
               )}
+            </>
+          )}
 
-              {/* Row 4: Quick Actions (Full-Width Responsive Grid) */}
+          {/* Row 4: Quick Actions (Full-Width Responsive Grid) */}
               <Box sx={{ mb: 4, width: '100%' }}>
                 <Paper elevation={0} sx={{ p: 3, borderRadius: 4, border: '1px solid #edf2f7', pb: 3, width: '100%', boxSizing: 'border-box' }}>
                   <Typography variant="subtitle1" fontWeight="800" sx={{ mb: 3 }}>Quick Actions</Typography>
@@ -994,11 +1032,11 @@ const Dashboard = () => {
                 </Paper>
               </Box>
 
-              {/* Row 6: Comprehensive Analytics Charts */}
-              <Box sx={{ mt: 4, mb: 2, width: '100%' }}>
-                <DashboardCharts />
-              </Box>
-            </>
+          {/* Row 6: Comprehensive Analytics Charts */}
+          {canViewStats && (
+            <Box sx={{ mt: 4, mb: 2, width: '100%' }}>
+              <DashboardCharts />
+            </Box>
           )}
         </Box>
   );

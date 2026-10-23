@@ -144,6 +144,10 @@ const ProtectedRoute = ({ children, title, permission }) => {
 
   // Check for granular permission
   if (permission && !hasPermission(permission)) {
+    // If user lacks permission for dashboard itself, redirect to profile to prevent loop
+    if (!hasPermission(PERMISSIONS.DASHBOARD.VIEW)) {
+      return <Navigate to="/profile" />;
+    }
     return <Navigate to="/dashboard" />; // Redirect to dashboard if unauthorized
   }
 
@@ -183,7 +187,7 @@ function App() {
           <Route
             path="/dashboard"
             element={
-              <ProtectedRoute>
+              <ProtectedRoute permission={PERMISSIONS.DASHBOARD.VIEW}>
                 <Dashboard />
               </ProtectedRoute>
             }

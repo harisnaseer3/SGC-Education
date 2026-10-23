@@ -31,11 +31,6 @@ const seedRoles = async () => {
           isSystemRole: true,
           description
         });
-      } else if (existingRole.isSystemRole) {
-        // Optionally update permissions of system roles to match constants
-        // console.log(`~ Updating system role permissions: ${roleName}`);
-        // existingRole.permissions = permissions;
-        // await existingRole.save();
       }
     }
     

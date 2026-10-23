@@ -15,9 +15,6 @@ router.use(authorize('super_admin'));
  */
 router.get('/', async (req, res) => {
   try {
-    const seedRoles = require('../../utils/seedRoles');
-    await seedRoles();
-
     const roles = await Role.find().sort({ name: 1 });
     res.status(HTTP_STATUS.OK).json({
       success: true,
@@ -98,7 +95,7 @@ router.post('/', async (req, res) => {
  */
 router.put('/:id', async (req, res) => {
   try {
-    let role = await Role.findById(req.params.id);
+    const role = await Role.findById(req.params.id);
     if (!role) {
       return res.status(HTTP_STATUS.NOT_FOUND).json({
         success: false,
@@ -106,12 +103,15 @@ router.put('/:id', async (req, res) => {
       });
     }
 
-    // Don't allow renaming system roles via standard API if needed, 
-    // but permissions should be editable.
     const { permissions, description } = req.body;
     
-    role.permissions = permissions || role.permissions;
-    role.description = description || role.description;
+    if (permissions !== undefined) {
+      role.permissions = Array.isArray(permissions) ? permissions : [];
+      role.markModified('permissions');
+    }
+    if (description !== undefined) {
+      role.description = description;
+    }
     
     await role.save();
 
