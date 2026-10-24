@@ -659,7 +659,7 @@ const FeeManagement = () => {
       fetchPrintVoucherStudents();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, printVoucherFilters.monthYear]);
+  }, [activeTab, printVoucherFilters.monthYear, !!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate)]);
 
   // Handle auto-fetch for Suspense Entries
   useEffect(() => {
@@ -1006,7 +1006,24 @@ const FeeManagement = () => {
         }
       });
       
-      // Filter to only include students with vouchers for the selected month/year
+      // Get unique students with voucher information
+      const uniqueStudentsMap = new Map();
+      // When a payment date range is applied, the month filter is ignored and vouchers of all months are considered
+      const paymentRangeMode = !!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate);
+      const monthsToProcess = [];
+      if (paymentRangeMode) {
+        const seen = new Set();
+        allStudentFees.forEach(sf => (sf.vouchers || []).forEach(v => {
+          if (!v || v.month === undefined || v.year === undefined) return;
+          const k = `${Number(v.year)}-${Number(v.month)}`;
+          if (!seen.has(k)) { seen.add(k); monthsToProcess.push({ month: Number(v.month), year: Number(v.year) }); }
+        }));
+      } else {
+        monthsToProcess.push({ month, year });
+      }
+
+      monthsToProcess.forEach(({ month, year }) => {
+      // Filter to only include students with vouchers for the month/year
       const studentsWithVouchers = allStudentFees.filter(sf => {
         if (!sf.vouchers || !Array.isArray(sf.vouchers)) return false;
         return sf.vouchers.some(v => 
@@ -1016,8 +1033,7 @@ const FeeManagement = () => {
         );
       });
 
-      // Get unique students with voucher information
-      const uniqueStudentsMap = new Map();
+      // (uniqueStudentsMap declared above)
       
       // Group student fees by student ID - keep BOTH voucher fees and all fees
       const studentFeesByStudent = new Map();
@@ -1221,7 +1237,9 @@ const FeeManagement = () => {
           unpaidArrears = Math.max(0, Math.round((previousBalance - paidArrears) * 100) / 100);
         }
 
-        uniqueStudentsMap.set(studentIdStr, {
+        const rowKey = paymentRangeMode ? `${studentIdStr}-${month}-${year}` : studentIdStr;
+        uniqueStudentsMap.set(rowKey, {
+          rowKey,
           _id: admission?._id || studentIdStr,
           studentId: studentIdStr,
           id: student?.enrollmentNumber || student?.rollNumber || admission?.applicationNumber || 'N/A',
@@ -1241,6 +1259,7 @@ const FeeManagement = () => {
           paymentDate: (totalPaidForVoucher > 0 && voucherPaymentDate) ? voucherPaymentDate.toISOString() : null,
           generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null
         });
+      });
       });
 
       const transformedStudents = Array.from(uniqueStudentsMap.values());
@@ -5139,6 +5158,7 @@ const FeeManagement = () => {
                       size="small"
                       label="Month/Year"
                       type="month"
+                      disabled={!!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate)}
                       value={printVoucherFilters.monthYear}
                       onChange={(e) => {
                         setPrintVoucherFilters({ ...printVoucherFilters, monthYear: e.target.value });
@@ -5355,7 +5375,7 @@ const FeeManagement = () => {
                     </TableRow>
                   ) : (
                     getPaginatedData(getFilteredPrintVoucherStudents(), 'printVoucher').map((student) => (
-                      <TableRow key={student._id}>
+                      <TableRow key={student.rowKey || student._id}>
                         <TableCell padding="checkbox">
                           {student.voucherStatus === 'Unpaid' && (
                             <Checkbox
