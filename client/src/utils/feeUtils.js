@@ -19,23 +19,25 @@ export const getAuthToken = () => {
  * @returns {string|null} Institution ID
  */
 export const getInstitutionId = (user, isSuperAdmin) => {
-  // For admin users, always use their institution
-  if (!isSuperAdmin && user.institution) {
-    return typeof user.institution === 'object' ? user.institution._id : user.institution;
-  }
-  // For super admin, get from localStorage
-  if (isSuperAdmin) {
-    const institutionData = localStorage.getItem('selectedInstitution');
-    if (institutionData) {
-      try {
-        const institution = JSON.parse(institutionData);
-        return institution._id || institution;
-      } catch (e) {
-        // If it's not JSON, it might be a string ID
+  // Check localStorage selectedInstitution first for any user / super_admin who switched campus
+  const institutionData = localStorage.getItem('selectedInstitution');
+  if (institutionData && institutionData !== 'undefined' && institutionData !== 'null') {
+    try {
+      const parsed = JSON.parse(institutionData);
+      if (parsed?._id) return parsed._id;
+      if (typeof parsed === 'string' && parsed.trim() !== '') return parsed;
+    } catch (e) {
+      if (typeof institutionData === 'string' && institutionData.trim() !== '') {
         return institutionData;
       }
     }
   }
+
+  // Otherwise, for users with an assigned institution
+  if (user?.institution) {
+    return typeof user.institution === 'object' ? user.institution._id : user.institution;
+  }
+
   return null;
 };
 

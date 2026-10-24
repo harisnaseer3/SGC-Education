@@ -47,8 +47,9 @@ const StudentLedgerReport = ({ onBack }) => {
   const [institutionData, setInstitutionData] = useState(null);
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isSuperAdmin = user.role === 'super_admin';
-  const currentInstitutionId = getInstitutionId(user, isSuperAdmin);
+  const [currentInstitutionId, setCurrentInstitutionId] = useState(() => {
+    return getInstitutionId(user, user.role === 'super_admin');
+  });
 
   const [filters, setFilters] = useState({
     institution: currentInstitutionId || '',
@@ -57,6 +58,21 @@ const StudentLedgerReport = ({ onBack }) => {
     startDate: '',
     endDate: ''
   });
+
+  useEffect(() => {
+    const handleInstChange = () => {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      const id = getInstitutionId(u, u.role === 'super_admin');
+      setCurrentInstitutionId(id);
+    };
+
+    window.addEventListener('institutionChanged', handleInstChange);
+    window.addEventListener('storage', handleInstChange);
+    return () => {
+      window.removeEventListener('institutionChanged', handleInstChange);
+      window.removeEventListener('storage', handleInstChange);
+    };
+  }, []);
 
   useEffect(() => {
     setFilters(prev => ({ ...prev, institution: currentInstitutionId }));
@@ -77,7 +93,8 @@ const StudentLedgerReport = ({ onBack }) => {
 
   const fetchClasses = async (instId) => {
     try {
-      const params = instId ? { institution: instId } : {};
+      const params = { isActive: true };
+      if (instId) params.institution = instId;
       const response = await axios.get(`${API_URL}/classes`, createAxiosConfig({ params }));
       const rawClasses = response.data.data || [];
       const uniqueMap = new Map();

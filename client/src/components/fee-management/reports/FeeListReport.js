@@ -61,10 +61,10 @@ const FeeListReport = ({ onBack }) => {
   
   const [filters, setFilters] = useState({
     className: 'All',
-    statuses: ['All'],
+    statuses: ['Enrolled'],
     monthYear: new Date().toISOString().slice(0, 7), // YYYY-MM
     includePreviousBalance: true,
-    includeStruckOff: false
+    includeDefaultersWithoutVoucher: false
   });
 
   const [reportData, setReportData] = useState([]);
@@ -79,27 +79,47 @@ const FeeListReport = ({ onBack }) => {
   const fetchClassesRef = useRef(false);
 
   useEffect(() => {
-    if (!fetchClassesRef.current) {
-      fetchClasses();
-      fetchClassesRef.current = true;
-    }
-
     const savedUser = localStorage.getItem('user');
+    let parsedUser = null;
     if (savedUser) {
       try {
-        const parsedUser = JSON.parse(savedUser);
+        parsedUser = JSON.parse(savedUser);
         setUser(parsedUser);
-        fetchInstitution(parsedUser);
       } catch (e) {
         console.error('Error parsing user data');
       }
     }
+    const isSuperAdmin = parsedUser?.role === 'super_admin';
+    const institutionId = getInstitutionId(parsedUser, isSuperAdmin);
+    if (institutionId) {
+      fetchInstitution(parsedUser, institutionId);
+      fetchClasses(institutionId);
+    } else {
+      fetchClasses();
+    }
+
+    const handleInstChange = () => {
+      const u = localStorage.getItem('user');
+      const pUser = u ? JSON.parse(u) : parsedUser;
+      const id = getInstitutionId(pUser, pUser?.role === 'super_admin');
+      if (id) {
+        fetchInstitution(pUser, id);
+        fetchClasses(id);
+      }
+    };
+
+    window.addEventListener('institutionChanged', handleInstChange);
+    window.addEventListener('storage', handleInstChange);
+    return () => {
+      window.removeEventListener('institutionChanged', handleInstChange);
+      window.removeEventListener('storage', handleInstChange);
+    };
   }, []);
 
-  const fetchInstitution = async (userData) => {
+  const fetchInstitution = async (userData, instId) => {
     try {
       const isSuperAdmin = userData?.role === 'super_admin';
-      const institutionId = getInstitutionId(userData, isSuperAdmin);
+      const institutionId = instId || getInstitutionId(userData, isSuperAdmin);
       if (institutionId) {
         const response = await axios.get(`${API_URL}/institutions/${institutionId}`, createAxiosConfig());
         setInstitution(response.data.data);
@@ -109,9 +129,16 @@ const FeeListReport = ({ onBack }) => {
     }
   };
 
-  const fetchClasses = async () => {
+  const fetchClasses = async (instId) => {
     try {
-      const response = await axios.get(`${API_URL}/classes`, createAxiosConfig());
+      const activeUser = user || (localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')) : null);
+      const isSuperAdmin = activeUser?.role === 'super_admin';
+      const institutionId = instId || getInstitutionId(activeUser, isSuperAdmin);
+      const params = { isActive: true };
+      if (institutionId) {
+        params.institution = institutionId;
+      }
+      const response = await axios.get(`${API_URL}/classes`, createAxiosConfig({ params }));
       const rawClasses = response.data.data || [];
       
       // Unique-ify classes by name to avoid duplicates in dropdown
@@ -225,21 +252,17 @@ const FeeListReport = ({ onBack }) => {
           }
         }
 
-        // Struck Off check:
-        // Exclude struck off students ONLY if they were effectively struck off in or before this month,
-        // unless includeStruckOff is true or user explicitly selected 'Struck Off' in statuses
-        if (isEffectiveStruckOff && !filters.includeStruckOff) {
-          const explicitlyRequested = filters.statuses && filters.statuses.some(s => s.toLowerCase() === 'struck off');
-          if (!explicitlyRequested) return;
-        }
-
         // Match Status (skip if it contains 'All' or is empty)
         if (filters.statuses.length > 0 && !filters.statuses.includes('All')) {
-          const effectiveStatus = isEffectiveStruckOff ? (student.status || admission.status || 'Struck Off') : 'Enrolled';
-          const matchStatus = filters.statuses.some(s => 
-            s.toLowerCase() === effectiveStatus.toLowerCase() || 
-            s.toLowerCase() === (student.status || admission.status || '').toLowerCase()
-          );
+          const effectiveStatus = isEffectiveStruckOff ? 'Struck Off' : (student.status || admission.status || 'Enrolled');
+          const matchStatus = filters.statuses.some(s => {
+            const sLower = s.toLowerCase().trim();
+            if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
+              return isEffectiveStruckOff || isStruckOffRaw;
+            }
+            return sLower === effectiveStatus.toLowerCase() || 
+                   sLower === (student.status || admission.status || '').toLowerCase();
+          });
           if (!matchStatus) return;
         }
 
@@ -297,9 +320,12 @@ const FeeListReport = ({ onBack }) => {
 
         const outstandingPrev = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-        // If no fee in current month and no previous dues, skip
-        if (currentMonthFees.length === 0 && outstandingPrev <= 0) {
-          return;
+        // If no fee in current month:
+        // By default, match Print Voucher and only show students with a current month voucher.
+        // Only include students without a current month voucher if includeDefaultersWithoutVoucher is enabled.
+        if (currentMonthFees.length === 0) {
+          if (!filters.includeDefaultersWithoutVoucher) return;
+          if (outstandingPrev <= 0) return;
         }
 
         const arrearsFee = currentMonthFees.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
@@ -512,23 +538,24 @@ const FeeListReport = ({ onBack }) => {
                 }
               />
             </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            <Grid item xs={12} sm={6} md={2.5}>
               <FormControlLabel
                 control={
                   <Checkbox 
-                    checked={filters.includeStruckOff}
-                    onChange={(e) => handleFilterChange('includeStruckOff', e.target.checked)}
-                    color="warning"
+                    checked={filters.includeDefaultersWithoutVoucher}
+                    onChange={(e) => handleFilterChange('includeDefaultersWithoutVoucher', e.target.checked)}
+                    color="primary"
                     size="small"
                   />
                 }
                 label={
                   <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500 }}>
-                    Include Struck Off
+                    Include Defaulters (No Current Voucher)
                   </Typography>
                 }
               />
             </Grid>
+
             <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 1 }}>
               <Button
                 variant="contained"

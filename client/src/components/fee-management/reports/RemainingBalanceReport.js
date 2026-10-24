@@ -56,8 +56,9 @@ const RemainingBalanceReport = ({ onBack }) => {
   const [institutionData, setInstitutionData] = useState(null);
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const isSuperAdmin = user.role === 'super_admin';
-  const currentInstitutionId = getInstitutionId(user, isSuperAdmin);
+  const [currentInstitutionId, setCurrentInstitutionId] = useState(() => {
+    return getInstitutionId(user, user.role === 'super_admin');
+  });
 
   const [availableStatuses] = useState([
     'Enrolled', 'Soft Admission', 'Struck Off', 'Expelled', 'Freeze', 'School Leaving'
@@ -67,8 +68,8 @@ const RemainingBalanceReport = ({ onBack }) => {
     institution: currentInstitutionId || '',
     filterMode: 'voucher', // Default to month & year (voucher wise)
     classId: 'all',
-    studentStatus: ['All'],
-    includeStruckOff: false,
+    studentStatus: ['Enrolled'],
+    includeDefaultersWithoutVoucher: false,
     monthYear: format(new Date(), 'yyyy-MM'),
     dateFrom: format(subMonths(new Date(), 1), 'yyyy-MM-dd'),
     dateTo: format(new Date(), 'yyyy-MM-dd'),
@@ -77,16 +78,30 @@ const RemainingBalanceReport = ({ onBack }) => {
   });
 
   useEffect(() => {
+    const handleInstChange = () => {
+      const u = JSON.parse(localStorage.getItem('user') || '{}');
+      const id = getInstitutionId(u, u.role === 'super_admin');
+      setCurrentInstitutionId(id);
+    };
+
+    window.addEventListener('institutionChanged', handleInstChange);
+    window.addEventListener('storage', handleInstChange);
+    return () => {
+      window.removeEventListener('institutionChanged', handleInstChange);
+      window.removeEventListener('storage', handleInstChange);
+    };
+  }, []);
+
+  useEffect(() => {
     // If institution changes in navbar (localStorage), update filters and refetch institution data
     setFilters(prev => ({ ...prev, institution: currentInstitutionId }));
     if (currentInstitutionId) {
       fetchInstitutionData(currentInstitutionId);
+      fetchInitialData(currentInstitutionId);
+    } else {
+      fetchInitialData();
     }
   }, [currentInstitutionId]);
-
-  useEffect(() => {
-    fetchInitialData();
-  }, []);
 
   const fetchInstitutionData = async (instId) => {
     try {
@@ -97,9 +112,14 @@ const RemainingBalanceReport = ({ onBack }) => {
     }
   };
 
-  const fetchInitialData = async () => {
+  const fetchInitialData = async (instId) => {
     try {
-      const response = await axios.get(`${API_URL}/classes`, createAxiosConfig());
+      const institutionId = instId || currentInstitutionId;
+      const params = { isActive: true };
+      if (institutionId) {
+        params.institution = institutionId;
+      }
+      const response = await axios.get(`${API_URL}/classes`, createAxiosConfig({ params }));
       const rawClasses = response.data.data || [];
       
       // Unique-ify classes by name to avoid duplicates in dropdown
@@ -235,20 +255,16 @@ const RemainingBalanceReport = ({ onBack }) => {
           }
         }
 
-        // Struck Off check:
-        // Exclude struck off students ONLY if they were effectively struck off in or before this month,
-        // unless includeStruckOff is true or user explicitly selected 'Struck Off' in studentStatus
-        if (isEffectiveStruckOff && !filters.includeStruckOff) {
-          const explicitlyRequested = filters.studentStatus && filters.studentStatus.some(s => s.toLowerCase() === 'struck off');
-          if (!explicitlyRequested) return;
-        }
-
         if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
-          const effectiveStatus = isEffectiveStruckOff ? (student.status || admission.status || 'Struck Off') : 'Enrolled';
-          const matchStatus = filters.studentStatus.some(s => 
-            s.toLowerCase() === effectiveStatus.toLowerCase() || 
-            s.toLowerCase() === (student.status || admission.status || '').toLowerCase()
-          );
+          const effectiveStatus = isEffectiveStruckOff ? 'Struck Off' : (student.status || admission.status || 'Enrolled');
+          const matchStatus = filters.studentStatus.some(s => {
+            const sLower = s.toLowerCase().trim();
+            if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
+              return isEffectiveStruckOff || isStruckOffRaw;
+            }
+            return sLower === effectiveStatus.toLowerCase() || 
+                   sLower === (student.status || admission.status || '').toLowerCase();
+          });
           if (!matchStatus) return;
         }
 
@@ -308,9 +324,12 @@ const RemainingBalanceReport = ({ onBack }) => {
 
         const outstandingPrev = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-        // If no fee in current month, no previous dues, and no payments in range, skip
-        if (currentMonthFees.length === 0 && outstandingPrev <= 0 && studentPaymentsInRange.length === 0) {
-          return;
+        // If no fee in current month:
+        // In voucher mode, by default match Print Voucher and only show students who have a voucher in this month.
+        // Include students without a current month voucher only if includeDefaultersWithoutVoucher is checked (or they have payments in dateRange mode).
+        if (currentMonthFees.length === 0) {
+          if (filters.filterMode === 'voucher' && !filters.includeDefaultersWithoutVoucher) return;
+          if (outstandingPrev <= 0 && studentPaymentsInRange.length === 0) return;
         }
 
         const arrearsFee = currentMonthFees.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
@@ -492,7 +511,8 @@ const RemainingBalanceReport = ({ onBack }) => {
     const exportMetadata = {
       'Class': selectedClass ? selectedClass.name : 'All Classes',
       'Payment Status': filters.paymentStatus,
-      'Include Struck Off': filters.includeStruckOff ? 'Yes' : 'No'
+      'Student Status': filters.studentStatus.join(', '),
+      'Include Defaulters (No Current Voucher)': filters.includeDefaultersWithoutVoucher ? 'Yes' : 'No'
     };
 
     if (filters.filterMode === 'dateRange') {
@@ -730,18 +750,19 @@ const RemainingBalanceReport = ({ onBack }) => {
                 control={
                   <Checkbox
                     size="small"
-                    checked={Boolean(filters.includeStruckOff)}
-                    onChange={(e) => setFilters({ ...filters, includeStruckOff: e.target.checked })}
-                    sx={{ color: '#e53e3e', '&.Mui-checked': { color: '#e53e3e' } }}
+                    checked={Boolean(filters.includeDefaultersWithoutVoucher)}
+                    onChange={(e) => setFilters({ ...filters, includeDefaultersWithoutVoucher: e.target.checked })}
+                    sx={{ color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
                   />
                 }
                 label={
-                  <Typography variant="body2" fontWeight={filters.includeStruckOff ? 700 : 500} sx={{ color: filters.includeStruckOff ? '#e53e3e' : '#475569' }}>
-                    Include Struck Off Students (Arrears)
+                  <Typography variant="body2" fontWeight={filters.includeDefaultersWithoutVoucher ? 700 : 500} sx={{ color: filters.includeDefaultersWithoutVoucher ? '#2563eb' : '#475569' }}>
+                    Include Defaulters (No Current Voucher)
                   </Typography>
                 }
                 sx={{ m: 0 }}
               />
+
             </Box>
 
             <Grid container spacing={2} alignItems="center">
