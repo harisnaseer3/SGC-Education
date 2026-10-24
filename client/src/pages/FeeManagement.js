@@ -272,6 +272,8 @@ const FeeManagement = () => {
     monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`, // Format: YYYY-MM for month input
     voucherNumber: '',
     generatedDate: '',
+    paymentStartDate: '',
+    paymentEndDate: '',
     searchTerm: '',
     class: '',
     voucherStatus: searchParams.get('status') || ''
@@ -973,14 +975,36 @@ const FeeManagement = () => {
       // Calculate month and year from filter
       const { month, year } = parseMonthYear(printVoucherFilters.monthYear);
 
-      // Fetch students with generated vouchers for the selected month/year
+      // Fetch students with generated vouchers for the selected month/year along with payments
       const params = {
         institution: institutionId
       };
 
-      const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }));
+      const [response, paymentsResponse] = await Promise.all([
+        axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params })),
+        axios.get(`${API_URL}/fees/payments`, createAxiosConfig({ params: { institution: institutionId } }))
+      ]);
 
       const allStudentFees = response.data.data || response.data || [];
+      const allPayments = paymentsResponse.data.data || paymentsResponse.data || [];
+
+      // Group payments by student ID and by voucher number
+      const paymentsByStudent = new Map();
+      const paymentsByVoucher = new Map();
+      allPayments.forEach(p => {
+        if (p.status !== 'completed' && p.status !== 'success') return;
+        const studentId = p.student?._id?.toString() || p.student?.toString();
+        if (studentId) {
+          if (!paymentsByStudent.has(studentId)) paymentsByStudent.set(studentId, []);
+          paymentsByStudent.get(studentId).push(p);
+        }
+        if (p.voucherNumber) {
+          let vNo = p.voucherNumber.toString().trim();
+          if (vNo.includes('-')) vNo = vNo.split('-').pop();
+          if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
+          paymentsByVoucher.get(vNo).push(p);
+        }
+      });
       
       // Filter to only include students with vouchers for the selected month/year
       const studentsWithVouchers = allStudentFees.filter(sf => {
@@ -1059,7 +1083,6 @@ const FeeManagement = () => {
         
         // Calculate total amount and determine voucher status from all student fees that have vouchers for this month/year
         const feesWithVoucher = [];
-        const startDate = new Date(year, month - 1, 1);
         const allFeesForStudent = allFeesByStudent.get(studentIdStr) || [];
 
         studentFees.forEach(sf => {
@@ -1112,31 +1135,58 @@ const FeeManagement = () => {
         // Dynamic unpaid arrears calculation from previous periods
         const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-        // Any payment made against the Arrears head on THIS voucher
+        // Payments made specifically with THIS voucher number (or by this student)
+        const voucherPayments = voucherNumber !== 'N/A' ? (paymentsByVoucher.get(voucherNumber) || []) : [];
+        const studentPayments = paymentsByStudent.get(studentIdStr) || [];
+        
+        // Sum payments recorded against previous fees under this voucher number
+        let paidArrearsViaVoucherNumber = voucherPayments.reduce((sum, p) => {
+          const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+          // Is it paid against a previous fee?
+          const isCurrentFee = feesWithVoucher.some(f => f._id?.toString() === sfId && f.feeHead?.name?.toLowerCase() !== 'arrears');
+          if (!isCurrentFee) {
+            return sum + parseFloat(p.amount || 0);
+          }
+          return sum;
+        }, 0);
+
+        // Any payment made directly against the Arrears head on THIS voucher
         const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher
           ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0)
           : 0;
 
-        // Previous Balance (P.Bal):
-        // Prefer live ledger dues (outstandingPrevArrears + any payment on this voucher's arrears) to reflect any payments made after voucher generation.
+        // Total paid arrears for this voucher:
+        const paidArrearsOnThisVoucher = Math.max(paidArrearsViaVoucherNumber, arrearsPaymentsOnVoucher);
+
+        // Latest payment date among payments made under this voucher
+        let voucherPaymentDate = null;
+        voucherPayments.forEach(p => {
+          const d = p.paymentDate ? new Date(p.paymentDate) : null;
+          if (d && !isNaN(d) && (!voucherPaymentDate || d > voucherPaymentDate)) voucherPaymentDate = d;
+        });
+
+        // Previous Balance (P.Bal / Arrears):
+        // When a voucher is paid or partially paid, the arrears billed on that voucher must remain visible and not be wiped out.
+        // 1. Prefer explicit snapshot on the voucher (arrearsRecordOnVoucher.finalAmount or arrearsRecordOnVoucher.baseAmount)
+        // 2. Or (outstandingPrevArrears + paidArrearsOnThisVoucher) so that paid arrears do NOT reduce the displayed arrears on this voucher
         let previousBalance = 0;
-        if (outstandingPrevArrears > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-          previousBalance = Math.max(0, Math.round((outstandingPrevArrears + arrearsPaymentsOnVoucher) * 100) / 100);
-        } else if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.finalAmount || 0) > 0) {
+        if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.finalAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsRecordOnVoucher.finalAmount || 0);
         } else if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.baseAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsRecordOnVoucher.baseAmount || 0);
         } else {
-          previousBalance = outstandingPrevArrears;
+          previousBalance = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
         }
 
         const regularPaid = feesWithVoucher.reduce((sum, f) => {
           if (f.feeHead?.name?.toLowerCase() === 'arrears') return sum;
           return sum + parseFloat(f.paidAmount || 0);
         }, 0);
-        const totalPaidForVoucher = regularPaid + arrearsPaymentsOnVoucher;
+        
+        // Total paid for this voucher includes regular fee payments + arrears paid under this voucher
+        const totalPaidForVoucher = regularPaid + paidArrearsOnThisVoucher;
         const totalVoucherObligation = voucherAmount + previousBalance;
-        const displayedRemaining = Math.max(0, totalVoucherObligation - totalPaidForVoucher);
+        const displayedRemaining = Math.max(0, Math.round((totalVoucherObligation - totalPaidForVoucher) * 100) / 100);
 
         // Determine voucher status using the displayed remaining amount
         let voucherStatus = feesWithVoucher.length === 0 ? 'Generated' : 'Unpaid';
@@ -1148,6 +1198,27 @@ const FeeManagement = () => {
           } else {
             voucherStatus = 'Unpaid';
           }
+        }
+
+        // Arrears Breakdown: Paid Arrears & Unpaid Arrears
+        // Arrears should remain on this voucher. Paid arrears reflect the portion paid under this voucher.
+        let paidArrears = 0;
+        let unpaidArrears = 0;
+        if (voucherStatus === 'Paid') {
+          paidArrears = previousBalance;
+          unpaidArrears = 0;
+        } else if (voucherStatus === 'Unpaid') {
+          paidArrears = 0;
+          unpaidArrears = previousBalance;
+        } else {
+          // Partial:
+          if (paidArrearsOnThisVoucher > 0) {
+            paidArrears = Math.min(previousBalance, paidArrearsOnThisVoucher);
+          } else {
+            const paymentBeyondCurrent = Math.max(0, totalPaidForVoucher - voucherAmount);
+            paidArrears = Math.min(previousBalance, paymentBeyondCurrent);
+          }
+          unpaidArrears = Math.max(0, Math.round((previousBalance - paidArrears) * 100) / 100);
         }
 
         uniqueStudentsMap.set(studentIdStr, {
@@ -1163,8 +1234,11 @@ const FeeManagement = () => {
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount,
           arrears: previousBalance,
+          paidArrears: paidArrears,
+          unpaidArrears: unpaidArrears,
           paidAmount: totalPaidForVoucher,
           remainingAmount: displayedRemaining,
+          paymentDate: (totalPaidForVoucher > 0 && voucherPaymentDate) ? voucherPaymentDate.toISOString() : null,
           generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null
         });
       });
@@ -1787,6 +1861,15 @@ const FeeManagement = () => {
         return false;
       }
 
+      // Payment date range filter
+      if (printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate) {
+        if (!student.paymentDate) return false;
+        const pd = new Date(student.paymentDate);
+        const payDay = `${pd.getFullYear()}-${String(pd.getMonth() + 1).padStart(2, '0')}-${String(pd.getDate()).padStart(2, '0')}`;
+        if (printVoucherFilters.paymentStartDate && payDay < printVoucherFilters.paymentStartDate) return false;
+        if (printVoucherFilters.paymentEndDate && payDay > printVoucherFilters.paymentEndDate) return false;
+      }
+
       // Class filter
       if (printVoucherFilters.class && student.class !== printVoucherFilters.class) {
         return false;
@@ -1819,7 +1902,9 @@ const FeeManagement = () => {
       'Class': item.class || 'N/A',
       'Fee Month': formatMonthYear(...Object.values(parseMonthYear(printVoucherFilters.monthYear))),
       'Voucher Amount (Rs)': item.voucherAmount || 0,
-      'Arrears (Rs)': item.arrears || 0,
+      'Total Arrears (Rs)': item.arrears || 0,
+      'Paid Arrears (Rs)': item.paidArrears || 0,
+      'Unpaid Arrears (Rs)': item.unpaidArrears || 0,
       'Paid Amount (Rs)': item.paidAmount || 0,
       'Remaining Amount (Rs)': item.remainingAmount || 0
     }));
@@ -3114,7 +3199,13 @@ const FeeManagement = () => {
             }
           });
 
-          arrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+          const liveCalculatedArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+          // If the student object already has the voucher's billed arrears preserved, use it
+          if (typeof student?.arrears === 'number' && student.arrears > 0) {
+            arrears = student.arrears;
+          } else {
+            arrears = liveCalculatedArrears;
+          }
           
           // Add arrears to feeHeads list for display in the voucher table if > 0
           if (arrears > 0) {
@@ -5042,7 +5133,7 @@ const FeeManagement = () => {
             <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Grid container spacing={2} sx={{ width: '100%', maxWidth: '100%' }}>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} sm={6} md={2}>
                     <TextField
                       fullWidth
                       size="small"
@@ -5055,19 +5146,7 @@ const FeeManagement = () => {
                       InputLabelProps={{ shrink: true }}
                     />
                   </Grid>
-                  <Grid item xs={12} md={4}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Voucher Number"
-                      value={printVoucherFilters.voucherNumber}
-                      onChange={(e) => {
-                        setPrintVoucherFilters({ ...printVoucherFilters, voucherNumber: e.target.value });
-                      }}
-                      placeholder="Search by voucher #"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
+                  <Grid item xs={12} sm={6} md={2}>
                     <TextField
                       fullWidth
                       size="small"
@@ -5078,6 +5157,40 @@ const FeeManagement = () => {
                         setPrintVoucherFilters({ ...printVoucherFilters, generatedDate: e.target.value });
                       }}
                       InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Payment Start Date"
+                      type="date"
+                      value={printVoucherFilters.paymentStartDate}
+                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, paymentStartDate: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Payment End Date"
+                      type="date"
+                      value={printVoucherFilters.paymentEndDate}
+                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, paymentEndDate: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6} md={2}>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Voucher Number"
+                      value={printVoucherFilters.voucherNumber}
+                      onChange={(e) => {
+                        setPrintVoucherFilters({ ...printVoucherFilters, voucherNumber: e.target.value });
+                      }}
+                      placeholder="Search by voucher #"
                     />
                   </Grid>
                   
@@ -5132,6 +5245,8 @@ const FeeManagement = () => {
                         monthYear: printVoucherFilters.monthYear,
                         voucherNumber: '',
                         generatedDate: '',
+                        paymentStartDate: '',
+                        paymentEndDate: '',
                         searchTerm: '',
                         class: '',
                         voucherStatus: ''
@@ -5214,7 +5329,7 @@ const FeeManagement = () => {
                     <TableCell align="right">Arrears</TableCell>
                     <TableCell align="right">Paid Amount</TableCell>
                     <TableCell align="right">Remaining Amount</TableCell>
-                    <TableCell>ID</TableCell>
+                    <TableCell>Payment Date</TableCell>
                     <TableCell>Roll #</TableCell>
                     <TableCell>Name</TableCell>
                     <TableCell>Class</TableCell>
@@ -5277,7 +5392,7 @@ const FeeManagement = () => {
                         <TableCell align="right" sx={{ color: (student.remainingAmount || 0) > 0 ? 'error.main' : 'success.main', fontWeight: 'bold' }}>
                           Rs. {(student.remainingAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </TableCell>
-                        <TableCell>{student.id || 'N/A'}</TableCell>
+                        <TableCell>{student.paymentDate && (student.voucherStatus === 'Paid' || student.voucherStatus === 'Partial') ? new Date(student.paymentDate).toLocaleDateString('en-GB') : '-'}</TableCell>
                         <TableCell>{student.rollNumber || 'N/A'}</TableCell>
                         <TableCell>
                           {capitalizeFirstOnly(student.name || 'N/A')}
@@ -5333,6 +5448,8 @@ const FeeManagement = () => {
               const filtered = getFilteredPrintVoucherStudents();
               const totalVoucherAmount = filtered.reduce((sum, s) => sum + (s.voucherAmount || 0), 0);
               const totalArrears = filtered.reduce((sum, s) => sum + (s.arrears || 0), 0);
+              const totalPaidArrears = filtered.reduce((sum, s) => sum + (s.paidArrears || 0), 0);
+              const totalUnpaidArrears = filtered.reduce((sum, s) => sum + (s.unpaidArrears || 0), 0);
               const totalPaidAmount = filtered.reduce((sum, s) => sum + (s.paidAmount || 0), 0);
               const totalRemainingAmount = filtered.reduce((sum, s) => sum + (s.remainingAmount || 0), 0);
               return (
@@ -5351,7 +5468,7 @@ const FeeManagement = () => {
                     gap: 2
                   }}
                 >
-                  <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                     <Box>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
                         Total Voucher Amount
@@ -5364,8 +5481,24 @@ const FeeManagement = () => {
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
                         Total Arrears
                       </Typography>
-                      <Typography variant="h6" fontWeight="bold" sx={{ color: totalArrears > 0 ? 'error.main' : 'text.primary' }}>
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: totalArrears > 0 ? '#b91c1c' : 'text.primary' }}>
                         Rs. {totalArrears.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
+                        Paid Arrears
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: 'success.main' }}>
+                        Rs. {totalPaidArrears.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Typography>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 500, textTransform: 'uppercase' }}>
+                        Unpaid Arrears
+                      </Typography>
+                      <Typography variant="h6" fontWeight="bold" sx={{ color: totalUnpaidArrears > 0 ? 'error.main' : 'text.primary' }}>
+                        Rs. {totalUnpaidArrears.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Typography>
                     </Box>
                     <Box>

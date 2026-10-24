@@ -334,15 +334,16 @@ const FeeListReport = ({ onBack }) => {
         const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
 
         // Previous Balance (P.Bal):
-        // Prefer live ledger dues (outstandingPrev + any payment made on this voucher's arrears).
-        // Fall back to arrearsFee snapshot only if no prior billing history exists (e.g. initial starting arrears balance).
+        // When a voucher is paid or partially paid, the billed arrears (P.Bal) on that voucher must remain visible and not be wiped out.
+        // 1. Prefer the arrears snapshot billed on this voucher (arrearsFee.finalAmount or arrearsFee.baseAmount)
+        // 2. Fall back to live ledger dues (outstandingPrev + arrearsPaymentsOnVoucher)
         let previousBalance = 0;
-        if (outstandingPrev > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
-        } else if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
+        if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.finalAmount || 0);
         } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.baseAmount || 0);
+        } else if (outstandingPrev > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
+          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
         } else {
           previousBalance = outstandingPrev;
         }
