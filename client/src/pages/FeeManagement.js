@@ -659,7 +659,7 @@ const FeeManagement = () => {
       fetchPrintVoucherStudents();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, printVoucherFilters.monthYear, !!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate)]);
+  }, [activeTab, printVoucherFilters.monthYear, printVoucherFilters.paymentStartDate, printVoucherFilters.paymentEndDate]);
 
   // Handle auto-fetch for Suspense Entries
   useEffect(() => {
@@ -991,6 +991,8 @@ const FeeManagement = () => {
       // Group payments by student ID and by voucher number
       const paymentsByStudent = new Map();
       const paymentsByVoucher = new Map();
+      // Payments recorded without a voucher number, keyed by the student fee they paid
+      const unvoucheredPaymentsByFee = new Map();
       allPayments.forEach(p => {
         if (p.status !== 'completed' && p.status !== 'success') return;
         const studentId = p.student?._id?.toString() || p.student?.toString();
@@ -998,13 +1000,39 @@ const FeeManagement = () => {
           if (!paymentsByStudent.has(studentId)) paymentsByStudent.set(studentId, []);
           paymentsByStudent.get(studentId).push(p);
         }
-        if (p.voucherNumber) {
+        if (p.voucherNumber && p.voucherNumber.toString().trim()) {
           let vNo = p.voucherNumber.toString().trim();
           if (vNo.includes('-')) vNo = vNo.split('-').pop();
           if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
           paymentsByVoucher.get(vNo).push(p);
+        } else {
+          const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+          if (sfId) {
+            if (!unvoucheredPaymentsByFee.has(sfId)) unvoucheredPaymentsByFee.set(sfId, []);
+            unvoucheredPaymentsByFee.get(sfId).push(p);
+          }
         }
       });
+
+      // Payment date range helpers (compare by local calendar day, same as the table filter)
+      const toLocalDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const isPaymentInRange = (p) => {
+        if (!p.paymentDate) return false;
+        const d = new Date(p.paymentDate);
+        if (isNaN(d)) return false;
+        const day = toLocalDay(d);
+        if (printVoucherFilters.paymentStartDate && day < printVoucherFilters.paymentStartDate) return false;
+        if (printVoucherFilters.paymentEndDate && day > printVoucherFilters.paymentEndDate) return false;
+        return true;
+      };
+      // The "home" voucher of a fee line = its earliest voucher (used only for payments without a voucher number)
+      const getHomeVoucherNumber = (sf) => {
+        const vs = (sf.vouchers || []).filter(v => v && v.voucherNumber);
+        if (vs.length === 0) return null;
+        vs.sort((a, b) => (Number(a.year) - Number(b.year)) || (Number(a.month) - Number(b.month)));
+        const vNo = vs[0].voucherNumber.toString().trim();
+        return vNo.includes('-') ? vNo.split('-').pop() : vNo;
+      };
       
       // Get unique students with voucher information
       const uniqueStudentsMap = new Map();
@@ -1237,6 +1265,30 @@ const FeeManagement = () => {
           unpaidArrears = Math.max(0, Math.round((previousBalance - paidArrears) * 100) / 100);
         }
 
+        // Payment date range mode: Paid Amount = actual payments made THROUGH this voucher within the range.
+        // Arrears are credited to the voucher they were paid through, not to the original month's voucher.
+        let displayedPaidAmount = totalPaidForVoucher;
+        let displayedPaymentDate = (totalPaidForVoucher > 0 && voucherPaymentDate) ? voucherPaymentDate.toISOString() : null;
+        if (paymentRangeMode) {
+          const rangePayments = voucherPayments.filter(isPaymentInRange);
+          // Payments without a voucher number are credited to the fee line's home voucher
+          if (voucherNumber !== 'N/A') {
+            feesWithVoucher.forEach(f => {
+              if (getHomeVoucherNumber(f) !== voucherNumber) return;
+              (unvoucheredPaymentsByFee.get(f._id?.toString()) || []).forEach(p => {
+                if (isPaymentInRange(p)) rangePayments.push(p);
+              });
+            });
+          }
+          displayedPaidAmount = Math.round(rangePayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0) * 100) / 100;
+          let latest = null;
+          rangePayments.forEach(p => {
+            const d = new Date(p.paymentDate);
+            if (!isNaN(d) && (!latest || d > latest)) latest = d;
+          });
+          displayedPaymentDate = (displayedPaidAmount > 0 && latest) ? latest.toISOString() : null;
+        }
+
         const rowKey = paymentRangeMode ? `${studentIdStr}-${month}-${year}` : studentIdStr;
         uniqueStudentsMap.set(rowKey, {
           rowKey,
@@ -1254,9 +1306,9 @@ const FeeManagement = () => {
           arrears: previousBalance,
           paidArrears: paidArrears,
           unpaidArrears: unpaidArrears,
-          paidAmount: totalPaidForVoucher,
+          paidAmount: displayedPaidAmount,
           remainingAmount: displayedRemaining,
-          paymentDate: (totalPaidForVoucher > 0 && voucherPaymentDate) ? voucherPaymentDate.toISOString() : null,
+          paymentDate: displayedPaymentDate,
           generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null
         });
       });
