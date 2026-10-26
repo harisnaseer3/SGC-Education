@@ -170,11 +170,35 @@ const RemainingBalanceReport = ({ onBack }) => {
             }
           }))
         );
+      } else {
+        // Voucher mode: all payments, used to find arrears paid THROUGH the selected month's voucher (same as Print Voucher)
+        apiCalls.push(
+          axios.get(`${API_URL}/fees/payments`, createAxiosConfig({ params: { institution: institutionId } }))
+        );
       }
 
       const [feesResponse, paymentsResponse] = await Promise.all(apiCalls);
       const allStudentFees = feesResponse.data.data || [];
-      const rangePayments = paymentsResponse ? (paymentsResponse.data.data || []).filter(p => p.status === 'completed') : [];
+      const rangePayments = (filters.filterMode === 'dateRange' && paymentsResponse) ? (paymentsResponse.data.data || []).filter(p => p.status === 'completed') : [];
+
+      const normalizeVoucherNo = (vNo) => {
+        if (!vNo) return null;
+        const s = vNo.toString().trim();
+        if (!s) return null;
+        return s.includes('-') ? s.split('-').pop() : s;
+      };
+
+      // Voucher mode: completed payments grouped by voucher number
+      const paymentsByVoucher = new Map();
+      if (filters.filterMode === 'voucher' && paymentsResponse) {
+        (paymentsResponse.data.data || []).forEach(p => {
+          if (p.status !== 'completed' && p.status !== 'success') return;
+          const vNo = normalizeVoucherNo(p.voucherNumber);
+          if (!vNo) return;
+          if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
+          paymentsByVoucher.get(vNo).push(p);
+        });
+      }
 
       const paymentsByStudent = new Map();
       if (filters.filterMode === 'dateRange') {
@@ -256,14 +280,17 @@ const RemainingBalanceReport = ({ onBack }) => {
         }
 
         if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
-          const effectiveStatus = isEffectiveStruckOff ? 'Struck Off' : (student.status || admission.status || 'Enrolled');
+          // A student struck off AFTER the selected month was still enrolled during that month
+          const effectiveStatus = isEffectiveStruckOff
+            ? 'Struck Off'
+            : (isStruckOffRaw ? 'Enrolled' : (student.status || admission.status || 'Enrolled'));
           const matchStatus = filters.studentStatus.some(s => {
             const sLower = s.toLowerCase().trim();
             if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
-              return isEffectiveStruckOff || isStruckOffRaw;
+              return isEffectiveStruckOff;
             }
             return sLower === effectiveStatus.toLowerCase() || 
-                   sLower === (student.status || admission.status || '').toLowerCase();
+                   (!isStruckOffRaw && sLower === (student.status || admission.status || '').toLowerCase());
           });
           if (!matchStatus) return;
         }
@@ -337,19 +364,38 @@ const RemainingBalanceReport = ({ onBack }) => {
 
         const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
 
+        // Voucher mode: arrears paid THROUGH this month's voucher are recorded against the older fee lines,
+        // so pick them up by voucher number (same logic as Print Voucher)
+        let paidArrearsOnThisVoucher = arrearsPaymentsOnVoucher;
+        if (filters.filterMode === 'voucher') {
+          let currentVoucherNo = null;
+          for (const sf of currentMonthFees) {
+            const v = (sf.vouchers || []).find(x => x && Number(x.month) === targetMonth && Number(x.year) === targetYear && x.voucherNumber);
+            if (v) { currentVoucherNo = normalizeVoucherNo(v.voucherNumber); break; }
+          }
+          if (currentVoucherNo) {
+            const regularFeeIds = new Set(regularFees.map(f => f._id?.toString()));
+            const paidArrearsViaVoucherNumber = (paymentsByVoucher.get(currentVoucherNo) || []).reduce((sum, p) => {
+              const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+              return regularFeeIds.has(sfId) ? sum : sum + parseFloat(p.amount || 0);
+            }, 0);
+            paidArrearsOnThisVoucher = Math.max(paidArrearsViaVoucherNumber, arrearsPaymentsOnVoucher);
+          }
+        }
+
         // Previous Balance (P.Bal):
         // When a voucher is paid or partially paid, the billed arrears (P.Bal) on that voucher must remain visible and not be wiped out.
         // 1. Prefer the arrears snapshot billed on this voucher (arrearsFee.finalAmount or arrearsFee.baseAmount)
-        // 2. Fall back to live ledger dues (outstandingPrev + arrearsPaymentsOnVoucher)
+        // 2. Fall back to live ledger dues (outstandingPrev + arrears paid on this voucher)
         let previousBalance = 0;
         if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.finalAmount || 0);
         } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.baseAmount || 0);
         } else if (outstandingPrev > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
+          previousBalance = Math.max(0, Math.round((outstandingPrev + paidArrearsOnThisVoucher) * 100) / 100);
         } else {
-          previousBalance = outstandingPrev;
+          previousBalance = Math.max(0, Math.round((outstandingPrev + paidArrearsOnThisVoucher) * 100) / 100);
         }
 
         const currentBalance = regularFees.reduce((sum, sf) => sum + parseFloat(sf.finalAmount || 0), 0);
@@ -360,9 +406,9 @@ const RemainingBalanceReport = ({ onBack }) => {
           // In date range mode, Received is the sum of payments made in this date range
           received = studentPaymentsInRange.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
         } else {
-          // In voucher mode, sum of payments made against this voucher (regular fees + arrears head on this voucher)
+          // In voucher mode, regular fees paid on this voucher + arrears paid through this voucher
           const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
-          received = currentReceived + arrearsPaymentsOnVoucher;
+          received = currentReceived + paidArrearsOnThisVoucher;
         }
 
         const remaining = Math.max(0, receivable - received);
