@@ -1244,29 +1244,8 @@ const FeeManagement = () => {
           }
         }
 
-        // Arrears Breakdown: Paid Arrears & Unpaid Arrears
-        // Arrears should remain on this voucher. Paid arrears reflect the portion paid under this voucher.
-        let paidArrears = 0;
-        let unpaidArrears = 0;
-        if (voucherStatus === 'Paid') {
-          paidArrears = previousBalance;
-          unpaidArrears = 0;
-        } else if (voucherStatus === 'Unpaid') {
-          paidArrears = 0;
-          unpaidArrears = previousBalance;
-        } else {
-          // Partial:
-          if (paidArrearsOnThisVoucher > 0) {
-            paidArrears = Math.min(previousBalance, paidArrearsOnThisVoucher);
-          } else {
-            const paymentBeyondCurrent = Math.max(0, totalPaidForVoucher - voucherAmount);
-            paidArrears = Math.min(previousBalance, paymentBeyondCurrent);
-          }
-          unpaidArrears = Math.max(0, Math.round((previousBalance - paidArrears) * 100) / 100);
-        }
-
         // Payment date range mode: Paid Amount = actual payments made THROUGH this voucher within the range.
-        // Arrears are credited to the voucher they were paid through, not to the original month's voucher.
+        // Compute this first so paidArrears/unpaidArrears can use range-filtered amounts.
         let displayedPaidAmount = totalPaidForVoucher;
         let displayedPaymentDate = (totalPaidForVoucher > 0 && voucherPaymentDate) ? voucherPaymentDate.toISOString() : null;
         if (paymentRangeMode) {
@@ -1287,6 +1266,29 @@ const FeeManagement = () => {
             if (!isNaN(d) && (!latest || d > latest)) latest = d;
           });
           displayedPaymentDate = (displayedPaidAmount > 0 && latest) ? latest.toISOString() : null;
+        }
+
+        // Arrears Breakdown: Paid Arrears & Unpaid Arrears
+        // Use displayedPaidAmount (range-filtered in paymentRangeMode, total otherwise) to attribute
+        // how much of the arrears were paid through this voucher vs still outstanding.
+        let paidArrears = 0;
+        let unpaidArrears = 0;
+        const effectivePaidForArrears = paymentRangeMode ? displayedPaidAmount : totalPaidForVoucher;
+        if (voucherStatus === 'Paid' || (!paymentRangeMode && displayedRemaining <= 0.01)) {
+          paidArrears = previousBalance;
+          unpaidArrears = 0;
+        } else if (effectivePaidForArrears <= 0) {
+          paidArrears = 0;
+          unpaidArrears = previousBalance;
+        } else {
+          // Partial: arrears are paid only after current month fees are covered
+          if (paidArrearsOnThisVoucher > 0) {
+            paidArrears = Math.min(previousBalance, paidArrearsOnThisVoucher);
+          } else {
+            const paymentBeyondCurrent = Math.max(0, effectivePaidForArrears - voucherAmount);
+            paidArrears = Math.min(previousBalance, paymentBeyondCurrent);
+          }
+          unpaidArrears = Math.max(0, Math.round((previousBalance - paidArrears) * 100) / 100);
         }
 
         const rowKey = paymentRangeMode ? `${studentIdStr}-${month}-${year}` : studentIdStr;

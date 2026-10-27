@@ -177,13 +177,33 @@ const FeeListReport = ({ onBack }) => {
       const institutionId = getInstitutionId(user, isSuperAdmin);
       const { month, year } = parseMonthYear(filters.monthYear);
 
-      // 1. Fetch all student fees for the institution
+      // 1. Fetch all student fees AND all payments (same as Print Voucher) so
+      //    received/remaining match exactly between the two views.
       const params = {
         institution: institutionId,
       };
 
-      const response = await axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }));
+      const [response, paymentsResponse] = await Promise.all([
+        axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params })),
+        axios.get(`${API_URL}/fees/payments`, createAxiosConfig({ params: { institution: institutionId } }))
+      ]);
       const allStudentFees = response.data.data || [];
+      const allPayments = paymentsResponse.data.data || [];
+
+      // Build paymentsByVoucher map (same logic as Print Voucher)
+      const normalizeVNo = (vNo) => {
+        if (!vNo) return null;
+        const s = vNo.toString().trim();
+        return s.includes('-') ? s.split('-').pop() : s;
+      };
+      const paymentsByVoucher = new Map();
+      allPayments.forEach(p => {
+        if (p.status !== 'completed' && p.status !== 'success') return;
+        const vNo = normalizeVNo(p.voucherNumber);
+        if (!vNo) return;
+        if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
+        paymentsByVoucher.get(vNo).push(p);
+      });
 
       const targetMonth = Number(month);
       const targetYear = Number(year);
@@ -253,17 +273,25 @@ const FeeListReport = ({ onBack }) => {
         }
 
         // Match Status (skip if it contains 'All' or is empty)
-        if (filters.statuses.length > 0 && !filters.statuses.includes('All')) {
-          const effectiveStatus = isEffectiveStruckOff ? 'Struck Off' : (student.status || admission.status || 'Enrolled');
-          const matchStatus = filters.statuses.some(s => {
-            const sLower = s.toLowerCase().trim();
-            if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
-              return isEffectiveStruckOff || isStruckOffRaw;
-            }
-            return sLower === effectiveStatus.toLowerCase() || 
-                   sLower === (student.status || admission.status || '').toLowerCase();
-          });
-          if (!matchStatus) return;
+        // EXCEPTION: if the student already has a voucher for the target month, always include them
+        // (matches Print Voucher which shows all students with vouchers regardless of status).
+        const studentAllFeesForStatus = allFeesByStudent.get(studentId) || [];
+        const hasCurrentMonthVoucherForStatus = studentAllFeesForStatus.some(f =>
+          (f.vouchers || []).some(v => Number(v.month) === targetMonth && Number(v.year) === targetYear)
+        );
+        if (!hasCurrentMonthVoucherForStatus) {
+          if (filters.statuses.length > 0 && !filters.statuses.includes('All')) {
+            const effectiveStatus = isEffectiveStruckOff ? 'Struck Off' : (student.status || admission.status || 'Enrolled');
+            const matchStatus = filters.statuses.some(s => {
+              const sLower = s.toLowerCase().trim();
+              if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
+                return isEffectiveStruckOff || isStruckOffRaw;
+              }
+              return sLower === effectiveStatus.toLowerCase() || 
+                     sLower === (student.status || admission.status || '').toLowerCase();
+            });
+            if (!matchStatus) return;
+          }
         }
 
         // Keep the most populated student object
@@ -334,23 +362,44 @@ const FeeListReport = ({ onBack }) => {
         const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
 
         // Previous Balance (P.Bal):
-        // When a voucher is paid or partially paid, the billed arrears (P.Bal) on that voucher must remain visible and not be wiped out.
-        // 1. Prefer the arrears snapshot billed on this voucher (arrearsFee.finalAmount or arrearsFee.baseAmount)
-        // 2. Fall back to live ledger dues (outstandingPrev + arrearsPaymentsOnVoucher)
+        // ALWAYS prefer the arrears snapshot billed on this voucher so arrears stay attributed to their
+        // billed month even after the voucher is paid. Fall back to live ledger only when no snapshot exists.
         let previousBalance = 0;
         if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.finalAmount || 0);
         } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.baseAmount || 0);
-        } else if (outstandingPrev > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
         } else {
-          previousBalance = outstandingPrev;
+          // No snapshot: use live ledger. Add back any arrears already collected through this voucher
+          // so the displayed arrears remain stable regardless of payment state.
+          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
         }
+
+        // Compute paidArrearsOnThisVoucher using the same voucher-number-based approach as
+        // Print Voucher so that totalReceived matches exactly.
+        // This captures payments made against OLD fee records using the current month's voucher number.
+        let currentVoucherNo = null;
+        for (const sf of currentMonthFees) {
+          const v = (sf.vouchers || []).find(x => x && Number(x.month) === targetMonth && Number(x.year) === targetYear && x.voucherNumber);
+          if (v) { currentVoucherNo = normalizeVNo(v.voucherNumber); break; }
+        }
+
+        const regularFeeIds = new Set(regularFees.map(f => f._id?.toString()));
+        let paidArrearsViaVoucherNumber = 0;
+        if (currentVoucherNo) {
+          paidArrearsViaVoucherNumber = (paymentsByVoucher.get(currentVoucherNo) || []).reduce((sum, p) => {
+            const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+            // Count payment if it is NOT against a current-month regular fee
+            return regularFeeIds.has(sfId) ? sum : sum + parseFloat(p.amount || 0);
+          }, 0);
+        }
+        // Use the higher of voucher-number-based or arrears-head paidAmount (same as Print Voucher)
+        const paidArrearsOnThisVoucher = Math.max(paidArrearsViaVoucherNumber, arrearsPaymentsOnVoucher);
 
         const monthlyFees = regularFees.reduce((sum, sf) => sum + parseFloat(sf.finalAmount || 0), 0);
         const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
-        const totalReceived = currentReceived + arrearsPaymentsOnVoucher;
+        // totalReceived now matches Print Voucher: regular paid + arrears paid via this voucher
+        const totalReceived = currentReceived + paidArrearsOnThisVoucher;
 
         const effectiveArrears = filters.includePreviousBalance ? previousBalance : 0;
         const totalDue = monthlyFees + effectiveArrears;

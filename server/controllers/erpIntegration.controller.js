@@ -93,14 +93,15 @@ const calculateERPCollectionStats = async (institutionFilter = {}) => {
       const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
       // Previous Balance (P.Bal):
-      // Prefer live ledger dues (outstandingPrevArrears + any payment on this voucher's arrears) to reflect any payments made after voucher generation.
+      // Prefer the arrears snapshot billed on the voucher (matches Print Voucher & Reports logic).
+      // Fall back to the live ledger only when no snapshot exists.
       let previousBalance = 0;
-      if (outstandingPrevArrears > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-        previousBalance = Math.max(0, Math.round((outstandingPrevArrears + arrearsPaymentsOnVoucher) * 100) / 100);
-      } else if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
+      if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
         previousBalance = parseFloat(arrearsFee.finalAmount || 0);
       } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
         previousBalance = parseFloat(arrearsFee.baseAmount || 0);
+      } else if (outstandingPrevArrears > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
+        previousBalance = Math.max(0, Math.round((outstandingPrevArrears + arrearsPaymentsOnVoucher) * 100) / 100);
       } else {
         previousBalance = outstandingPrevArrears;
       }

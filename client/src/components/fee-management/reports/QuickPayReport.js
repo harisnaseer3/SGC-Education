@@ -158,7 +158,15 @@ const QuickPayReport = ({ onBack }) => {
           }
         });
 
-        const previousArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+        // Prefer the arrears snapshot billed on the voucher (matches Print Voucher & Reports logic)
+        const arrearsRecord = studentData.vouchers.find(v => v.feeHead?.name?.toLowerCase() === 'arrears');
+        let previousArrears;
+        if (arrearsRecord && parseFloat(arrearsRecord.amount || 0) > 0) {
+          previousArrears = parseFloat(arrearsRecord.amount || 0);
+        } else {
+          // No snapshot: fall back to dynamic live-ledger calculation
+          previousArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+        }
         const totalAmount = currentMonthAmount + previousArrears;
         const lateFee = firstVoucher.fine || 0; 
         

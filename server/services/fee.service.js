@@ -1711,8 +1711,9 @@ class FeeService {
         return [];
       }
     } else {
-      // Default: only return payments for active students
-      query.student = { $in: activeStudents.map(s => s._id) };
+      // No student filter: return payments for ALL students (active and inactive)
+      // so report totals match Print Voucher which does not filter by student.isActive.
+      // (No extra restriction needed; the institution filter already scopes the query.)
     }
 
     // Fetch payments with populated student and collectedBy

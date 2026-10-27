@@ -160,26 +160,29 @@ const RemainingBalanceReport = ({ onBack }) => {
         axios.get(`${API_URL}/fees/student-fees`, createAxiosConfig({ params }))
       ];
 
-      if (filters.filterMode === 'dateRange') {
-        apiCalls.push(
-          axios.get(`${API_URL}/fees/payments`, createAxiosConfig({
-            params: {
-              institution: institutionId,
-              startDate: filters.dateFrom,
-              endDate: filters.dateTo
-            }
-          }))
-        );
-      } else {
-        // Voucher mode: all payments, used to find arrears paid THROUGH the selected month's voucher (same as Print Voucher)
-        apiCalls.push(
-          axios.get(`${API_URL}/fees/payments`, createAxiosConfig({ params: { institution: institutionId } }))
-        );
-      }
+      // Always fetch ALL payments (no date filter), same as voucher mode.
+      // We will filter client-side to identify "range" payments for the Received column,
+      // while using all-time payments for the Remaining (paidArrearsViaVoucherNumber) calculation.
+      // This matches Print Voucher exactly.
+      apiCalls.push(
+        axios.get(`${API_URL}/fees/payments`, createAxiosConfig({ params: { institution: institutionId } }))
+      );
 
       const [feesResponse, paymentsResponse] = await Promise.all(apiCalls);
       const allStudentFees = feesResponse.data.data || [];
-      const rangePayments = (filters.filterMode === 'dateRange' && paymentsResponse) ? (paymentsResponse.data.data || []).filter(p => p.status === 'completed') : [];
+      const allPaymentsRaw = paymentsResponse ? (paymentsResponse.data.data || []) : [];
+
+      // Client-side range filter (for date range mode): compare paymentDate string to dateFrom/dateTo.
+      // This mirrors Print Voucher's local-date-string comparison.
+      const isPaymentInRange = (p) => {
+        if (!p.paymentDate) return false;
+        // paymentDate may be an ISO string or a Date; get the YYYY-MM-DD part in UTC (payment dates
+        // are stored as midnight UTC of the local date, so the date portion is always correct).
+        const dayStr = (typeof p.paymentDate === 'string' ? p.paymentDate : p.paymentDate.toISOString()).slice(0, 10);
+        if (filters.dateFrom && dayStr < filters.dateFrom) return false;
+        if (filters.dateTo && dayStr > filters.dateTo) return false;
+        return true;
+      };
 
       const normalizeVoucherNo = (vNo) => {
         if (!vNo) return null;
@@ -188,26 +191,43 @@ const RemainingBalanceReport = ({ onBack }) => {
         return s.includes('-') ? s.split('-').pop() : s;
       };
 
-      // Voucher mode: completed payments grouped by voucher number
+      // All completed payments grouped by voucher number (used for paidArrearsViaVoucherNumber in remaining calc)
       const paymentsByVoucher = new Map();
-      if (filters.filterMode === 'voucher' && paymentsResponse) {
-        (paymentsResponse.data.data || []).forEach(p => {
+      allPaymentsRaw.forEach(p => {
+        if (p.status !== 'completed' && p.status !== 'success') return;
+        const vNo = normalizeVoucherNo(p.voucherNumber);
+        if (!vNo) return;
+        if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
+        paymentsByVoucher.get(vNo).push(p);
+      });
+
+      // Range-filtered payments grouped by voucher number (used for Received per voucher row)
+      const paymentsByVoucherRange = new Map();
+      if (filters.filterMode === 'dateRange') {
+        allPaymentsRaw.forEach(p => {
           if (p.status !== 'completed' && p.status !== 'success') return;
+          if (!isPaymentInRange(p)) return;
           const vNo = normalizeVoucherNo(p.voucherNumber);
           if (!vNo) return;
-          if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
-          paymentsByVoucher.get(vNo).push(p);
+          if (!paymentsByVoucherRange.has(vNo)) paymentsByVoucherRange.set(vNo, []);
+          paymentsByVoucherRange.get(vNo).push(p);
         });
       }
 
+      // Legacy: paymentsByStudent used only in voucher mode for quick lookup (not needed in dateRange)
       const paymentsByStudent = new Map();
+
+      // Pre-built for dateRange mode: maps studentId → Set of voucher numbers with range payments.
+      // Built from paymentsByVoucherRange in O(M), enabling O(1) per-student lookup in the redesign.
+      const rangeVouchersByStudent = new Map();
       if (filters.filterMode === 'dateRange') {
-        rangePayments.forEach(p => {
-          const sId = p.student?._id?.toString() || (typeof p.student === 'string' ? p.student : null);
-          if (sId) {
-            if (!paymentsByStudent.has(sId)) paymentsByStudent.set(sId, []);
-            paymentsByStudent.get(sId).push(p);
-          }
+        paymentsByVoucherRange.forEach((payments, vNo) => {
+          payments.forEach(p => {
+            const sId = p.student?._id?.toString() || (typeof p.student === 'string' ? p.student : null);
+            if (!sId) return;
+            if (!rangeVouchersByStudent.has(sId)) rangeVouchersByStudent.set(sId, new Set());
+            rangeVouchersByStudent.get(sId).add(vNo);
+          });
         });
       }
 
@@ -279,20 +299,32 @@ const RemainingBalanceReport = ({ onBack }) => {
           }
         }
 
-        if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
-          // A student struck off AFTER the selected month was still enrolled during that month
-          const effectiveStatus = isEffectiveStruckOff
-            ? 'Struck Off'
-            : (isStruckOffRaw ? 'Enrolled' : (student.status || admission.status || 'Enrolled'));
-          const matchStatus = filters.studentStatus.some(s => {
-            const sLower = s.toLowerCase().trim();
-            if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
-              return isEffectiveStruckOff;
+        // Status filter:
+        // In dateRange mode skip it entirely — Print Voucher shows all students who paid regardless
+        // of enrollment status, so the report should match (date range IS the primary filter).
+        // In voucher mode, students with a current-month voucher bypass the filter; everyone else is checked.
+        if (filters.filterMode !== 'dateRange') {
+          const studentFeesForStatus = allFeesByStudent.get(studentId) || [];
+          const hasCurrentMonthVoucherForStatus = studentFeesForStatus.some(f =>
+            (f.vouchers || []).some(v => Number(v.month) === targetMonth && Number(v.year) === targetYear)
+          );
+          if (!hasCurrentMonthVoucherForStatus) {
+            if (filters.studentStatus.length > 0 && !filters.studentStatus.includes('All')) {
+              // A student struck off AFTER the selected month was still enrolled during that month
+              const effectiveStatus = isEffectiveStruckOff
+                ? 'Struck Off'
+                : (isStruckOffRaw ? 'Enrolled' : (student.status || admission.status || 'Enrolled'));
+              const matchStatus = filters.studentStatus.some(s => {
+                const sLower = s.toLowerCase().trim();
+                if (sLower === 'struck off' || sLower === 'struck_off' || sLower === 'struckoff') {
+                  return isEffectiveStruckOff;
+                }
+                return sLower === effectiveStatus.toLowerCase() || 
+                       (!isStruckOffRaw && sLower === (student.status || admission.status || '').toLowerCase());
+              });
+              if (!matchStatus) return;
             }
-            return sLower === effectiveStatus.toLowerCase() || 
-                   (!isStruckOffRaw && sLower === (student.status || admission.status || '').toLowerCase());
-          });
-          if (!matchStatus) return;
+          }
         }
 
         // Keep the most populated student object
@@ -384,33 +416,25 @@ const RemainingBalanceReport = ({ onBack }) => {
         }
 
         // Previous Balance (P.Bal):
-        // When a voucher is paid or partially paid, the billed arrears (P.Bal) on that voucher must remain visible and not be wiped out.
-        // 1. Prefer the arrears snapshot billed on this voucher (arrearsFee.finalAmount or arrearsFee.baseAmount)
-        // 2. Fall back to live ledger dues (outstandingPrev + arrears paid on this voucher)
+        // ALWAYS prefer the arrears snapshot billed on this voucher so arrears remain attributed to their
+        // billed month even after the voucher is paid. Fall back to live ledger only when no snapshot exists.
         let previousBalance = 0;
         if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.finalAmount || 0);
         } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
           previousBalance = parseFloat(arrearsFee.baseAmount || 0);
-        } else if (outstandingPrev > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-          previousBalance = Math.max(0, Math.round((outstandingPrev + paidArrearsOnThisVoucher) * 100) / 100);
         } else {
+          // No snapshot: use live ledger. Add back any arrears already collected through this voucher
+          // so the displayed arrears remain stable regardless of payment state.
           previousBalance = Math.max(0, Math.round((outstandingPrev + paidArrearsOnThisVoucher) * 100) / 100);
         }
 
         const currentBalance = regularFees.reduce((sum, sf) => sum + parseFloat(sf.finalAmount || 0), 0);
         const receivable = previousBalance + currentBalance;
 
-        let received = 0;
-        if (filters.filterMode === 'dateRange') {
-          // In date range mode, Received is the sum of payments made in this date range
-          received = studentPaymentsInRange.reduce((sum, p) => sum + parseFloat(p.amount || 0), 0);
-        } else {
-          // In voucher mode, regular fees paid on this voucher + arrears paid through this voucher
-          const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
-          received = currentReceived + paidArrearsOnThisVoucher;
-        }
-
+        // In voucher mode: received = regular fees paid + arrears paid through this voucher
+        const currentReceived = regularFees.reduce((sum, sf) => sum + parseFloat(sf.paidAmount || 0), 0);
+        const received = currentReceived + paidArrearsOnThisVoucher;
         const remaining = Math.max(0, receivable - received);
 
         // Collect fee heads for head-wise view
@@ -481,7 +505,123 @@ const RemainingBalanceReport = ({ onBack }) => {
         });
       });
 
+      // ── DATE RANGE MODE: replace per-student rows with per-voucher rows ──────────
+      // Re-process to generate one row per (student × voucher-month) where the voucher
+      // had at least one range payment. Entry count, P.Bal, C.Bal, Received, and Remaining
+      // will all match Print Voucher exactly.
+      if (filters.filterMode === 'dateRange') {
+        studentsGroup.clear();
+
+        studentMap.forEach((studentObj, studentId) => {
+          const studentAllFees2 = allFeesByStudent.get(studentId) || [];
+          const admission2 = studentObj?.admission || {};
+
+          // Use the pre-built rangeVouchersByStudent map (O(1)) instead of scanning all payments
+          const studentRangeVoucherNos = rangeVouchersByStudent.get(studentId) || new Set();
+
+          if (studentRangeVoucherNos.size === 0) return; // no range payments for this student
+
+          // One row per unique voucher number (Print Voucher logic applied per-voucher)
+          studentRangeVoucherNos.forEach(voucherNo => {
+            // Find the month/year for this voucher
+            let rowMonth = null, rowYear = null;
+            for (const sf of studentAllFees2) {
+              const v = (sf.vouchers || []).find(x => normalizeVoucherNo(x.voucherNumber) === voucherNo);
+              if (v) { rowMonth = Number(v.month); rowYear = Number(v.year); break; }
+            }
+            if (!rowMonth || !rowYear) return;
+
+            const voucherMonthFees = studentAllFees2.filter(sf =>
+              (sf.vouchers || []).some(v => Number(v.month) === rowMonth && Number(v.year) === rowYear)
+            );
+            const arrearsFee2 = voucherMonthFees.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
+            const regularFees2 = voucherMonthFees.filter(sf => sf.feeHead?.name?.toLowerCase() !== 'arrears');
+
+            // Previous balance snapshot (same as Print Voucher)
+            let tbPrev = 0, tpPrev = 0;
+            studentAllFees2.forEach(f => {
+              if (!f.vouchers || f.vouchers.length === 0) return;
+              const isPrev = f.vouchers.every(v =>
+                Number(v.year) < rowYear || (Number(v.year) === rowYear && Number(v.month) < rowMonth)
+              );
+              if (isPrev) {
+                if (f.feeHead?.name?.toLowerCase() !== 'arrears') tbPrev += parseFloat(f.finalAmount || 0);
+                tpPrev += parseFloat(f.paidAmount || 0);
+              }
+            });
+            const outPrev2 = Math.max(0, Math.round((tbPrev - tpPrev) * 100) / 100);
+
+            const regularFeeIds2 = new Set(regularFees2.map(f => f._id?.toString()));
+            const arrearsOnVoucher2 = arrearsFee2 ? parseFloat(arrearsFee2.paidAmount || 0) : 0;
+            const paidViaVoucherNo = (paymentsByVoucher.get(voucherNo) || []).reduce((s, p) => {
+              const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+              return regularFeeIds2.has(sfId) ? s : s + parseFloat(p.amount || 0);
+            }, 0);
+            const paidArrears2 = Math.max(paidViaVoucherNo, arrearsOnVoucher2);
+
+            let prevBal2 = 0;
+            if (arrearsFee2 && parseFloat(arrearsFee2.finalAmount || 0) > 0) {
+              prevBal2 = parseFloat(arrearsFee2.finalAmount || 0);
+            } else if (arrearsFee2 && parseFloat(arrearsFee2.baseAmount || 0) > 0) {
+              prevBal2 = parseFloat(arrearsFee2.baseAmount || 0);
+            } else {
+              prevBal2 = Math.max(0, Math.round((outPrev2 + paidArrears2) * 100) / 100);
+            }
+
+            const curBal2 = regularFees2.reduce((s, sf) => s + parseFloat(sf.finalAmount || 0), 0);
+            const receivable2 = prevBal2 + curBal2;
+
+            // Received = range-filtered payments via this voucher for this student
+            const rangeReceived2 = (paymentsByVoucherRange.get(voucherNo) || []).reduce((s, p) => {
+              const sId = p.student?._id?.toString() || (typeof p.student === 'string' ? p.student : null);
+              return sId === studentId ? s + parseFloat(p.amount || 0) : s;
+            }, 0);
+
+            // Remaining = obligation − all-time paid (matches Print Voucher displayedRemaining)
+            const regPaid2 = regularFees2.reduce((s, sf) => s + parseFloat(sf.paidAmount || 0), 0);
+            const totalPaidForVoucher2 = regPaid2 + paidArrears2;
+            const remaining2 = Math.max(0, Math.round((receivable2 - totalPaidForVoucher2) * 100) / 100);
+
+            // Fee heads
+            const heads2 = {};
+            voucherMonthFees.forEach(sf => {
+              const headId = sf.feeHead?._id?.toString();
+              if (headId) {
+                heads2[headId] = (heads2[headId] || 0) + parseFloat(sf.finalAmount || 0);
+                if (!feeHeadsMap.has(headId)) {
+                  feeHeadsMap.set(headId, { _id: headId, name: sf.feeHead.name, priority: sf.feeHead.priority ?? 99 });
+                }
+              }
+            });
+
+            const rawSt2 = (studentObj?.status || admission2?.status || '').toLowerCase().trim();
+            studentsGroup.set(`${studentId}_${voucherNo}`, {
+              studentId,
+              voucherNo,
+              rowMonth,
+              rowYear,
+              enrollmentNumber: studentObj?.enrollmentNumber || 'N/A',
+              admissionNumber: admission2.applicationNumber || 'N/A',
+              rollNumber: studentObj?.rollNumber || 'N/A',
+              studentName: studentObj?.user?.name || admission2.personalInfo?.name || studentObj?.name || 'N/A',
+              fatherName: admission2.guardianInfo?.fatherName || 'N/A',
+              class: studentObj?.class?.name || studentObj?.className || admission2.class?.name || studentObj?.currentClass?.name || 'Unassigned',
+              section: studentObj?.section?.name || admission2.section?.name || 'Unassigned',
+              isStruckOff: rawSt2 === 'struck off' || rawSt2 === 'struck_off' || rawSt2 === 'struckoff',
+              previousBalance: prevBal2,
+              currentBalance: curBal2,
+              receivable: receivable2,
+              received: rangeReceived2,
+              remaining: remaining2,
+              heads: heads2
+            });
+          });
+        });
+      }
+      // ── END DATE RANGE PER-VOUCHER REDESIGN ──────────────────────────────────────
+
       let finalData = Array.from(studentsGroup.values());
+
 
       // Filter by Payment Status
       if (filters.paymentStatus !== 'all') {
