@@ -74,7 +74,8 @@ import {
   transformStudentData,
   createAxiosConfig,
   formatCurrency,
-  matchesVoucherMonthYear
+  matchesVoucherMonthYear,
+  exportToExcelWithBoldHeaders
 } from '../utils/feeUtils';
 import { getApiBaseUrl, getLogoUrl } from '../config/api';
 import ReportsTab from '../components/fee-management/ReportsTab';
@@ -1302,6 +1303,7 @@ const FeeManagement = () => {
           fatherName: admission?.guardianInfo?.fatherName || 'N/A',
           class: student?.class?.name || student?.className || firstStudentFee.class?.name || admission?.class?.name || 'N/A',
           section: student?.section?.name || admission?.section?.name || 'N/A',
+          feeMonth: formatMonthYear(month, year),
           voucherStatus: voucherStatus,
           voucherNumber: voucherNumber,
           voucherAmount: voucherAmount,
@@ -1957,23 +1959,32 @@ const FeeManagement = () => {
     });
   };
 
-  // Handle Export Vouchers (Excel / CSV)
-  const handleExportVouchers = (format = 'excel') => {
+  // Handle Export Vouchers (Excel with bold headers)
+  const handleExportVouchers = () => {
     const filteredStudents = getFilteredPrintVoucherStudents();
     if (!filteredStudents || filteredStudents.length === 0) {
       notifyError('No vouchers to export');
       return;
     }
 
+    const formatDateStr = (dStr) => {
+      if (!dStr) return '';
+      const parts = dStr.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+      return dStr;
+    };
+
     const exportData = filteredStudents.map((item) => ({
       'Voucher Number': item.voucherNumber || 'N/A',
       'Voucher Status': item.voucherStatus === 'Partial' ? 'Partially Paid' : (item.voucherStatus || 'Pending'),
+      'Generated Date': item.generatedAt ? new Date(item.generatedAt).toLocaleDateString('en-GB') : 'N/A',
+      'Payment Date': item.paymentDate && (item.voucherStatus === 'Paid' || item.voucherStatus === 'Partial') ? new Date(item.paymentDate).toLocaleDateString('en-GB') : '-',
       'Student ID': item.id || 'N/A',
       'Roll Number': item.rollNumber || 'N/A',
       'Student Name': item.name || 'N/A',
       'Father Name': item.fatherName || 'N/A',
       'Class': item.class || 'N/A',
-      'Fee Month': formatMonthYear(...Object.values(parseMonthYear(printVoucherFilters.monthYear))),
+      'Fee Month': item.feeMonth || (printVoucherFilters.monthYear ? formatMonthYear(...Object.values(parseMonthYear(printVoucherFilters.monthYear))) : 'N/A'),
       'Voucher Amount (Rs)': item.voucherAmount || 0,
       'Total Arrears (Rs)': item.arrears || 0,
       'Paid Arrears (Rs)': item.paidArrears || 0,
@@ -1982,17 +1993,39 @@ const FeeManagement = () => {
       'Remaining Amount (Rs)': item.remainingAmount || 0
     }));
 
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Print Vouchers');
+    const paymentRangeMode = !!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate);
 
-    const fileName = `Vouchers_Report_${printVoucherFilters.monthYear}.${format === 'csv' ? 'csv' : 'xlsx'}`;
+    const exportMetadata = {
+      'Class': printVoucherFilters.class || 'All Classes',
+      'Status': printVoucherFilters.voucherStatus || 'All Statuses'
+    };
 
-    if (format === 'csv') {
-      XLSX.writeFile(wb, fileName, { bookType: 'csv' });
-    } else {
-      XLSX.writeFile(wb, fileName);
+    if (paymentRangeMode) {
+      exportMetadata['Payment Date From'] = formatDateStr(printVoucherFilters.paymentStartDate) || 'Start';
+      exportMetadata['Payment Date To'] = formatDateStr(printVoucherFilters.paymentEndDate) || 'End';
+    } else if (printVoucherFilters.monthYear) {
+      exportMetadata['Month'] = formatMonthYear(...Object.values(parseMonthYear(printVoucherFilters.monthYear)));
     }
+
+    if (printVoucherFilters.generatedDate) {
+      exportMetadata['Generated Date'] = formatDateStr(printVoucherFilters.generatedDate);
+    }
+
+    if (printVoucherFilters.voucherNumber) {
+      exportMetadata['Voucher Number'] = printVoucherFilters.voucherNumber;
+    }
+
+    const fileName = paymentRangeMode
+      ? `Vouchers_Report_${printVoucherFilters.paymentStartDate || ''}_to_${printVoucherFilters.paymentEndDate || ''}.xlsx`
+      : `Vouchers_Report_${printVoucherFilters.monthYear || 'All'}.xlsx`;
+
+    exportToExcelWithBoldHeaders(
+      XLSX,
+      exportData,
+      'Print Vouchers',
+      fileName,
+      exportMetadata
+    );
 
     notifySuccess(`Exported ${exportData.length} vouchers to ${fileName}`);
   };
@@ -5348,21 +5381,9 @@ const FeeManagement = () => {
                       color="success"
                       startIcon={<FileDownload />}
                       disabled={getFilteredPrintVoucherStudents().length === 0}
-                      onClick={() => handleExportVouchers('excel')}
+                      onClick={handleExportVouchers}
                     >
                       Export Excel
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} md={2}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      color="success"
-                      startIcon={<FileDownload />}
-                      disabled={getFilteredPrintVoucherStudents().length === 0}
-                      onClick={() => handleExportVouchers('csv')}
-                    >
-                      Export CSV
                     </Button>
                   </Grid>
                   {selectedVoucherIds.length > 0 && (
