@@ -262,13 +262,14 @@ const AdmissionByMonthReport = () => {
     <Box>
       <Paper sx={{ p: 3, mb: 3 }} className="no-print">
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" gutterBottom fontWeight="bold" color="#667eea">
-            New Admission Detail By Month
+          <Typography variant="h6">
+            Filters
           </Typography>
           {reportData.length > 0 && (
             <Box sx={{ display: 'flex', gap: 1 }}>
               <Button
                 variant="outlined"
+                size="small"
                 startIcon={<TableChart />}
                 onClick={handleExportExcel}
                 color="success"
@@ -277,6 +278,7 @@ const AdmissionByMonthReport = () => {
               </Button>
               <Button
                 variant="outlined"
+                size="small"
                 startIcon={<PictureAsPdf />}
                 onClick={handleExportPDF}
                 color="error"
@@ -286,7 +288,6 @@ const AdmissionByMonthReport = () => {
             </Box>
           )}
         </Box>
-        <Divider sx={{ mb: 3 }} />
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
@@ -294,53 +295,56 @@ const AdmissionByMonthReport = () => {
           </Alert>
         )}
 
-        <Grid container spacing={3}>
+        <Grid container spacing={2} alignItems="center">
           {/* Month Selection */}
-          <Grid item xs={12} md={5}>
-            <FormControl fullWidth>
-              <InputLabel>Month</InputLabel>
-              <Select
-                value={filters.month}
-                onChange={(e) => setFilters({ ...filters, month: e.target.value })}
-                label="Month"
-              >
-                {months.map((month) => (
-                  <MenuItem key={month.value} value={month.value}>
-                    {month.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+          <Grid item xs={12} sm={6} md={5}>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Month"
+              value={filters.month}
+              onChange={(e) => setFilters({ ...filters, month: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{ displayEmpty: true }}
+            >
+              <MenuItem value="">Select Month</MenuItem>
+              {months.map((month) => (
+                <MenuItem key={month.value} value={month.value}>
+                  {month.label}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
 
           {/* Year Selection */}
-          <Grid item xs={12} md={5}>
+          <Grid item xs={12} sm={6} md={4}>
             <TextField
               fullWidth
+              size="small"
               label="Year"
               type="number"
               value={filters.year}
               onChange={(e) => setFilters({ ...filters, year: e.target.value })}
+              InputLabelProps={{ shrink: true }}
             />
           </Grid>
 
           {/* Show Button */}
-          <Grid item xs={12} md={2}>
+          <Grid item xs={12} sm={12} md={3}>
             <Button
               variant="contained"
               onClick={handleGenerateReport}
               disabled={loading}
               fullWidth
-              size="large"
               sx={{
-                height: '56px',
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
-                },
+                height: '40px',
+                bgcolor: '#667eea',
+                '&:hover': { bgcolor: '#5a6fd6' },
+                textTransform: 'none'
               }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Show'}
+              {loading ? <CircularProgress size={20} color="inherit" /> : 'Show Report'}
             </Button>
           </Grid>
         </Grid>

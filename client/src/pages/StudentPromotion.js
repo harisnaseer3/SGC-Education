@@ -536,41 +536,70 @@ const StudentPromotion = () => {
                 </Button>
               </Box>
 
-              {/* Filters: Class and Search in one row */}
-              <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center', width: '100%' }}>
-                <FormControl size="small" sx={{ minWidth: 220, width: 240, flexShrink: 0 }}>
-                  <InputLabel>Filter by Class</InputLabel>
-                  <Select
+              {/* Filters */}
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    Filters
+                  </Typography>
+                  {(filterClass || searchTerm) && (
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setFilterClass('');
+                        setSearchTerm('');
+                      }}
+                      sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </Box>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'repeat(2, 1fr)',
+                      md: '2fr 1.5fr'
+                    },
+                    gap: 2,
+                    alignItems: 'center'
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search"
+                    placeholder="Search by name, enrollment, or roll number"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                  <TextField
+                    fullWidth
+                    select
+                    size="small"
+                    label="Class"
                     value={filterClass}
-                    label="Filter by Class"
                     onChange={(e) => setFilterClass(e.target.value)}
+                    InputLabelProps={{
+                      shrink: true
+                    }}
+                    SelectProps={{
+                      displayEmpty: true
+                    }}
                   >
                     <MenuItem value="">
-                      <em>All Classes</em>
+                      All Classes
                     </MenuItem>
                     {classes.map((cls) => (
                       <MenuItem key={cls._id} value={cls._id}>
                         {cls.name}
                       </MenuItem>
                     ))}
-                  </Select>
-                </FormControl>
-                <TextField
-                  fullWidth
-                  size="small"
-                  placeholder="Search by name, enrollment, or roll number"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  sx={{ flex: 1 }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search />
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Box>
+                  </TextField>
+                </Box>
+              </Paper>
 
               {loading ? (
                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -660,209 +689,266 @@ const StudentPromotion = () => {
               )}
 
               {/* Promotion Details Section Below */}
-              <Box sx={{ mt: 4 }}>
+              <Paper sx={{ p: 3, mt: 4 }}>
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#667eea', mb: 3 }}>
                   {tabValue === 0 ? 'PROMOTION DETAILS' : tabValue === 1 ? 'TRANSFER DETAILS' : 'PASS OUT DETAILS'}
                 </Typography>
 
-                    <Grid container spacing={2} sx={{ width: '100%', maxWidth: '100%' }}>
-                      {/* From Section */}
-                      <Grid item xs={12}>
-                        <Divider sx={{ mb: 2 }}>
-                          <Typography variant="subtitle2" color="text.secondary">FROM</Typography>
-                        </Divider>
-                      </Grid>
+                {/* From Section */}
+                <Box sx={{ mb: 3 }}>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5 }}>
+                    FROM
+                  </Typography>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        sm: 'repeat(2, 1fr)',
+                        md: 'repeat(4, 1fr)'
+                      },
+                      gap: 2,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <TextField
+                      fullWidth
+                      select
+                      size="small"
+                      label="Institution *"
+                      value={fromInstitution}
+                      onChange={(e) => setFromInstitution(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      SelectProps={{ displayEmpty: true }}
+                    >
+                      <MenuItem value="">Select Institution</MenuItem>
+                      {institutions.map((inst) => (
+                        <MenuItem key={inst._id} value={inst._id}>
+                          {inst.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
 
-                      <Grid item xs={12}>
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Institution *</InputLabel>
-                          <Select
-                            value={fromInstitution}
-                            label="Institution *"
-                            onChange={(e) => setFromInstitution(e.target.value)}
-                          >
-                            {institutions.map((inst) => (
-                              <MenuItem key={inst._id} value={inst._id}>
-                                {inst.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
+                    <TextField
+                      fullWidth
+                      select
+                      size="small"
+                      label="Class *"
+                      value={fromClass}
+                      onChange={(e) => setFromClass(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      SelectProps={{ displayEmpty: true }}
+                    >
+                      <MenuItem value="">Select Class</MenuItem>
+                      {classes.map((cls) => (
+                        <MenuItem key={cls._id} value={cls._id}>
+                          {cls.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
 
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Class *</InputLabel>
-                          <Select
-                            value={fromClass}
-                            label="Class *"
-                            onChange={(e) => setFromClass(e.target.value)}
-                          >
-                            {classes.map((cls) => (
-                              <MenuItem key={cls._id} value={cls._id}>
-                                {cls.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
+                    <TextField
+                      fullWidth
+                      select
+                      size="small"
+                      label="Section *"
+                      value={fromSection}
+                      onChange={(e) => setFromSection(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      SelectProps={{ displayEmpty: true }}
+                    >
+                      <MenuItem value="">Select Section</MenuItem>
+                      {sections.map((sec) => (
+                        <MenuItem key={sec._id} value={sec._id}>
+                          {sec.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
 
-                      <Grid item xs={12} sm={6}>
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Section *</InputLabel>
-                          <Select
-                            value={fromSection}
-                            label="Section *"
-                            onChange={(e) => setFromSection(e.target.value)}
-                          >
-                            {sections.map((sec) => (
-                              <MenuItem key={sec._id} value={sec._id}>
-                                {sec.name}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Academic Year"
+                      value={fromAcademicYear}
+                      onChange={(e) => setFromAcademicYear(e.target.value)}
+                      placeholder="2024-2025"
+                      InputLabelProps={{ shrink: true }}
+                    />
+                  </Box>
+                </Box>
 
-                      <Grid item xs={12} sm={6}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Academic Year"
-                          value={fromAcademicYear}
-                          onChange={(e) => setFromAcademicYear(e.target.value)}
-                          placeholder="2024-2025"
-                        />
-                      </Grid>
+                {/* To Section - Only for Promote and Transfer */}
+                {tabValue < 2 && (
+                  <Box sx={{ mb: 3 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', mb: 1.5 }}>
+                      TO
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: 'grid',
+                        gridTemplateColumns: {
+                          xs: '1fr',
+                          sm: 'repeat(2, 1fr)',
+                          md: 'repeat(4, 1fr)'
+                        },
+                        gap: 2,
+                        alignItems: 'center'
+                      }}
+                    >
+                      <TextField
+                        fullWidth
+                        select
+                        size="small"
+                        label="Institution *"
+                        value={toInstitution}
+                        onChange={(e) => {
+                          setToInstitution(e.target.value);
+                          setToClass('');
+                          setToSection('');
+                        }}
+                        InputLabelProps={{ shrink: true }}
+                        SelectProps={{ displayEmpty: true }}
+                      >
+                        <MenuItem value="">Select Institution</MenuItem>
+                        {institutions.map((inst) => (
+                          <MenuItem key={inst._id} value={inst._id}>
+                            {inst.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
 
-                      {/* To Section - Only for Promote and Transfer */}
-                      {tabValue < 2 && (
-                        <>
-                          <Grid item xs={12}>
-                            <Divider sx={{ my: 2 }}>
-                              <Typography variant="subtitle2" color="text.secondary">TO</Typography>
-                            </Divider>
-                          </Grid>
+                      <TextField
+                        fullWidth
+                        select
+                        size="small"
+                        label="Class *"
+                        value={toClass}
+                        onChange={(e) => {
+                          setToClass(e.target.value);
+                          setToSection('');
+                        }}
+                        disabled={!toInstitution}
+                        InputLabelProps={{ shrink: true }}
+                        SelectProps={{ displayEmpty: true }}
+                      >
+                        <MenuItem value="">Select Class</MenuItem>
+                        {toInstitution && toClasses.map((cls) => (
+                          <MenuItem key={cls._id} value={cls._id}>
+                            {cls.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
 
-                          <Grid item xs={12}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Institution *</InputLabel>
-                              <Select
-                                value={toInstitution}
-                                label="Institution *"
-                                onChange={(e) => {
-                                  setToInstitution(e.target.value);
-                                  setToClass('');
-                                  setToSection('');
-                                }}
-                              >
-                                {institutions.map((inst) => (
-                                  <MenuItem key={inst._id} value={inst._id}>
-                                    {inst.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </Grid>
+                      <TextField
+                        fullWidth
+                        select
+                        size="small"
+                        label="Section *"
+                        value={toSection}
+                        onChange={(e) => setToSection(e.target.value)}
+                        disabled={!toClass}
+                        InputLabelProps={{ shrink: true }}
+                        SelectProps={{ displayEmpty: true }}
+                      >
+                        <MenuItem value="">Select Section</MenuItem>
+                        {toClass && toSections.map((sec) => (
+                          <MenuItem key={sec._id} value={sec._id}>
+                            {sec.name}
+                          </MenuItem>
+                        ))}
+                      </TextField>
 
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Class *</InputLabel>
-                              <Select
-                                value={toClass}
-                                label="Class *"
-                                onChange={(e) => {
-                                  setToClass(e.target.value);
-                                  setToSection('');
-                                }}
-                                disabled={!toInstitution}
-                              >
-                                {toInstitution && toClasses.map((cls) => (
-                                  <MenuItem key={cls._id} value={cls._id}>
-                                    {cls.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </Grid>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Academic Year"
+                        value={toAcademicYear}
+                        onChange={(e) => setToAcademicYear(e.target.value)}
+                        placeholder="2025-2026"
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Box>
+                  </Box>
+                )}
 
-                          <Grid item xs={12} sm={6}>
-                            <FormControl fullWidth size="small">
-                              <InputLabel>Section *</InputLabel>
-                              <Select
-                                value={toSection}
-                                label="Section *"
-                                onChange={(e) => setToSection(e.target.value)}
-                                disabled={!toClass}
-                              >
-                                {toClass && toSections.map((sec) => (
-                                  <MenuItem key={sec._id} value={sec._id}>
-                                    {sec.name}
-                                  </MenuItem>
-                                ))}
-                              </Select>
-                            </FormControl>
-                          </Grid>
+                <Box sx={{ mb: 3 }}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Remarks"
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    multiline
+                    rows={3}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Box>
 
-                          <Grid item xs={12} sm={6}>
-                            <TextField
-                              fullWidth
-                              size="small"
-                              label="Academic Year"
-                              value={toAcademicYear}
-                              onChange={(e) => setToAcademicYear(e.target.value)}
-                              placeholder="2025-2026"
-                            />
-                          </Grid>
-                        </>
-                      )}
-
-                      <Grid item xs={12}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Remarks"
-                          value={remarks}
-                          onChange={(e) => setRemarks(e.target.value)}
-                          multiline
-                          rows={3}
-                        />
-                      </Grid>
-
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                          <Button
-                            variant="outlined"
-                            onClick={resetForm}
-                            disabled={loading}
-                          >
-                            Reset
-                          </Button>
-                          <Button
-                            variant="contained"
-                            onClick={handleSubmit}
-                            disabled={loading || selectedStudents.length === 0}
-                            startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
-                          >
-                            {loading ? 'Processing...' : tabValue === 0 ? 'Promote' : tabValue === 1 ? 'Transfer' : 'Pass Out'}
-                          </Button>
-                        </Box>
-                      </Grid>
-                    </Grid>
-              </Box>
+                <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
+                  <Button
+                    variant="outlined"
+                    onClick={resetForm}
+                    disabled={loading}
+                    sx={{ height: 40 }}
+                  >
+                    Reset
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleSubmit}
+                    disabled={loading || selectedStudents.length === 0}
+                    startIcon={loading ? <CircularProgress size={20} /> : <CheckCircle />}
+                    sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: 40 }}
+                  >
+                    {loading ? 'Processing...' : tabValue === 0 ? 'Promote' : tabValue === 1 ? 'Transfer' : 'Pass Out'}
+                  </Button>
+                </Box>
+              </Paper>
             </Box>
           )}
 
           {/* History Tab */}
           {tabValue === 3 && (
             <Box sx={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-              <Box sx={{ display: 'flex', gap: 2, mb: 3, flexWrap: 'wrap' }}>
-                <FormControl size="small" sx={{ minWidth: 200 }}>
-                  <InputLabel>Institution</InputLabel>
-                  <Select
-                    value={filterInstitution}
+              <Paper sx={{ p: 3, mb: 3 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                  <Typography variant="h6">
+                    Filters
+                  </Typography>
+                  {(filterInstitution || filterOperationType) && (
+                    <Button
+                      size="small"
+                      onClick={() => {
+                        setFilterInstitution('');
+                        setFilterOperationType('');
+                      }}
+                      sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
+                    >
+                      Clear Filters
+                    </Button>
+                  )}
+                </Box>
+                <Box
+                  sx={{
+                    display: 'grid',
+                    gridTemplateColumns: {
+                      xs: '1fr',
+                      sm: 'repeat(2, 1fr)',
+                      md: '2fr 2fr 1fr'
+                    },
+                    gap: 2,
+                    alignItems: 'center'
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    select
+                    size="small"
                     label="Institution"
+                    value={filterInstitution}
                     onChange={(e) => setFilterInstitution(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    SelectProps={{ displayEmpty: true }}
                   >
                     <MenuItem value="">All Institutions</MenuItem>
                     {institutions.map((inst) => (
@@ -870,31 +956,34 @@ const StudentPromotion = () => {
                         {inst.name}
                       </MenuItem>
                     ))}
-                  </Select>
-                </FormControl>
+                  </TextField>
 
-                <FormControl size="small" sx={{ minWidth: 200 }}>
-                  <InputLabel>Operation Type</InputLabel>
-                  <Select
-                    value={filterOperationType}
+                  <TextField
+                    fullWidth
+                    select
+                    size="small"
                     label="Operation Type"
+                    value={filterOperationType}
                     onChange={(e) => setFilterOperationType(e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    SelectProps={{ displayEmpty: true }}
                   >
                     <MenuItem value="">All Types</MenuItem>
                     <MenuItem value="promote">Promote</MenuItem>
                     <MenuItem value="transfer">Transfer</MenuItem>
                     <MenuItem value="passout">Pass Out</MenuItem>
-                  </Select>
-                </FormControl>
+                  </TextField>
 
-                <Button
-                  variant="outlined"
-                  startIcon={<Refresh />}
-                  onClick={fetchHistory}
-                >
-                  Refresh
-                </Button>
-              </Box>
+                  <Button
+                    variant="outlined"
+                    startIcon={<Refresh />}
+                    onClick={fetchHistory}
+                    sx={{ height: 40 }}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
+              </Paper>
 
               <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>
                 <Table sx={{ minWidth: 650 }}>

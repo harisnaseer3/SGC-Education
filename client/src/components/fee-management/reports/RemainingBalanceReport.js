@@ -899,133 +899,153 @@ const RemainingBalanceReport = ({ onBack }) => {
   return (
     <Box sx={{ p: 1 }}>
       <Box className="no-print">
-        <Card sx={{ mb: 3, boxShadow: 3, borderRadius: 2 }}>
-          <CardContent>
-            {/* Filter Mode Toggle & Struck Off Option */}
-            <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', minWidth: 90 }}>
-                  Filter Mode:
-                </Typography>
-                <RadioGroup
-                  row
-                  value={filters.filterMode}
-                  onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
-                >
-                  <FormControlLabel
-                    value="voucher"
-                    control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
-                    label={
-                      <Typography variant="body2" fontWeight={filters.filterMode === 'voucher' ? 700 : 400}>
-                        Month & Year (Voucher Wise)
-                      </Typography>
-                    }
-                  />
-                  <FormControlLabel
-                    value="dateRange"
-                    control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
-                    label={
-                      <Typography variant="body2" fontWeight={filters.filterMode === 'dateRange' ? 700 : 400}>
-                        Payment Date Range
-                      </Typography>
-                    }
-                  />
-                </RadioGroup>
-              </Box>
-
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={Boolean(filters.includeDefaultersWithoutVoucher)}
-                    onChange={(e) => setFilters({ ...filters, includeDefaultersWithoutVoucher: e.target.checked })}
-                    sx={{ color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
-                  />
-                }
-                label={
-                  <Typography variant="body2" fontWeight={filters.includeDefaultersWithoutVoucher ? 700 : 500} sx={{ color: filters.includeDefaultersWithoutVoucher ? '#2563eb' : '#475569' }}>
-                    Include Defaulters (No Current Voucher)
-                  </Typography>
-                }
-                sx={{ m: 0 }}
-              />
-
-            </Box>
-
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Class</InputLabel>
-                  <Select
-                    value={filters.classId}
-                    label="Class"
-                    onChange={(e) => setFilters({ ...filters, classId: e.target.value })}
-                  >
-                    <MenuItem value="all">All Classes</MenuItem>
-                    {classes.map((cls) => (
-                      <MenuItem key={cls._id} value={cls._id}>{cls.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-
-              <Grid item xs={12} sm={6} md={3}>
-                <Autocomplete
-                  multiple
-                  size="small"
-                  options={['All', ...availableStatuses]}
-                  value={filters.studentStatus}
-                  onChange={(e, newValue) => {
-                    if (newValue.length === 0) {
-                      setFilters({ ...filters, studentStatus: ['All'] });
-                    } else if (newValue.includes('All') && !filters.studentStatus.includes('All')) {
-                      setFilters({ ...filters, studentStatus: ['All'] });
-                    } else if (newValue.includes('All') && newValue.length > 1) {
-                      setFilters({ ...filters, studentStatus: newValue.filter(v => v !== 'All') });
-                    } else {
-                      setFilters({ ...filters, studentStatus: newValue });
-                    }
-                  }}
-                  renderInput={(params) => (
-                    <TextField {...params} label="Student Status" placeholder="Status" />
-                  )}
-                  renderTags={(value, getTagProps) =>
-                    value.map((option, index) => (
-                      <Chip variant="outlined" label={option} size="small" {...getTagProps({ index })} />
-                    ))
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Filters
+          </Typography>
+          {/* Filter Mode Toggle & Struck Off Option */}
+          <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', minWidth: 90 }}>
+                Filter Mode:
+              </Typography>
+              <RadioGroup
+                row
+                value={filters.filterMode}
+                onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
+              >
+                <FormControlLabel
+                  value="voucher"
+                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
+                  label={
+                    <Typography variant="body2" fontWeight={filters.filterMode === 'voucher' ? 700 : 400}>
+                      Month & Year (Voucher Wise)
+                    </Typography>
                   }
                 />
-              </Grid>
+                <FormControlLabel
+                  value="dateRange"
+                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
+                  label={
+                    <Typography variant="body2" fontWeight={filters.filterMode === 'dateRange' ? 700 : 400}>
+                      Payment Date Range
+                    </Typography>
+                  }
+                />
+              </RadioGroup>
+            </Box>
 
-              <Grid item xs={6} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Payment Status</InputLabel>
-                  <Select
-                    value={filters.paymentStatus}
-                    label="Payment Status"
-                    onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}
-                  >
-                    <MenuItem value="all">All</MenuItem>
-                    <MenuItem value="not_paid">Not Paid</MenuItem>
-                    <MenuItem value="partially_paid">Partially Paid</MenuItem>
-                    <MenuItem value="paid">Paid</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={Boolean(filters.includeDefaultersWithoutVoucher)}
+                  onChange={(e) => setFilters({ ...filters, includeDefaultersWithoutVoucher: e.target.checked })}
+                  sx={{ color: '#2563eb', '&.Mui-checked': { color: '#2563eb' } }}
+                />
+              }
+              label={
+                <Typography variant="body2" fontWeight={filters.includeDefaultersWithoutVoucher ? 700 : 500} sx={{ color: filters.includeDefaultersWithoutVoucher ? '#2563eb' : '#475569' }}>
+                  Include Defaulters (No Current Voucher)
+                </Typography>
+              }
+              sx={{ m: 0 }}
+            />
 
-              <Grid item xs={6} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>View Type</InputLabel>
-                  <Select
-                    value={filters.viewType}
-                    label="View Type"
-                    onChange={(e) => setFilters({ ...filters, viewType: e.target.value })}
-                  >
-                    <MenuItem value="full">Full Summary</MenuItem>
-                    <MenuItem value="head-wise">Head-wise</MenuItem>
-                  </Select>
-                </FormControl>
-              </Grid>
+          </Box>
+
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="Class"
+                value={filters.classId}
+                onChange={(e) => setFilters({ ...filters, classId: e.target.value })}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="all">All Classes</MenuItem>
+                {classes.map((cls) => (
+                  <MenuItem key={cls._id} value={cls._id}>{cls.name}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+
+            <Grid item xs={12} sm={6} md={3}>
+              <Autocomplete
+                multiple
+                size="small"
+                options={['All', ...availableStatuses]}
+                value={filters.studentStatus}
+                onChange={(e, newValue) => {
+                  if (newValue.length === 0) {
+                    setFilters({ ...filters, studentStatus: ['All'] });
+                  } else if (newValue.includes('All') && !filters.studentStatus.includes('All')) {
+                    setFilters({ ...filters, studentStatus: ['All'] });
+                  } else if (newValue.includes('All') && newValue.length > 1) {
+                    setFilters({ ...filters, studentStatus: newValue.filter(v => v !== 'All') });
+                  } else {
+                    setFilters({ ...filters, studentStatus: newValue });
+                  }
+                }}
+                renderInput={(params) => (
+                  <TextField {...params} label="Student Status" placeholder="Status" />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip variant="outlined" label={option} size="small" {...getTagProps({ index })} />
+                  ))
+                }
+              />
+            </Grid>
+
+            <Grid item xs={6} sm={6} md={3}>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="Payment Status"
+                value={filters.paymentStatus}
+                onChange={(e) => setFilters({ ...filters, paymentStatus: e.target.value })}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="all">All Statuses</MenuItem>
+                <MenuItem value="not_paid">Not Paid</MenuItem>
+                <MenuItem value="partially_paid">Partially Paid</MenuItem>
+                <MenuItem value="paid">Paid</MenuItem>
+              </TextField>
+            </Grid>
+
+            <Grid item xs={6} sm={6} md={3}>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="View Type"
+                value={filters.viewType}
+                onChange={(e) => setFilters({ ...filters, viewType: e.target.value })}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="full">Full Summary</MenuItem>
+                <MenuItem value="head-wise">Head-wise</MenuItem>
+              </TextField>
+            </Grid>
 
               {/* Date Filters Row */}
               <Grid item xs={12} sm={4} md={3}>
@@ -1122,8 +1142,7 @@ const RemainingBalanceReport = ({ onBack }) => {
                 )}
               </Grid>
             </Grid>
-          </CardContent>
-        </Card>
+          </Paper>
       </Box>
 
       {renderTable()}

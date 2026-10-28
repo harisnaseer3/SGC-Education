@@ -4644,61 +4644,81 @@ const FeeManagement = () => {
               </Box>
             </Box>
 
-            {/* Filter Section */}
-            <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-              <Grid container spacing={2} alignItems="center">
-                <Grid item xs={12} sm={12} md={5.5}>
-                  <TextField
-                    label="Search Student"
-                    variant="outlined"
-                    size="small"
-                    fullWidth
-                    value={assignFeeStructureFilters.searchTerm}
-                    onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
-                    placeholder="Search by name, roll no, ID, admission no..."
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                  <FormControl fullWidth variant="outlined" size="small">
-                    <InputLabel>Class</InputLabel>
-                    <Select
-                      value={assignFeeStructureFilters.class}
-                      onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, class: e.target.value }))}
-                      label="Class"
-                    >
-                      <MenuItem value="">All Classes</MenuItem>
-                      {[...new Set(studentsWithoutFeeStructure.map(s => s.class).filter(Boolean))].sort().map((className) => (
-                        <MenuItem key={className} value={className}>{capitalizeFirstOnly(className)}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2.5}>
-                  <FormControl fullWidth variant="outlined" size="small">
-                    <InputLabel>Fee Status</InputLabel>
-                    <Select
-                      value={assignFeeStructureFilters.feeStatus}
-                      onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, feeStatus: e.target.value }))}
-                      label="Fee Status"
-                    >
-                      <MenuItem value="">All Statuses</MenuItem>
-                      <MenuItem value="assigned">Fee Assigned</MenuItem>
-                      <MenuItem value="not_assigned">Not Assigned Fee</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+            {/* Filters */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Filters
+                </Typography>
+                {(assignFeeStructureFilters.searchTerm || assignFeeStructureFilters.class || assignFeeStructureFilters.feeStatus) && (
                   <Button
-                    variant="outlined"
-                    fullWidth
+                    size="small"
                     onClick={() => setAssignFeeStructureFilters({ searchTerm: '', class: '', feeStatus: '' })}
-                    sx={{ borderColor: '#667eea', color: '#667eea' }}
+                    sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
                   >
                     Clear Filters
                   </Button>
-                </Grid>
-              </Grid>
-            </Box>
+                )}
+              </Box>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: '2fr 1.5fr 1.5fr'
+                  },
+                  gap: 2,
+                  alignItems: 'center'
+                }}
+              >
+                <TextField
+                  fullWidth
+                  label="Search"
+                  placeholder="Search by name, roll no, ID, admission no..."
+                  value={assignFeeStructureFilters.searchTerm}
+                  onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                  size="small"
+                />
+                <TextField
+                  fullWidth
+                  select
+                  label="Class"
+                  value={assignFeeStructureFilters.class}
+                  onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, class: e.target.value }))}
+                  size="small"
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                  SelectProps={{
+                    displayEmpty: true
+                  }}
+                >
+                  <MenuItem value="">All Classes</MenuItem>
+                  {[...new Set(studentsWithoutFeeStructure.map(s => s.class).filter(Boolean))].sort().map((className) => (
+                    <MenuItem key={className} value={className}>{capitalizeFirstOnly(className)}</MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  fullWidth
+                  select
+                  label="Fee Status"
+                  value={assignFeeStructureFilters.feeStatus}
+                  onChange={(e) => setAssignFeeStructureFilters(prev => ({ ...prev, feeStatus: e.target.value }))}
+                  size="small"
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                  SelectProps={{
+                    displayEmpty: true
+                  }}
+                >
+                  <MenuItem value="">All Statuses</MenuItem>
+                  <MenuItem value="assigned">Fee Assigned</MenuItem>
+                  <MenuItem value="not_assigned">Not Assigned Fee</MenuItem>
+                </TextField>
+              </Box>
+            </Paper>
 
             {assignFeeStructureLoading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
@@ -4839,89 +4859,102 @@ const FeeManagement = () => {
             {miscFeeSubTab === 0 && (
               <Box>
                 {/* Filters */}
-                <Card sx={{ mb: 3 }}>
-                  <CardContent>
-                    <Grid container spacing={2} sx={{ width: '100%', maxWidth: '100%' }}>
-                      <Grid item xs={12} md={6}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Month/Year"
-                          type="month"
-                          value={generateVoucherFilters.monthYear}
-                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, monthYear: e.target.value })}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Grid>
-                      {/* Search Filters */}
-                      <Grid item xs={12} sm={12} md={6}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Search Student"
-                          value={generateVoucherFilters.searchTerm}
-                          onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, searchTerm: e.target.value })}
-                          placeholder="Search by name, roll no, ID, admission no..."
-                        />
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Class</InputLabel>
-                          <Select
-                            value={generateVoucherFilters.class}
-                            onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, class: e.target.value })}
-                            label="Class"
-                          >
-                            <MenuItem value="">All Classes</MenuItem>
-                            {[...new Set(generateVoucherStudents.map(s => s.class).filter(Boolean))].sort().map((className) => (
-                              <MenuItem key={className} value={className}>{capitalizeFirstOnly(className)}</MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
-                        <FormControl fullWidth size="small">
-                          <InputLabel>Voucher Status</InputLabel>
-                          <Select
-                            value={generateVoucherFilters.voucherStatus}
-                            onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, voucherStatus: e.target.value })}
-                            label="Voucher Status"
-                          >
-                            <MenuItem value="">All</MenuItem>
-                            <MenuItem value="Generated">Generated</MenuItem>
-                            <MenuItem value="Not Generated">Not Generated</MenuItem>
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} sm={6} md={4}>
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Typography variant="h6">
+                      Filters
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                      {(generateVoucherFilters.searchTerm || generateVoucherFilters.class || generateVoucherFilters.voucherStatus) && (
                         <Button
-                          variant="outlined"
-                          fullWidth
+                          size="small"
                           onClick={() => setGenerateVoucherFilters(prev => ({ ...prev, searchTerm: '', class: '', voucherStatus: '' }))}
-                          sx={{ borderColor: '#667eea', color: '#667eea' }}
+                          sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
                         >
                           Clear Filters
                         </Button>
-                      </Grid>
-                      {/* Action Buttons */}
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                          {hasPermission(PERMISSIONS.FEES.MANAGE) && (
-                            <Button
-                              variant="contained"
-                              startIcon={<Receipt />}
-                              sx={{ bgcolor: '#667eea' }}
-                              disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
-                              onClick={handleGenerateVouchers}
-                            >
-                              {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
-                            </Button>
-                          )}
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
+                      )}
+                      {hasPermission(PERMISSIONS.FEES.MANAGE) && (
+                        <Button
+                          variant="contained"
+                          startIcon={<Receipt />}
+                          sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
+                          disabled={selectedGenerateVoucherStudents.length === 0 || generateVoucherLoading}
+                          onClick={handleGenerateVouchers}
+                        >
+                          {generateVoucherLoading ? 'Generating...' : 'Generate Vouchers'}
+                        </Button>
+                      )}
+                    </Box>
+                  </Box>
+                  <Box
+                    sx={{
+                      display: 'grid',
+                      gridTemplateColumns: {
+                        xs: '1fr',
+                        sm: 'repeat(2, 1fr)',
+                        md: '1.2fr 2fr 1.4fr 1.4fr'
+                      },
+                      gap: 2,
+                      alignItems: 'center'
+                    }}
+                  >
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Month/Year"
+                      type="month"
+                      value={generateVoucherFilters.monthYear}
+                      onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, monthYear: e.target.value })}
+                      InputLabelProps={{ shrink: true }}
+                    />
+                    <TextField
+                      fullWidth
+                      size="small"
+                      label="Search"
+                      placeholder="Name, roll no, ID, admission no..."
+                      value={generateVoucherFilters.searchTerm}
+                      onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, searchTerm: e.target.value })}
+                    />
+                    <TextField
+                      fullWidth
+                      select
+                      size="small"
+                      label="Class"
+                      value={generateVoucherFilters.class}
+                      onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, class: e.target.value })}
+                      InputLabelProps={{
+                        shrink: true
+                      }}
+                      SelectProps={{
+                        displayEmpty: true
+                      }}
+                    >
+                      <MenuItem value="">All Classes</MenuItem>
+                      {[...new Set(generateVoucherStudents.map(s => s.class).filter(Boolean))].sort().map((className) => (
+                        <MenuItem key={className} value={className}>{capitalizeFirstOnly(className)}</MenuItem>
+                      ))}
+                    </TextField>
+                    <TextField
+                      fullWidth
+                      select
+                      size="small"
+                      label="Voucher Status"
+                      value={generateVoucherFilters.voucherStatus}
+                      onChange={(e) => setGenerateVoucherFilters({ ...generateVoucherFilters, voucherStatus: e.target.value })}
+                      InputLabelProps={{
+                        shrink: true
+                      }}
+                      SelectProps={{
+                        displayEmpty: true
+                      }}
+                    >
+                      <MenuItem value="">All Statuses</MenuItem>
+                      <MenuItem value="Generated">Generated</MenuItem>
+                      <MenuItem value="Not Generated">Not Generated</MenuItem>
+                    </TextField>
+                  </Box>
+                </Paper>
 
                 {/* Students Table */}
                 <TableContainer component={Paper}>
@@ -5055,51 +5088,52 @@ const FeeManagement = () => {
             {miscFeeSubTab === 1 && (
               <Box>
                 {/* Filters */}
-                <Card sx={{ mb: 3 }}>
-                  <CardContent>
-                    <Grid container spacing={2}>
-                      <Grid item xs={12} md={4}>
-                        <TextField
-                          fullWidth
-                          size="small"
-                          label="Month/Year"
-                          type="month"
-                          value={miscFeeFilters.monthYear}
-                          onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, monthYear: e.target.value })}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <FormControl fullWidth>
-                          <InputLabel>Enrolled Status</InputLabel>
-                          <Select
-                            multiple
-                            value={miscFeeFilters.enrolled}
-                            onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, enrolled: e.target.value })}
-                            label="Enrolled Status"
-                            renderValue={(selected) => selected.join(', ')}
-                          >
-                            {enrolledOptions.map((status) => (
-                              <MenuItem key={status} value={status}>
-                                {status}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                      </Grid>
-                      <Grid item xs={12} md={4}>
-                        <Button
-                          variant="contained"
-                          fullWidth
-                          sx={{ bgcolor: '#667eea' }}
-                          onClick={fetchMiscFeeStudents}
-                        >
-                          Search Students
-                        </Button>
-                      </Grid>
+                <Paper sx={{ p: 3, mb: 3 }}>
+                  <Typography variant="h6" gutterBottom>
+                    Filters
+                  </Typography>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} md={4}>
+                      <TextField
+                        fullWidth
+                        size="small"
+                        label="Month/Year"
+                        type="month"
+                        value={miscFeeFilters.monthYear}
+                        onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, monthYear: e.target.value })}
+                        InputLabelProps={{ shrink: true }}
+                      />
                     </Grid>
-                  </CardContent>
-                </Card>
+                    <Grid item xs={12} md={5}>
+                      <FormControl fullWidth size="small">
+                        <InputLabel>Enrolled Status</InputLabel>
+                        <Select
+                          multiple
+                          value={miscFeeFilters.enrolled}
+                          onChange={(e) => setMiscFeeFilters({ ...miscFeeFilters, enrolled: e.target.value })}
+                          label="Enrolled Status"
+                          renderValue={(selected) => selected.join(', ')}
+                        >
+                          {enrolledOptions.map((status) => (
+                            <MenuItem key={status} value={status}>
+                              {status}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+                    </Grid>
+                    <Grid item xs={12} md={3}>
+                      <Button
+                        variant="contained"
+                        fullWidth
+                        sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: '40px' }}
+                        onClick={fetchMiscFeeStudents}
+                      >
+                        Search Students
+                      </Button>
+                    </Grid>
+                  </Grid>
+                </Paper>
 
                 {/* Action Buttons */}
                 <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
@@ -5236,173 +5270,191 @@ const FeeManagement = () => {
             </Typography>
 
             {/* Filters */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Grid container spacing={2} sx={{ width: '100%', maxWidth: '100%' }}>
-                  <Grid item xs={12} sm={6} md={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Month/Year"
-                      type="month"
-                      disabled={!!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate)}
-                      value={printVoucherFilters.monthYear}
-                      onChange={(e) => {
-                        setPrintVoucherFilters({ ...printVoucherFilters, monthYear: e.target.value });
-                      }}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Generated Date"
-                      type="date"
-                      value={printVoucherFilters.generatedDate}
-                      onChange={(e) => {
-                        setPrintVoucherFilters({ ...printVoucherFilters, generatedDate: e.target.value });
-                      }}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Payment Start Date"
-                      type="date"
-                      value={printVoucherFilters.paymentStartDate}
-                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, paymentStartDate: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Payment End Date"
-                      type="date"
-                      value={printVoucherFilters.paymentEndDate}
-                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, paymentEndDate: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Voucher Number"
-                      value={printVoucherFilters.voucherNumber}
-                      onChange={(e) => {
-                        setPrintVoucherFilters({ ...printVoucherFilters, voucherNumber: e.target.value });
-                      }}
-                      placeholder="Search by voucher #"
-                    />
-                  </Grid>
-                  
-                  <Grid item xs={12} sm={12} md={9}>
-                    <TextField
-                      fullWidth
-                      label="Search Student"
-                      value={printVoucherFilters.searchTerm}
-                      onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, searchTerm: e.target.value })}
-                      placeholder="Search by name, roll no, ID, admission no..."
-                      size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <FormControl fullWidth variant="outlined" size="small">
-                      <InputLabel>Class</InputLabel>
-                      <Select
-                        value={printVoucherFilters.class}
-                        onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, class: e.target.value })}
-                        label="Class"
-                      >
-                        <MenuItem value="">All Classes</MenuItem>
-                        {availableClasses.map((cls) => (
-                          <MenuItem key={cls._id} value={cls.name}>
-                            {cls.name}
-                          </MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} sm={12} md={3}>
-                    <FormControl fullWidth variant="outlined" size="small">
-                      <InputLabel>Status</InputLabel>
-                      <Select
-                        value={printVoucherFilters.voucherStatus}
-                        onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, voucherStatus: e.target.value })}
-                        label="Status"
-                      >
-                        <MenuItem value="">All Statuses</MenuItem>
-                        <MenuItem value="Paid">Paid</MenuItem>
-                        <MenuItem value="Unpaid">Unpaid</MenuItem>
-                        <MenuItem value="Partial">Partial</MenuItem>
-                        <MenuItem value="Generated">Generated</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </Grid>
-                  <Grid item xs={12} md={2}>
-                    <Button
-                      variant="outlined"
-                      fullWidth
-                      onClick={() => setPrintVoucherFilters({
-                        monthYear: printVoucherFilters.monthYear,
-                        voucherNumber: '',
-                        generatedDate: '',
-                        paymentStartDate: '',
-                        paymentEndDate: '',
-                        searchTerm: '',
-                        class: '',
-                        voucherStatus: ''
-                      })}
-                    >
-                      Clear Filters
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} md={2}>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      startIcon={<Print />}
-                      sx={{ bgcolor: '#667eea' }}
-                      disabled={printVoucherStudents.length === 0 || bulkVoucherLoading}
-                      onClick={handleBulkPrintVouchers}
-                    >
-                      {bulkVoucherLoading ? 'Loading Vouchers...' : 'Print Fee Voucher'}
-                    </Button>
-                  </Grid>
-                  <Grid item xs={12} md={2}>
-                    <Button
-                      variant="contained"
-                      fullWidth
-                      color="success"
-                      startIcon={<FileDownload />}
-                      disabled={getFilteredPrintVoucherStudents().length === 0}
-                      onClick={handleExportVouchers}
-                    >
-                      Export Excel
-                    </Button>
-                  </Grid>
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Typography variant="h6">
+                  Filters
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Button
+                    size="small"
+                    onClick={() => setPrintVoucherFilters({
+                      monthYear: printVoucherFilters.monthYear,
+                      voucherNumber: '',
+                      generatedDate: '',
+                      paymentStartDate: '',
+                      paymentEndDate: '',
+                      searchTerm: '',
+                      class: '',
+                      voucherStatus: ''
+                    })}
+                    sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
+                  >
+                    Clear Filters
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    startIcon={<Print />}
+                    sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
+                    disabled={printVoucherStudents.length === 0 || bulkVoucherLoading}
+                    onClick={handleBulkPrintVouchers}
+                  >
+                    {bulkVoucherLoading ? 'Loading Vouchers...' : 'Print Fee Voucher'}
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    color="success"
+                    startIcon={<FileDownload />}
+                    disabled={getFilteredPrintVoucherStudents().length === 0}
+                    onClick={handleExportVouchers}
+                  >
+                    Export Excel
+                  </Button>
                   {selectedVoucherIds.length > 0 && (
-                    <Grid item xs={12} md={4}>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        color="error"
-                        startIcon={<Delete />}
-                        onClick={handleBulkDeleteVouchers}
-                        disabled={loading}
-                      >
-                        Delete Selected ({selectedVoucherIds.length})
-                      </Button>
-                    </Grid>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      color="error"
+                      startIcon={<Delete />}
+                      onClick={handleBulkDeleteVouchers}
+                      disabled={loading}
+                    >
+                      Delete Selected ({selectedVoucherIds.length})
+                    </Button>
                   )}
-                </Grid>
-              </CardContent>
-            </Card>
+                </Box>
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: 'repeat(4, 1fr)'
+                  },
+                  gap: 2,
+                  mb: 2
+                }}
+              >
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Month/Year"
+                  type="month"
+                  disabled={!!(printVoucherFilters.paymentStartDate || printVoucherFilters.paymentEndDate)}
+                  value={printVoucherFilters.monthYear}
+                  onChange={(e) => {
+                    setPrintVoucherFilters({ ...printVoucherFilters, monthYear: e.target.value });
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Generated Date"
+                  type="date"
+                  value={printVoucherFilters.generatedDate}
+                  onChange={(e) => {
+                    setPrintVoucherFilters({ ...printVoucherFilters, generatedDate: e.target.value });
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Payment Start Date"
+                  type="date"
+                  value={printVoucherFilters.paymentStartDate}
+                  onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, paymentStartDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Payment End Date"
+                  type="date"
+                  value={printVoucherFilters.paymentEndDate}
+                  onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, paymentEndDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Box>
+
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: '2fr 1.5fr 1.5fr 1.5fr'
+                  },
+                  gap: 2,
+                  alignItems: 'center'
+                }}
+              >
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Search"
+                  value={printVoucherFilters.searchTerm}
+                  onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, searchTerm: e.target.value })}
+                  placeholder="Search by name, roll no, ID, admission no..."
+                />
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Voucher Number"
+                  value={printVoucherFilters.voucherNumber}
+                  onChange={(e) => {
+                    setPrintVoucherFilters({ ...printVoucherFilters, voucherNumber: e.target.value });
+                  }}
+                  placeholder="Search by voucher #"
+                />
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  label="Class"
+                  value={printVoucherFilters.class}
+                  onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, class: e.target.value })}
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                  SelectProps={{
+                    displayEmpty: true
+                  }}
+                >
+                  <MenuItem value="">All Classes</MenuItem>
+                  {availableClasses.map((cls) => (
+                    <MenuItem key={cls._id} value={cls.name}>
+                      {cls.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  label="Status"
+                  value={printVoucherFilters.voucherStatus}
+                  onChange={(e) => setPrintVoucherFilters({ ...printVoucherFilters, voucherStatus: e.target.value })}
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                  SelectProps={{
+                    displayEmpty: true
+                  }}
+                >
+                  <MenuItem value="">All Statuses</MenuItem>
+                  <MenuItem value="Paid">Paid</MenuItem>
+                  <MenuItem value="Unpaid">Unpaid</MenuItem>
+                  <MenuItem value="Partial">Partial</MenuItem>
+                  <MenuItem value="Generated">Generated</MenuItem>
+                </TextField>
+              </Box>
+            </Paper>
 
             {/* Students Table */}
             <TableContainer component={Paper}>
@@ -5629,50 +5681,46 @@ const FeeManagement = () => {
               FEE DEPOSIT
             </Typography>
 
-            {/* Search Section */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 3, fontWeight: 'bold', color: '#667eea' }}>
-                  Search Student
-                </Typography>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={12} md={12} lg={6}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Search Student"
-                      value={manualDepositSearch.searchTerm}
-                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, searchTerm: e.target.value })}
-                      placeholder="Search by name, roll no, ID, admission no..."
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={12} md={12} lg={6}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Voucher Number"
-                      value={manualDepositSearch.voucherNumber}
-                      onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, voucherNumber: e.target.value })}
-                      placeholder="Enter voucher number (e.g., VCH-2024-01-000001)"
-                    />
-                  </Grid>
-                      <Grid item xs={12}>
-                        <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'center' }}>
-                          <Button
-                            variant="contained"
-                            fullWidth
-                            startIcon={<Search />}
-                            sx={{ bgcolor: '#667eea' }}
-                            onClick={fetchManualDepositStudents}
-                            disabled={loading}
-                          >
-                            {loading ? 'Searching...' : 'Search'}
-                          </Button>
-                        </Box>
-                      </Grid>
-                    </Grid>
-                  </CardContent>
-                </Card>
+            {/* Filters */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Filters
+              </Typography>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={12} md={5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search Student"
+                    value={manualDepositSearch.searchTerm}
+                    onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, searchTerm: e.target.value })}
+                    placeholder="Search by name, roll no, ID, admission no..."
+                  />
+                </Grid>
+                <Grid item xs={12} sm={12} md={5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Voucher Number"
+                    value={manualDepositSearch.voucherNumber}
+                    onChange={(e) => setManualDepositSearch({ ...manualDepositSearch, voucherNumber: e.target.value })}
+                    placeholder="Enter voucher number (e.g., VCH-2024-01-000001)"
+                  />
+                </Grid>
+                <Grid item xs={12} md={2}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<Search />}
+                    sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: '40px' }}
+                    onClick={fetchManualDepositStudents}
+                    disabled={loading}
+                  >
+                    {loading ? 'Searching...' : 'Search'}
+                  </Button>
+                </Grid>
+              </Grid>
+            </Paper>
 
                 {/* Student Table Section - Only show after search */}
                 {hasSearchedStudents && (
@@ -6148,69 +6196,68 @@ const FeeManagement = () => {
               RECEIPT
             </Typography>
 
-            {/* Search Filters */}
-            <Card sx={{ mb: 3 }}>
-              <CardContent>
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={12} md={12} lg={4}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Search Student"
-                      value={receiptSearch.searchTerm}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, searchTerm: e.target.value })}
-                      placeholder="Search by name, roll no, ID, admission no..."
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={4}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Receipt / Transaction ID"
-                      value={receiptSearch.receiptNumber}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, receiptNumber: e.target.value })}
-                      placeholder="Enter receipt no or transaction ID..."
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="Start Date"
-                      type="date"
-                      value={receiptSearch.startDate}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, startDate: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={6} md={4} lg={2}>
-                    <TextField
-                      fullWidth
-                      size="small"
-                      label="End Date"
-                      type="date"
-                      value={receiptSearch.endDate}
-                      onChange={(e) => setReceiptSearch({ ...receiptSearch, endDate: e.target.value })}
-                      InputLabelProps={{ shrink: true }}
-                    />
-                  </Grid>
-                  <Grid item xs={12}>
-                    <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end', alignItems: 'center' }}>
-                      <Button
-                        variant="contained"
-                        fullWidth
-                        startIcon={<Search />}
-                        sx={{ bgcolor: '#667eea' }}
-                        onClick={() => fetchReceipts(false)}
-                        disabled={receiptsLoading}
-                      >
-                        {receiptsLoading ? 'Searching...' : 'Search'}
-                      </Button>
-                    </Box>
-                  </Grid>
+            {/* Filters */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Typography variant="h6" gutterBottom>
+                Filters
+              </Typography>
+              <Grid container spacing={2} alignItems="center">
+                <Grid item xs={12} sm={6} md={3.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Search Student"
+                    value={receiptSearch.searchTerm}
+                    onChange={(e) => setReceiptSearch({ ...receiptSearch, searchTerm: e.target.value })}
+                    placeholder="Search by name, roll no, ID, admission no..."
+                  />
                 </Grid>
-              </CardContent>
-            </Card>
+                <Grid item xs={12} sm={6} md={3.5}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Receipt / Transaction ID"
+                    value={receiptSearch.receiptNumber}
+                    onChange={(e) => setReceiptSearch({ ...receiptSearch, receiptNumber: e.target.value })}
+                    placeholder="Enter receipt no or transaction ID..."
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Start Date"
+                    type="date"
+                    value={receiptSearch.startDate}
+                    onChange={(e) => setReceiptSearch({ ...receiptSearch, startDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6} md={2}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="End Date"
+                    type="date"
+                    value={receiptSearch.endDate}
+                    onChange={(e) => setReceiptSearch({ ...receiptSearch, endDate: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={1}>
+                  <Button
+                    variant="contained"
+                    fullWidth
+                    startIcon={<Search />}
+                    sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: '40px', minWidth: '100px' }}
+                    onClick={() => fetchReceipts(false)}
+                    disabled={receiptsLoading}
+                  >
+                    {receiptsLoading ? '...' : 'Search'}
+                  </Button>
+                </Grid>
+              </Grid>
+            </Paper>
  
             {/* Summary Cards */}
             <Grid container spacing={2} sx={{ my: 2, justifyContent: 'flex-end' }}>
@@ -7009,9 +7056,34 @@ const FeeManagement = () => {
               <Tab label="Reconciled History" />
             </Tabs>
 
-            {/* Suspense Filters */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} sm={6} md={2}>
+            {/* Filters */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Typography variant="h6">
+                  Filters
+                </Typography>
+                {(suspenseFilters.date || suspenseFilters.amount || suspenseFilters.transactionId || suspenseFilters.bank) && (
+                  <Button 
+                    size="small" 
+                    onClick={() => setSuspenseFilters({ date: '', amount: '', transactionId: '', bank: '' })}
+                    sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </Box>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: '1.2fr 1.2fr 1.8fr 1.8fr'
+                  },
+                  gap: 2,
+                  alignItems: 'center'
+                }}
+              >
                 <TextField
                   fullWidth
                   size="small"
@@ -7021,8 +7093,6 @@ const FeeManagement = () => {
                   onChange={(e) => setSuspenseFilters({ ...suspenseFilters, date: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
-              </Grid>
-              <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   fullWidth
                   size="small"
@@ -7032,8 +7102,6 @@ const FeeManagement = () => {
                   onChange={(e) => setSuspenseFilters({ ...suspenseFilters, amount: e.target.value })}
                   placeholder="Enter exact amount"
                 />
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
                 <TextField
                   fullWidth
                   size="small"
@@ -7042,38 +7110,31 @@ const FeeManagement = () => {
                   onChange={(e) => setSuspenseFilters({ ...suspenseFilters, transactionId: e.target.value })}
                   placeholder="Search TID..."
                 />
-              </Grid>
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel id="suspense-bank-filter-label">Filter by Bank</InputLabel>
-                  <Select
-                    labelId="suspense-bank-filter-label"
-                    value={suspenseFilters.bank}
-                    onChange={(e) => setSuspenseFilters({ ...suspenseFilters, bank: e.target.value })}
-                    label="Filter by Bank"
-                  >
-                    <MenuItem value="">
-                      <em>All Banks</em>
-                    </MenuItem>
-                    {bankAccounts.map((account) => (
-                      <MenuItem key={account._id} value={account.bankName}>
-                        {account.bankName} ({account.accountNumber})
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} sm={12} md={2} sx={{ display: 'flex', alignItems: 'center' }}>
-                <Button 
-                  variant="outlined" 
-                  size="small" 
-                  onClick={() => setSuspenseFilters({ date: '', amount: '', transactionId: '', bank: '' })}
-                  disabled={!suspenseFilters.date && !suspenseFilters.amount && !suspenseFilters.transactionId && !suspenseFilters.bank}
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  label="Filter by Bank"
+                  value={suspenseFilters.bank}
+                  onChange={(e) => setSuspenseFilters({ ...suspenseFilters, bank: e.target.value })}
+                  InputLabelProps={{
+                    shrink: true
+                  }}
+                  SelectProps={{
+                    displayEmpty: true
+                  }}
                 >
-                  Clear Filters
-                </Button>
-              </Grid>
-            </Grid>
+                  <MenuItem value="">
+                    All Banks
+                  </MenuItem>
+                  {bankAccounts.map((account) => (
+                    <MenuItem key={account._id} value={account.bankName}>
+                      {account.bankName} ({account.accountNumber})
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Box>
+            </Paper>
 
             {(() => {
               const filteredEntries = suspenseEntries.filter(entry => {

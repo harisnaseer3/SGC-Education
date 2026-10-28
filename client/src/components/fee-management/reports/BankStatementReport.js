@@ -485,8 +485,11 @@ const BankStatementReport = ({ onBack }) => {
         `}
       </style>
 
-      {/* Filter Section */}
+      {/* Filters */}
       <Paper sx={{ p: 3, mb: 3 }} className="no-print">
+        <Typography variant="h6" gutterBottom>
+          Filters
+        </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={3}>
             <TextField
@@ -511,35 +514,47 @@ const BankStatementReport = ({ onBack }) => {
             />
           </Grid>
           <Grid item xs={12} sm={3}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Bank Account</InputLabel>
-              <Select
-                value={filters.bankAccount}
-                label="Bank Account"
-                onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
-              >
-                <MenuItem value="">All Bank Accounts</MenuItem>
-                {bankAccounts.map((acc) => (
-                  <MenuItem key={acc._id} value={acc._id}>
-                    {acc.bankName} - {acc.accountNumber}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Bank Account"
+              value={filters.bankAccount}
+              onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">All Bank Accounts</MenuItem>
+              {bankAccounts.map((acc) => (
+                <MenuItem key={acc._id} value={acc._id}>
+                  {acc.bankName} - {acc.accountNumber}
+                </MenuItem>
+              ))}
+            </TextField>
           </Grid>
           <Grid item xs={12} sm={2}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={filters.statusFilter}
-                label="Status"
-                onChange={(e) => setFilters({ ...filters, statusFilter: e.target.value })}
-              >
-                <MenuItem value="all">All Statuses</MenuItem>
-                <MenuItem value="reconciled">Reconciled</MenuItem>
-                <MenuItem value="suspense">Suspense</MenuItem>
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Status"
+              value={filters.statusFilter}
+              onChange={(e) => setFilters({ ...filters, statusFilter: e.target.value })}
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="all">All Statuses</MenuItem>
+              <MenuItem value="reconciled">Reconciled</MenuItem>
+              <MenuItem value="suspense">Suspense</MenuItem>
+            </TextField>
           </Grid>
           <Grid item xs={12} sm={1}>
             <Button
@@ -547,7 +562,7 @@ const BankStatementReport = ({ onBack }) => {
               variant="contained"
               startIcon={<Search />}
               onClick={handleFetchReport}
-              sx={{ bgcolor: '#667eea', height: '40px' }}
+              sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: '40px' }}
               disabled={loading}
             >
               Search

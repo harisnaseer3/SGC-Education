@@ -297,6 +297,9 @@ const BankVouchersReport = ({ onBack }) => {
 
       {/* Filter Section */}
       <Paper sx={{ p: 3, mb: 3 }} className="no-print">
+        <Typography variant="h6" gutterBottom>
+          Filters
+        </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={4}>
             <TextField

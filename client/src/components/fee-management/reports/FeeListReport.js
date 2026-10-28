@@ -518,108 +518,115 @@ const FeeListReport = ({ onBack }) => {
 
   return (
     <Box sx={{ p: 1 }}>
-      {/* Search Filters */}
-      <Card sx={{ mb: 3, boxShadow: 3, borderRadius: 2 }}>
-        <CardContent>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Class</InputLabel>
-                <Select
-                  value={filters.className}
-                  label="Class"
-                  onChange={handleClassChange}
-                >
-                  <MenuItem value="All">All Classes</MenuItem>
-                  {classes.map((cls) => (
-                    <MenuItem key={cls._id} value={cls.name}>{cls.name}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <Autocomplete
-                multiple
-                size="small"
-                options={['All', ...availableStatuses]}
-                value={filters.statuses}
-                onChange={(e, newValue) => {
-                  if (newValue.includes('All')) {
-                    handleFilterChange('statuses', ['All']);
-                  } else {
-                    handleFilterChange('statuses', newValue);
-                  }
-                }}
-                renderInput={(params) => (
-                  <TextField {...params} label="Student Status" placeholder="Status" />
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <Chip variant="outlined" label={option} size="small" {...getTagProps({ index })} />
-                  ))
-                }
-              />
-            </Grid>
-            <Grid item xs={12} md={2}>
-              <TextField
-                fullWidth
-                size="small"
-                type="month"
-                label="Month & Year"
-                value={filters.monthYear}
-                onChange={(e) => handleFilterChange('monthYear', e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControlLabel
-                control={
-                  <Checkbox 
-                    checked={filters.includePreviousBalance}
-                    onChange={(e) => handleFilterChange('includePreviousBalance', e.target.checked)}
-                    color="primary"
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500 }}>
-                    Include Prev Bal (Arrears)
-                  </Typography>
-                }
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2.5}>
-              <FormControlLabel
-                control={
-                  <Checkbox 
-                    checked={filters.includeDefaultersWithoutVoucher}
-                    onChange={(e) => handleFilterChange('includeDefaultersWithoutVoucher', e.target.checked)}
-                    color="primary"
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500 }}>
-                    Include Defaulters (No Current Voucher)
-                  </Typography>
-                }
-              />
-            </Grid>
-
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 1 }}>
-              <Button
-                variant="contained"
-                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Search />}
-                onClick={handleFetchReport}
-                disabled={loading}
-                sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
-              >
-                Search
-              </Button>
-            </Grid>
+      {/* Filters */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Filters
+        </Typography>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={3}>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Class"
+              value={filters.className}
+              onChange={handleClassChange}
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="All">All Classes</MenuItem>
+              {classes.map((cls) => (
+                <MenuItem key={cls._id} value={cls.name}>{cls.name}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
-        </CardContent>
-      </Card>
+          <Grid item xs={12} md={3}>
+            <Autocomplete
+              multiple
+              size="small"
+              options={['All', ...availableStatuses]}
+              value={filters.statuses}
+              onChange={(e, newValue) => {
+                if (newValue.includes('All')) {
+                  handleFilterChange('statuses', ['All']);
+                } else {
+                  handleFilterChange('statuses', newValue);
+                }
+              }}
+              renderInput={(params) => (
+                <TextField {...params} label="Student Status" placeholder="Status" />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip variant="outlined" label={option} size="small" {...getTagProps({ index })} />
+                ))
+              }
+            />
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <TextField
+              fullWidth
+              size="small"
+              type="month"
+              label="Month & Year"
+              value={filters.monthYear}
+              onChange={(e) => handleFilterChange('monthYear', e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={filters.includePreviousBalance}
+                  onChange={(e) => handleFilterChange('includePreviousBalance', e.target.checked)}
+                  color="primary"
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500 }}>
+                  Include Prev Bal (Arrears)
+                </Typography>
+              }
+            />
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={filters.includeDefaultersWithoutVoucher}
+                  onChange={(e) => handleFilterChange('includeDefaultersWithoutVoucher', e.target.checked)}
+                  color="primary"
+                  size="small"
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontSize: '0.82rem', fontWeight: 500 }}>
+                  Include Defaulters (No Current Voucher)
+                </Typography>
+              }
+            />
+          </Grid>
+
+          <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 1 }}>
+            <Button
+              variant="contained"
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Search />}
+              onClick={handleFetchReport}
+              disabled={loading}
+              sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
+            >
+              Search
+            </Button>
+          </Grid>
+        </Grid>
+      </Paper>
 
       {/* Report Content */}
       {reportData.length > 0 ? (

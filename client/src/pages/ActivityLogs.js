@@ -271,123 +271,110 @@ export default function ActivityLogs() {
         </Grid>
       )}
 
-      {/* Filter Toolbar */}
-      <Card sx={{ mb: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
-        <CardContent sx={{ p: 2.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-            <FilterIcon fontSize="small" sx={{ color: 'text.secondary' }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-              Filter & Search Logs
-            </Typography>
-          </Box>
+      {/* Filters */}
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Typography variant="h6">
+            Filters
+          </Typography>
+          {(searchQuery || actionFilter || resourceFilter || statusFilter || startDate || endDate) && (
+            <Button
+              size="small"
+              onClick={handleResetFilters}
+              sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
+            >
+              Clear Filters
+            </Button>
+          )}
+        </Box>
 
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search user, IP, or detail..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                  endAdornment: searchQuery ? (
-                    <InputAdornment position="end">
-                      <IconButton size="small" onClick={() => setSearchQuery('')}>
-                        <ClearIcon fontSize="small" />
-                      </IconButton>
-                    </InputAdornment>
-                  ) : null
-                }}
-              />
-            </Grid>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: {
+              xs: '1fr',
+              sm: 'repeat(2, 1fr)',
+              md: '2fr 1.3fr 1.3fr 1.3fr 1.3fr'
+            },
+            gap: 2,
+            alignItems: 'center'
+          }}
+        >
+          <TextField
+            fullWidth
+            size="small"
+            label="Search"
+            placeholder="User, IP, or detail..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
 
-            <Grid item xs={6} sm={3} md={2}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Action"
-                value={actionFilter}
-                onChange={(e) => setActionFilter(e.target.value)}
-              >
-                <MenuItem value="">All Actions</MenuItem>
-                <MenuItem value="login">Login</MenuItem>
-                <MenuItem value="logout">Logout</MenuItem>
-                <MenuItem value="create">Create</MenuItem>
-                <MenuItem value="update">Update</MenuItem>
-                <MenuItem value="delete">Delete</MenuItem>
-                <MenuItem value="activate">Activate</MenuItem>
-                <MenuItem value="deactivate">Deactivate</MenuItem>
-                <MenuItem value="change_password">Password Change</MenuItem>
-              </TextField>
-            </Grid>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Action"
+            value={actionFilter}
+            onChange={(e) => setActionFilter(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
+          >
+            <MenuItem value="">All Actions</MenuItem>
+            <MenuItem value="login">Login</MenuItem>
+            <MenuItem value="logout">Logout</MenuItem>
+            <MenuItem value="create">Create</MenuItem>
+            <MenuItem value="update">Update</MenuItem>
+            <MenuItem value="delete">Delete</MenuItem>
+            <MenuItem value="activate">Activate</MenuItem>
+            <MenuItem value="deactivate">Deactivate</MenuItem>
+            <MenuItem value="change_password">Password Change</MenuItem>
+          </TextField>
 
-            <Grid item xs={6} sm={3} md={2}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Resource"
-                value={resourceFilter}
-                onChange={(e) => setResourceFilter(e.target.value)}
-              >
-                <MenuItem value="">All Resources</MenuItem>
-                <MenuItem value="user">User</MenuItem>
-                <MenuItem value="student">Student</MenuItem>
-                <MenuItem value="institution">Campus / Institution</MenuItem>
-                <MenuItem value="course">Course / Class</MenuItem>
-                <MenuItem value="setting">Setting</MenuItem>
-                <MenuItem value="other">Other</MenuItem>
-              </TextField>
-            </Grid>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Resource"
+            value={resourceFilter}
+            onChange={(e) => setResourceFilter(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
+          >
+            <MenuItem value="">All Resources</MenuItem>
+            <MenuItem value="user">User</MenuItem>
+            <MenuItem value="student">Student</MenuItem>
+            <MenuItem value="institution">Campus / Institution</MenuItem>
+            <MenuItem value="course">Course / Class</MenuItem>
+            <MenuItem value="setting">Setting</MenuItem>
+            <MenuItem value="other">Other</MenuItem>
+          </TextField>
 
-            <Grid item xs={6} sm={3} md={2}>
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Status"
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value="">All Statuses</MenuItem>
-                <MenuItem value="success">Success</MenuItem>
-                <MenuItem value="failed">Failed</MenuItem>
-              </TextField>
-            </Grid>
+          <TextField
+            select
+            fullWidth
+            size="small"
+            label="Status"
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+            SelectProps={{ displayEmpty: true }}
+          >
+            <MenuItem value="">All Statuses</MenuItem>
+            <MenuItem value="success">Success</MenuItem>
+            <MenuItem value="failed">Failed</MenuItem>
+          </TextField>
 
-            <Grid item xs={6} sm={3} md={1.5}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Start Date"
-                InputLabelProps={{ shrink: true }}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-              />
-            </Grid>
-
-            <Grid item xs={6} sm={3} md={1.5}>
-              <Button
-                fullWidth
-                variant="outlined"
-                color="secondary"
-                size="medium"
-                onClick={handleResetFilters}
-                sx={{ height: 40, borderRadius: 2 }}
-              >
-                Reset
-              </Button>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+          <TextField
+            fullWidth
+            size="small"
+            type="date"
+            label="Date"
+            InputLabelProps={{ shrink: true }}
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </Box>
+      </Paper>
 
       {/* Logs Table */}
       <TableContainer component={Paper} sx={{ borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.06)', overflowX: 'auto' }}>

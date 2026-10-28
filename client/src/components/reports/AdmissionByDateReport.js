@@ -226,23 +226,21 @@ const AdmissionByDateReport = () => {
 
       <Paper sx={{ p: 3, mb: 3 }} className="no-print">
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6" gutterBottom fontWeight="bold" color="#667eea">
-            Admission By Date Report
+          <Typography variant="h6">
+            Filters
           </Typography>
           {reportData && (
             <Button
               variant="contained"
+              size="small"
               startIcon={<Print />}
               onClick={handlePrint}
-              sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              }}
+              sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' } }}
             >
               Print Report
             </Button>
           )}
         </Box>
-        <Divider sx={{ mb: 3 }} />
 
         {error && (
           <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
@@ -250,16 +248,20 @@ const AdmissionByDateReport = () => {
           </Alert>
         )}
 
-        <Grid container spacing={3}>
+        <Grid container spacing={2} alignItems="center">
           {/* Schools Selection */}
-          <Grid item xs={12} md={3}>
-            <FormControl fullWidth>
-              <InputLabel>Schools</InputLabel>
+          <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel id="schools-select-label" shrink>Schools</InputLabel>
               <Select
+                labelId="schools-select-label"
+                notched
+                size="small"
                 value={selectedInstitutions.length > 0 ? selectedInstitutions[0] : ''}
                 label="Schools"
+                displayEmpty
                 renderValue={() => {
-                  if (selectedInstitutions.length === 0) return 'Select Schools';
+                  if (selectedInstitutions.length === 0) return 'All Schools';
                   if (selectedInstitutions.length === 1) {
                     const inst = institutions.find(i => i._id === selectedInstitutions[0]);
                     return inst ? `${inst.name} (${inst.code})` : '';
@@ -272,7 +274,7 @@ const AdmissionByDateReport = () => {
                   <TextField
                     fullWidth
                     size="small"
-                    placeholder="Search"
+                    placeholder="Search schools..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     onClick={(e) => e.stopPropagation()}
@@ -286,6 +288,7 @@ const AdmissionByDateReport = () => {
                       <Checkbox
                         checked={selectAll}
                         onChange={handleSelectAll}
+                        size="small"
                       />
                     }
                     label="Select All"
@@ -307,6 +310,7 @@ const AdmissionByDateReport = () => {
                       control={
                         <Checkbox
                           checked={selectedInstitutions.includes(institution._id)}
+                          size="small"
                         />
                       }
                       label={`${institution.name} (${institution.code})`}
@@ -318,9 +322,10 @@ const AdmissionByDateReport = () => {
           </Grid>
 
           {/* From Date */}
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={2}>
             <TextField
               fullWidth
+              size="small"
               label="From Date"
               type="date"
               value={filters.startDate}
@@ -330,9 +335,10 @@ const AdmissionByDateReport = () => {
           </Grid>
 
           {/* To Date */}
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} sm={6} md={2}>
             <TextField
               fullWidth
+              size="small"
               label="To Date"
               type="date"
               value={filters.endDate}
@@ -341,50 +347,40 @@ const AdmissionByDateReport = () => {
             />
           </Grid>
 
-          {/* Report Type Radio Buttons */}
-          <Grid item xs={12} md={3}>
-            <FormControl component="fieldset">
-              <FormLabel component="legend">Report Type</FormLabel>
-              <RadioGroup
-                value={filters.reportType}
-                onChange={(e) => setFilters({ ...filters, reportType: e.target.value })}
-              >
-                <FormControlLabel
-                  value="total"
-                  control={<Radio />}
-                  label="Total Admission"
-                />
-                <FormControlLabel
-                  value="fee-deposit"
-                  control={<Radio />}
-                  label="Fee Deposit"
-                />
-                <FormControlLabel
-                  value="without-fee-deposit"
-                  control={<Radio />}
-                  label="Without Fee Deposit"
-                />
-              </RadioGroup>
-            </FormControl>
+          {/* Report Type Dropdown */}
+          <Grid item xs={12} sm={6} md={2.5}>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Report Type"
+              value={filters.reportType}
+              onChange={(e) => setFilters({ ...filters, reportType: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{ displayEmpty: true }}
+            >
+              <MenuItem value="total">Total Admission</MenuItem>
+              <MenuItem value="fee-deposit">Fee Deposit</MenuItem>
+              <MenuItem value="without-fee-deposit">Without Fee Deposit</MenuItem>
+            </TextField>
           </Grid>
 
           {/* Show Report Button */}
-          <Grid item xs={12}>
+          <Grid item xs={12} sm={6} md={2.5}>
             <Button
               variant="contained"
-              startIcon={<Assessment />}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Assessment />}
               onClick={handleGenerateReport}
               disabled={loading}
               fullWidth
-              size="large"
               sx={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                '&:hover': {
-                  background: 'linear-gradient(135deg, #5568d3 0%, #653a8b 100%)',
-                },
+                height: '40px',
+                bgcolor: '#667eea',
+                '&:hover': { bgcolor: '#5a6fd6' },
+                textTransform: 'none'
               }}
             >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Show Report'}
+              Show Report
             </Button>
           </Grid>
         </Grid>

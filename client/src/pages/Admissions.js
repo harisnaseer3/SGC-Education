@@ -1414,84 +1414,13 @@ const Admissions = () => {
         </Box>
 
         {/* Filters */}
-        <Paper sx={{ p: 2, mb: 3, bgcolor: '#f8f9fa' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1.5, flexWrap: 'wrap' }}>
-            <Typography variant="subtitle2" fontWeight="bold">
-              Search Filters
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h6">
+              Filters
             </Typography>
-          </Box>
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                label="Student Name / Keyword"
-                placeholder="Search name, app no, phone..."
-                value={filterStudentName}
-                onChange={(e) => setFilterStudentName(e.target.value)}
-                size="small"
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search fontSize="small" />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <TextField
-                fullWidth
-                label="Roll Number"
-                placeholder="Search roll no..."
-                value={filterRollNumber}
-                onChange={(e) => setFilterRollNumber(e.target.value)}
-                size="small"
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Class</InputLabel>
-                <Select
-                  value={filterClass}
-                  onChange={(e) => setFilterClass(e.target.value)}
-                  label="Class"
-                >
-                  <MenuItem value="">All Classes</MenuItem>
-                  {Array.from(new Map(admissions
-                    .filter(a => a.class)
-                    .map(a => {
-                      const classId = a.class?._id || a.class;
-                      const className = a.class?.name || 'Unknown';
-                      return [classId, { _id: classId, name: className }];
-                    })
-                  ).values()).map((cls) => (
-                    <MenuItem key={cls._id} value={cls._id}>
-                      {cls.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select
-                  value={selectedStatus}
-                  onChange={(e) => setSelectedStatus(e.target.value)}
-                  label="Status"
-                >
-                  <MenuItem value="">All Status</MenuItem>
-                  <MenuItem value="pending">Pending</MenuItem>
-                  <MenuItem value="enrolled">Enrolled</MenuItem>
-                  <MenuItem value="struckoff">Struck Off</MenuItem>
-                  <MenuItem value="passout">Passout</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
+            {(filterStudentName || filterRollNumber || filterClass || selectedStatus || searchTerm) && (
               <Button
-                fullWidth
-                variant="outlined"
                 size="small"
                 onClick={() => {
                   setFilterStudentName('');
@@ -1500,12 +1429,89 @@ const Admissions = () => {
                   setSelectedStatus('');
                   setSearchTerm('');
                 }}
-                sx={{ height: '40px' }}
+                sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
               >
-                Clear
+                Clear Filters
               </Button>
-            </Grid>
-          </Grid>
+            )}
+          </Box>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: {
+                xs: '1fr',
+                sm: 'repeat(2, 1fr)',
+                md: '2fr 1.5fr 1.5fr 1.5fr'
+              },
+              gap: 2,
+              alignItems: 'center'
+            }}
+          >
+            <TextField
+              fullWidth
+              label="Search"
+              placeholder="Name, app no, phone..."
+              value={filterStudentName}
+              onChange={(e) => setFilterStudentName(e.target.value)}
+              size="small"
+            />
+            <TextField
+              fullWidth
+              label="Roll Number"
+              placeholder="Search roll no..."
+              value={filterRollNumber}
+              onChange={(e) => setFilterRollNumber(e.target.value)}
+              size="small"
+            />
+            <TextField
+              fullWidth
+              select
+              label="Class"
+              value={filterClass}
+              onChange={(e) => setFilterClass(e.target.value)}
+              size="small"
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">All Classes</MenuItem>
+              {Array.from(new Map(admissions
+                .filter(a => a.class)
+                .map(a => {
+                  const classId = a.class?._id || a.class;
+                  const className = a.class?.name || 'Unknown';
+                  return [classId, { _id: classId, name: className }];
+                })
+              ).values()).map((cls) => (
+                <MenuItem key={cls._id} value={cls._id}>
+                  {cls.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            <TextField
+              fullWidth
+              select
+              label="Status"
+              value={selectedStatus}
+              onChange={(e) => setSelectedStatus(e.target.value)}
+              size="small"
+              InputLabelProps={{
+                shrink: true
+              }}
+              SelectProps={{
+                displayEmpty: true
+              }}
+            >
+              <MenuItem value="">All Statuses</MenuItem>
+              <MenuItem value="pending">Pending</MenuItem>
+              <MenuItem value="enrolled">Enrolled</MenuItem>
+              <MenuItem value="struckoff">Struck Off</MenuItem>
+              <MenuItem value="passout">Passout</MenuItem>
+            </TextField>
+          </Box>
         </Paper>
 
         {/* Table */}
@@ -1907,33 +1913,35 @@ const Admissions = () => {
           {/* Tab Panel 2: Admission By Year */}
           {selectedReportTab === 2 && (
             <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight="bold" color="#667eea">
-                Admission Analysis By Year
+              <Typography variant="h6" gutterBottom>
+                Filters
               </Typography>
-              <Divider sx={{ mb: 3 }} />
-              
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={10}>
+              <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={8} md={9}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Year"
                     type="number"
                     value={reportFilters.year}
                     onChange={(e) => setReportFilters({ ...reportFilters, year: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} md={2}>
+                <Grid item xs={12} sm={4} md={3}>
                   <Button
                     variant="contained"
                     startIcon={<Assessment />}
                     onClick={() => handleGenerateReport('admission-by-year')}
                     fullWidth
                     sx={{
-                      height: '56px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      height: '40px',
+                      bgcolor: '#667eea',
+                      '&:hover': { bgcolor: '#5a6fd6' },
+                      textTransform: 'none'
                     }}
                   >
-                    Generate
+                    Generate Report
                   </Button>
                 </Grid>
               </Grid>
@@ -2046,33 +2054,35 @@ const Admissions = () => {
           {/* Tab Panel 3: Class Wise Comparison */}
           {selectedReportTab === 3 && (
             <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight="bold" color="#667eea">
-                New Admission Strength Comparison Class Wise
+              <Typography variant="h6" gutterBottom>
+                Filters
               </Typography>
-              <Divider sx={{ mb: 3 }} />
-              
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={10}>
+              <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={8} md={9}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Year"
                     type="number"
                     value={reportFilters.year}
                     onChange={(e) => setReportFilters({ ...reportFilters, year: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} md={2}>
+                <Grid item xs={12} sm={4} md={3}>
                   <Button
                     variant="contained"
                     startIcon={<Assessment />}
                     onClick={() => handleGenerateReport('class-wise-comparison')}
                     fullWidth
                     sx={{
-                      height: '56px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      height: '40px',
+                      bgcolor: '#667eea',
+                      '&:hover': { bgcolor: '#5a6fd6' },
+                      textTransform: 'none'
                     }}
                   >
-                    Generate
+                    Generate Report
                   </Button>
                 </Grid>
               </Grid>
@@ -2144,15 +2154,14 @@ const Admissions = () => {
           {/* Tab Panel 4: Date Wise Admission */}
           {selectedReportTab === 4 && (
             <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight="bold" color="#667eea">
-                New Admission Date Wise
+              <Typography variant="h6" gutterBottom>
+                Filters
               </Typography>
-              <Divider sx={{ mb: 3 }} />
-              
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={5}>
+              <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={5}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="Start Date"
                     type="date"
                     value={reportFilters.startDate}
@@ -2160,9 +2169,10 @@ const Admissions = () => {
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} md={5}>
+                <Grid item xs={12} sm={6} md={5}>
                   <TextField
                     fullWidth
+                    size="small"
                     label="End Date"
                     type="date"
                     value={reportFilters.endDate}
@@ -2170,18 +2180,20 @@ const Admissions = () => {
                     InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} md={2}>
+                <Grid item xs={12} sm={12} md={2}>
                   <Button
                     variant="contained"
                     startIcon={<Assessment />}
                     onClick={() => handleGenerateReport('date-wise-admission')}
                     fullWidth
                     sx={{
-                      height: '56px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      height: '40px',
+                      bgcolor: '#667eea',
+                      '&:hover': { bgcolor: '#5a6fd6' },
+                      textTransform: 'none'
                     }}
                   >
-                    Generate
+                    Generate Report
                   </Button>
                 </Grid>
               </Grid>
@@ -2259,57 +2271,61 @@ const Admissions = () => {
           {/* Tab Panel 5: Student's Strength Month Wise */}
           {selectedReportTab === 5 && (
             <Paper sx={{ p: 3, mb: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight="bold" color="#667eea">
-                Student's Strength Month Wise
+              <Typography variant="h6" gutterBottom>
+                Filters
               </Typography>
-              <Divider sx={{ mb: 3 }} />
-              
-              <Grid container spacing={2} sx={{ mb: 3 }}>
-                <Grid item xs={12} md={4}>
-                  <FormControl fullWidth>
-                    <InputLabel>Month</InputLabel>
-                    <Select
-                      value={reportFilters.month}
-                      onChange={(e) => setReportFilters({ ...reportFilters, month: e.target.value })}
-                      label="Month"
-                    >
-                      <MenuItem value="">All Months</MenuItem>
-                      <MenuItem value="1">January</MenuItem>
-                      <MenuItem value="2">February</MenuItem>
-                      <MenuItem value="3">March</MenuItem>
-                      <MenuItem value="4">April</MenuItem>
-                      <MenuItem value="5">May</MenuItem>
-                      <MenuItem value="6">June</MenuItem>
-                      <MenuItem value="7">July</MenuItem>
-                      <MenuItem value="8">August</MenuItem>
-                      <MenuItem value="9">September</MenuItem>
-                      <MenuItem value="10">October</MenuItem>
-                      <MenuItem value="11">November</MenuItem>
-                      <MenuItem value="12">December</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} md={4}>
+              <Grid container spacing={2} alignItems="center" sx={{ mb: 3 }}>
+                <Grid item xs={12} sm={6} md={5}>
                   <TextField
                     fullWidth
+                    select
+                    size="small"
+                    label="Month"
+                    value={reportFilters.month}
+                    onChange={(e) => setReportFilters({ ...reportFilters, month: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                    SelectProps={{ displayEmpty: true }}
+                  >
+                    <MenuItem value="">All Months</MenuItem>
+                    <MenuItem value="1">January</MenuItem>
+                    <MenuItem value="2">February</MenuItem>
+                    <MenuItem value="3">March</MenuItem>
+                    <MenuItem value="4">April</MenuItem>
+                    <MenuItem value="5">May</MenuItem>
+                    <MenuItem value="6">June</MenuItem>
+                    <MenuItem value="7">July</MenuItem>
+                    <MenuItem value="8">August</MenuItem>
+                    <MenuItem value="9">September</MenuItem>
+                    <MenuItem value="10">October</MenuItem>
+                    <MenuItem value="11">November</MenuItem>
+                    <MenuItem value="12">December</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid item xs={12} sm={6} md={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
                     label="Year"
                     type="number"
                     value={reportFilters.year}
                     onChange={(e) => setReportFilters({ ...reportFilters, year: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
                   />
                 </Grid>
-                <Grid item xs={12} md={4}>
+                <Grid item xs={12} sm={12} md={3}>
                   <Button
                     variant="contained"
                     startIcon={<Assessment />}
                     onClick={() => handleGenerateReport('student-strength-month-wise')}
                     fullWidth
                     sx={{
-                      height: '56px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      height: '40px',
+                      bgcolor: '#667eea',
+                      '&:hover': { bgcolor: '#5a6fd6' },
+                      textTransform: 'none'
                     }}
                   >
-                    Generate
+                    Generate Report
                   </Button>
                 </Grid>
               </Grid>
@@ -2490,97 +2506,27 @@ const Admissions = () => {
 
 
 
-            {/* Advanced Filters */}
-            <Paper sx={{ p: 2, mb: 2, bgcolor: '#f8f9fa' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1.5, flexWrap: 'wrap' }}>
-                <Typography variant="subtitle2" fontWeight="bold">
-                  Search Filters
-                </Typography>
-                {filterNewAdmissions && (
-                  <Chip
-                    label="Last 30 Days Admissions"
-                    onDelete={() => {
-                      setFilterNewAdmissions(false);
-                      navigate('/admissions/register');
-                    }}
-                    color="primary"
-                    size="small"
-                  />
-                )}
-              </Box>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={3}>
-                  <TextField
-                    fullWidth
-                    label="Student Name"
-                    placeholder="Search by name..."
-                    value={filterStudentName}
-                    onChange={(e) => setFilterStudentName(e.target.value)}
-                    size="small"
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment position="start">
-                          <Search fontSize="small" />
-                        </InputAdornment>
-                      ),
-                    }}
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                  <TextField
-                    fullWidth
-                    label="Roll Number"
-                    placeholder="Search roll no..."
-                    value={filterRollNumber}
-                    onChange={(e) => setFilterRollNumber(e.target.value)}
-                    size="small"
-                  />
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Class</InputLabel>
-                    <Select
-                      value={filterClass}
-                      onChange={(e) => setFilterClass(e.target.value)}
-                      label="Class"
-                    >
-                      <MenuItem value="">All Classes</MenuItem>
-                      {Array.from(new Map(admissions
-                        .filter(a => a.class)
-                        .map(a => {
-                          const classId = a.class?._id || a.class;
-                          const className = a.class?.name || 'Unknown';
-                          return [classId, { _id: classId, name: className }];
-                        })
-                      ).values()).map((cls) => (
-                        <MenuItem key={cls._id} value={cls._id}>
-                          {cls.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-
-                <Grid item xs={12} sm={6} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Status</InputLabel>
-                    <Select
-                      value={filterStatus}
-                      onChange={(e) => setFilterStatus(e.target.value)}
-                      label="Status"
-                    >
-                      <MenuItem value="">All Status</MenuItem>
-                      <MenuItem value="pending">Pending</MenuItem>
-                      <MenuItem value="enrolled">Enrolled</MenuItem>
-                      <MenuItem value="struckoff">Struck Off</MenuItem>
-                      <MenuItem value="passout">Passout</MenuItem>
-                    </Select>
-                  </FormControl>
-                </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+            {/* Filters */}
+            <Paper sx={{ p: 3, mb: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+                  <Typography variant="h6">
+                    Filters
+                  </Typography>
+                  {filterNewAdmissions && (
+                    <Chip
+                      label="Last 30 Days Admissions"
+                      onDelete={() => {
+                        setFilterNewAdmissions(false);
+                        navigate('/admissions/register');
+                      }}
+                      color="primary"
+                      size="small"
+                    />
+                  )}
+                </Box>
+                {(filterStudentName || filterRollNumber || filterClass || filterStatus || searchTerm || filterNewAdmissions) && (
                   <Button
-                    fullWidth
-                    variant="outlined"
                     size="small"
                     onClick={() => {
                       setFilterStudentName('');
@@ -2591,12 +2537,81 @@ const Admissions = () => {
                       setFilterNewAdmissions(false);
                       navigate('/admissions/register');
                     }}
-                    sx={{ height: '40px' }}
+                    sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
                   >
-                    Clear
+                    Clear Filters
                   </Button>
-                </Grid>
-              </Grid>
+                )}
+              </Box>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: '1fr',
+                    sm: 'repeat(2, 1fr)',
+                    md: '2fr 1.5fr 1.5fr 1.5fr'
+                  },
+                  gap: 2,
+                  alignItems: 'center'
+                }}
+              >
+                <TextField
+                  fullWidth
+                  label="Search"
+                  placeholder="Search by student name..."
+                  value={filterStudentName}
+                  onChange={(e) => setFilterStudentName(e.target.value)}
+                  size="small"
+                />
+                <TextField
+                  fullWidth
+                  label="Roll Number"
+                  placeholder="Search roll no..."
+                  value={filterRollNumber}
+                  onChange={(e) => setFilterRollNumber(e.target.value)}
+                  size="small"
+                />
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  label="Class"
+                  value={filterClass}
+                  onChange={(e) => setFilterClass(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  SelectProps={{ displayEmpty: true }}
+                >
+                  <MenuItem value="">All Classes</MenuItem>
+                  {Array.from(new Map(admissions
+                    .filter(a => a.class)
+                    .map(a => {
+                      const classId = a.class?._id || a.class;
+                      const className = a.class?.name || 'Unknown';
+                      return [classId, { _id: classId, name: className }];
+                    })
+                  ).values()).map((cls) => (
+                    <MenuItem key={cls._id} value={cls._id}>
+                      {cls.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+                <TextField
+                  fullWidth
+                  select
+                  size="small"
+                  label="Status"
+                  value={filterStatus}
+                  onChange={(e) => setFilterStatus(e.target.value)}
+                  InputLabelProps={{ shrink: true }}
+                  SelectProps={{ displayEmpty: true }}
+                >
+                  <MenuItem value="">All Status</MenuItem>
+                  <MenuItem value="pending">Pending</MenuItem>
+                  <MenuItem value="enrolled">Enrolled</MenuItem>
+                  <MenuItem value="struckoff">Struck Off</MenuItem>
+                  <MenuItem value="passout">Passout</MenuItem>
+                </TextField>
+              </Box>
             </Paper>
 
             {/* Table */}

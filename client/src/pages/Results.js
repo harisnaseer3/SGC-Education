@@ -474,96 +474,135 @@ const Results = () => {
           )}
 
           {/* Filters */}
-          <Box sx={{ mb: 3, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} md={3}>
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+              <Typography variant="h6">
+                Filters
+              </Typography>
+              {(searchTerm || selectedInstitution || selectedClass || selectedExamType || selectedStatus) && (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedInstitution('');
+                    setSelectedClass('');
+                    setSelectedExamType('');
+                    setSelectedStatus('');
+                  }}
+                  sx={{ textTransform: 'none', color: '#667eea', fontWeight: 600 }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: '1fr',
+                  sm: 'repeat(2, 1fr)',
+                  md: user.role === 'super_admin' ? '2fr 1.5fr 1.5fr 1.5fr 1.5fr' : '2fr 1.5fr 1.5fr 1.5fr'
+                },
+                gap: 2,
+                alignItems: 'center'
+              }}
+            >
+              <TextField
+                fullWidth
+                size="small"
+                label="Search"
+                placeholder="Search results..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {user.role === 'super_admin' && (
                 <TextField
                   fullWidth
+                  select
                   size="small"
-                  placeholder="Search results..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Search />
-                      </InputAdornment>
-                    ),
+                  label="Institution"
+                  value={selectedInstitution}
+                  onChange={(e) => setSelectedInstitution(e.target.value)}
+                  InputLabelProps={{
+                    shrink: true
                   }}
-                />
-              </Grid>
-              {user.role === 'super_admin' && (
-                <Grid item xs={12} md={2}>
-                  <FormControl fullWidth size="small">
-                    <InputLabel>Institution</InputLabel>
-                    <Select
-                      value={selectedInstitution}
-                      label="Institution"
-                      onChange={(e) => setSelectedInstitution(e.target.value)}
-                    >
-                      <MenuItem value="">All</MenuItem>
-                      {institutions.map((inst) => (
-                        <MenuItem key={inst._id} value={inst._id}>
-                          {inst.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
+                  SelectProps={{
+                    displayEmpty: true
+                  }}
+                >
+                  <MenuItem value="">All Institutions</MenuItem>
+                  {institutions.map((inst) => (
+                    <MenuItem key={inst._id} value={inst._id}>
+                      {inst.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
               )}
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Class</InputLabel>
-                  <Select
-                    value={selectedClass}
-                    label="Class"
-                    onChange={(e) => setSelectedClass(e.target.value)}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    {classes.map((cls) => (
-                      <MenuItem key={cls._id} value={cls._id}>
-                        {cls.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Exam Type</InputLabel>
-                  <Select
-                    value={selectedExamType}
-                    label="Exam Type"
-                    onChange={(e) => setSelectedExamType(e.target.value)}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    {examTypes.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type.charAt(0).toUpperCase() + type.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              <Grid item xs={12} md={2}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Status</InputLabel>
-                  <Select
-                    value={selectedStatus}
-                    label="Status"
-                    onChange={(e) => setSelectedStatus(e.target.value)}
-                  >
-                    <MenuItem value="">All</MenuItem>
-                    {statuses.map((status) => (
-                      <MenuItem key={status} value={status}>
-                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-          </Box>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="Class"
+                value={selectedClass}
+                onChange={(e) => setSelectedClass(e.target.value)}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="">All Classes</MenuItem>
+                {classes.map((cls) => (
+                  <MenuItem key={cls._id} value={cls._id}>
+                    {cls.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="Exam Type"
+                value={selectedExamType}
+                onChange={(e) => setSelectedExamType(e.target.value)}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="">All Exam Types</MenuItem>
+                {examTypes.map((type) => (
+                  <MenuItem key={type} value={type}>
+                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="Status"
+                value={selectedStatus}
+                onChange={(e) => setSelectedStatus(e.target.value)}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="">All Statuses</MenuItem>
+                {statuses.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status.charAt(0).toUpperCase() + status.slice(1)}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          </Paper>
 
           {/* Results Table */}
           <TableContainer sx={{ overflowX: 'auto', width: '100%' }}>

@@ -316,6 +316,9 @@ const BankReconciliationReport = ({ onBack }) => {
 
       {/* Filter Section */}
       <Paper sx={{ p: 3, mb: 3 }} className="no-print">
+        <Typography variant="h6" gutterBottom>
+          Filters
+        </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={3}>
             <TextField
@@ -340,19 +343,21 @@ const BankReconciliationReport = ({ onBack }) => {
             />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Bank Account</InputLabel>
-              <Select
-                value={filters.bankAccount}
-                label="Bank Account"
-                onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
-              >
-                <MenuItem value="">All Bank Accounts</MenuItem>
-                {bankAccounts.map((acc) => (
-                  <MenuItem key={acc._id} value={acc._id}>{acc.bankName} - {acc.accountNumber}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Bank Account"
+              value={filters.bankAccount}
+              onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{ displayEmpty: true }}
+            >
+              <MenuItem value="">All Bank Accounts</MenuItem>
+              {bankAccounts.map((acc) => (
+                <MenuItem key={acc._id} value={acc._id}>{acc.bankName} - {acc.accountNumber}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
           <Grid item xs={12} sm={2}>
             <Button

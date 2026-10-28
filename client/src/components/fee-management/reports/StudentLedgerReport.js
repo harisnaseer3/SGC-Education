@@ -352,107 +352,122 @@ const StudentLedgerReport = ({ onBack }) => {
   return (
     <Box sx={{ p: 1 }}>
       <Box className="no-print">
-        <Card sx={{ mb: 3, boxShadow: 3, borderRadius: 2 }}>
-          <CardContent>
-            <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} md={3}>
-                <FormControl fullWidth size="small">
-                  <InputLabel>Class</InputLabel>
-                  <Select
-                    value={filters.classId}
-                    label="Class"
-                    onChange={handleClassChange}
-                  >
-                    <MenuItem value=""><em>Select Class</em></MenuItem>
-                    {classes.map((cls) => (
-                      <MenuItem key={cls._id} value={cls._id}>{cls.name}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6} md={3}>
-                <FormControl fullWidth size="small" disabled={searchLoading}>
-                  <InputLabel>Select Student</InputLabel>
-                  <Select
-                    value={filters.studentId ? filters.studentId._id : ''}
-                    label="Select Student"
-                    onChange={(e) => {
-                      const selected = students.find(s => s._id === e.target.value);
-                      setFilters({ ...filters, studentId: selected || null });
-                      setReportData(null);
-                    }}
-                  >
-                    <MenuItem value=""><em>-- Select Student --</em></MenuItem>
-                    {students.map((std) => {
-                      const name = std.name || std.firstName || std.personalDetails?.name || 'Unknown';
-                      const rollNo = std.rollNumber ? `Roll: ${std.rollNumber}` : '';
-                      const admNo = std.admissionNo || std.admissionNumber || std.applicationNumber || std.enrollmentNumber ? `Adm: ${std.admissionNo || std.admissionNumber || std.applicationNumber || std.enrollmentNumber}` : '';
-                      const details = [rollNo, admNo].filter(Boolean).join(' | ');
-                      return (
-                        <MenuItem key={std._id} value={std._id}>
-                          {name} {details ? `(${details})` : ''}
-                        </MenuItem>
-                      );
-                    })}
-                  </Select>
-                </FormControl>
-              </Grid>
-              
-              <Grid item xs={12} sm={6} md={2.5}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  label="Search Student"
-                  placeholder="Global Search (Name, Roll #, Adm #)"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  InputProps={{
-                    endAdornment: searchLoading ? <CircularProgress color="inherit" size={18} /> : null
-                  }}
-                />
-              </Grid>
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Filters
+          </Typography>
+          <Grid container spacing={2} alignItems="center">
+            <Grid item xs={12} sm={6} md={2.5}>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                label="Class"
+                value={filters.classId}
+                onChange={handleClassChange}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="">All Classes</MenuItem>
+                {classes.map((cls) => (
+                  <MenuItem key={cls._id} value={cls._id}>{cls.name}</MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={3}>
+              <TextField
+                fullWidth
+                select
+                size="small"
+                disabled={searchLoading}
+                label="Select Student"
+                value={filters.studentId ? filters.studentId._id : ''}
+                onChange={(e) => {
+                  const selected = students.find(s => s._id === e.target.value);
+                  setFilters({ ...filters, studentId: selected || null });
+                  setReportData(null);
+                }}
+                InputLabelProps={{
+                  shrink: true
+                }}
+                SelectProps={{
+                  displayEmpty: true
+                }}
+              >
+                <MenuItem value="">-- Select Student --</MenuItem>
+                {students.map((std) => {
+                  const name = std.name || std.firstName || std.personalDetails?.name || 'Unknown';
+                  const rollNo = std.rollNumber ? `Roll: ${std.rollNumber}` : '';
+                  const admNo = std.admissionNo || std.admissionNumber || std.applicationNumber || std.enrollmentNumber ? `Adm: ${std.admissionNo || std.admissionNumber || std.applicationNumber || std.enrollmentNumber}` : '';
+                  const details = [rollNo, admNo].filter(Boolean).join(' | ');
+                  return (
+                    <MenuItem key={std._id} value={std._id}>
+                      {name} {details ? `(${details})` : ''}
+                    </MenuItem>
+                  );
+                })}
+              </TextField>
+            </Grid>
+            
+            <Grid item xs={12} sm={6} md={2.5}>
+              <TextField
+                fullWidth
+                size="small"
+                label="Search Student"
+                placeholder="Global Search (Name, Roll #, Adm #)"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  endAdornment: searchLoading ? <CircularProgress color="inherit" size={18} /> : null
+                }}
+              />
+            </Grid>
 
-              <Grid item xs={6} md={2}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="From Date"
-                  value={filters.startDate}
-                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
+            <Grid item xs={6} sm={3} md={1.5}>
+              <TextField
+                fullWidth
+                size="small"
+                type="date"
+                label="From Date"
+                value={filters.startDate}
+                onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
 
-              <Grid item xs={6} md={2}>
-                 <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="To Date"
-                  value={filters.endDate}
-                  onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
+            <Grid item xs={6} sm={3} md={1.5}>
+              <TextField
+                fullWidth
+                size="small"
+                type="date"
+                label="To Date"
+                value={filters.endDate}
+                onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
 
-              <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
-                <Button 
-                  variant="contained" 
-                  onClick={handleGenerate}
-                  disabled={loading || !filters.studentId}
-                  sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, minWidth: '40px', p: 1 }}
-                >
-                  {loading ? <CircularProgress size={24} color="inherit" /> : <Search />}
-                </Button>
-              </Grid>
+            <Grid item xs={12} md={1} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 1 }}>
+              <Button 
+                variant="contained" 
+                onClick={handleGenerate}
+                disabled={loading || !filters.studentId}
+                sx={{ bgcolor: '#667eea', '&:hover': { bgcolor: '#5a6fd6' }, height: '40px', width: '100%' }}
+              >
+                {loading ? <CircularProgress size={24} color="inherit" /> : <Search />}
+              </Button>
+            </Grid>
 
-               {reportData && (
-                 <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: -1 }}>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Button
-                      variant="outlined"
+            {reportData && (
+              <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', mt: -1 }}>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="outlined"
                       color="primary"
                       startIcon={<PrintIcon />}
                       onClick={handlePrint}
@@ -473,8 +488,7 @@ const StudentLedgerReport = ({ onBack }) => {
                  </Grid>
                )}
             </Grid>
-          </CardContent>
-        </Card>
+          </Paper>
       </Box>
 
       {renderTable()}

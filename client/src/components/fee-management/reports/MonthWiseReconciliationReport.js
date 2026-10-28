@@ -404,7 +404,10 @@ const MonthWiseReconciliationReport = ({ onBack }) => {
   return (
     <Box>
       {/* Top Filter Bar */}
-      <Paper sx={{ p: 2, mb: 3 }} elevation={0} variant="outlined">
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Filters
+        </Typography>
         <Grid container spacing={2} alignItems="center">
           <Grid item xs={12} sm={3}>
             <TextField
@@ -429,19 +432,21 @@ const MonthWiseReconciliationReport = ({ onBack }) => {
             />
           </Grid>
           <Grid item xs={12} sm={4}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Bank Account</InputLabel>
-              <Select
-                value={filters.bankAccount}
-                label="Bank Account"
-                onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
-              >
-                <MenuItem value="">All Bank Accounts</MenuItem>
-                {bankAccounts.map((acc) => (
-                  <MenuItem key={acc._id} value={acc._id}>{acc.bankName} - {acc.accountNumber}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Bank Account"
+              value={filters.bankAccount}
+              onChange={(e) => setFilters({ ...filters, bankAccount: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{ displayEmpty: true }}
+            >
+              <MenuItem value="">All Bank Accounts</MenuItem>
+              {bankAccounts.map((acc) => (
+                <MenuItem key={acc._id} value={acc._id}>{acc.bankName} - {acc.accountNumber}</MenuItem>
+              ))}
+            </TextField>
           </Grid>
           <Grid item xs={12} sm={2}>
             <Button
@@ -449,7 +454,7 @@ const MonthWiseReconciliationReport = ({ onBack }) => {
               variant="contained"
               startIcon={<Refresh />}
               onClick={handleFetchReport}
-              sx={{ bgcolor: '#1976d2', height: '40px', textTransform: 'none', borderRadius: '6px' }}
+              sx={{ bgcolor: '#667eea', height: '40px', textTransform: 'none' }}
             >
               Refresh
             </Button>

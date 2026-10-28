@@ -973,25 +973,26 @@ const FinanceDashboard = () => {
       >
         <Grid container spacing={2.5} alignItems="center">
           <Grid item xs={12} md={3.5}>
-            <FormControl fullWidth size="small">
-              <InputLabel id="campus-select-label">Campus</InputLabel>
-              <Select
-                labelId="campus-select-label"
-                value={selectedCampus}
-                label="Campus"
-                onChange={(e) => setSelectedCampus(e.target.value)}
-                sx={{ borderRadius: 2.5 }}
-              >
-                <MenuItem value="all">
-                  <em>All Campuses</em>
+            <TextField
+              fullWidth
+              select
+              size="small"
+              label="Campus"
+              value={selectedCampus}
+              onChange={(e) => setSelectedCampus(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+              SelectProps={{ displayEmpty: true }}
+              sx={{ '& .MuiOutlinedInput-root': { borderRadius: 2.5 } }}
+            >
+              <MenuItem value="all">
+                <em>All Campuses</em>
+              </MenuItem>
+              {campusList.map((campus) => (
+                <MenuItem key={campus._id} value={campus._id}>
+                  {campus.name} ({campus.code})
                 </MenuItem>
-                {campusList.map((campus) => (
-                  <MenuItem key={campus._id} value={campus._id}>
-                    {campus.name} ({campus.code})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+              ))}
+            </TextField>
           </Grid>
           
           <Grid item xs={12} sm={6} md={2.5}>
