@@ -122,7 +122,7 @@ const ReportsTab = () => {
     {
       id: 'date-range-vouchers',
       title: 'Date Range Vouchers Report',
-      description: 'Vouchers filtered by date range: Paid Vouchers by Payment Date & Unpaid Vouchers by Voucher Generation Date.',
+      description: 'Report of all vouchers generated in the selected date range, showing their current Paid, Unpaid, or Partial status.',
       icon: <Receipt sx={{ fontSize: 24, color: '#0ea5e9' }} />,
       bgColor: '#e0f2fe',
       shadowColor: 'rgba(14, 165, 233, 0.2)'

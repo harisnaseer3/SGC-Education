@@ -312,26 +312,12 @@ const DateRangeVouchersReport = ({ onBack }) => {
         }
 
         const generatedDayStr = toLocalDateString(generatedAt);
-        const paymentDayStr = toLocalDateString(latestPaymentDate);
 
         // Evaluate Inclusion Criteria:
-        // 1. Paid Vouchers: All vouchers whose payment date falls within the selected date range, regardless of when generated.
-        // 2. Unpaid Vouchers: All vouchers that were generated within the selected date range but are still unpaid (unpaid / partial remaining).
-        let includeInReport = false;
-        let inclusionReason = '';
-
-        const isPaymentInRange = paymentDayStr && (paymentDayStr >= startDateFilter && paymentDayStr <= endDateFilter);
+        // Include all vouchers generated within the selected date range, regardless of paid/unpaid/partial status.
         const isGenerationInRange = generatedDayStr && (generatedDayStr >= startDateFilter && generatedDayStr <= endDateFilter);
 
-        if ((isPaid || isPartial) && isPaymentInRange) {
-          includeInReport = true;
-          inclusionReason = isPaid ? 'Paid in Range' : 'Partial Paid in Range';
-        } else if ((isUnpaid || isPartial) && isGenerationInRange && remainingAmount > 0.01) {
-          includeInReport = true;
-          inclusionReason = 'Unpaid Generated in Range';
-        }
-
-        if (includeInReport) {
+        if (isGenerationInRange) {
           const admission = student.admission || {};
           const className = student.class?.name || student.className || admission.class?.name || 'N/A';
           const classId = student.class?._id?.toString() || (typeof student.class === 'string' ? student.class : '') || admission.class?._id?.toString() || '';
@@ -363,7 +349,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
             paidAmount: totalPaidAllTime,
             remainingAmount,
             status: isPaid ? 'Paid' : (isPartial ? 'Partial' : 'Unpaid'),
-            inclusionReason,
+            inclusionReason: `Generated on ${formatDate(generatedAt)}`,
             bank: paymentBanks.join(', ') || '-',
             transactionId: transactionIds.join(', ') || '-'
           });
@@ -513,7 +499,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
           Date Range Vouchers Filter
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-          Shows <b>Paid Vouchers</b> whose payment date falls in this range, and <b>Unpaid Vouchers</b> generated in this range.
+          Shows all vouchers <b>generated</b> within the selected date range (Paid, Unpaid, or Partial).
         </Typography>
 
         <Grid container spacing={2} alignItems="center">
@@ -686,7 +672,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
               Date Range Vouchers Report ({formatDate(filters.startDate)} to {formatDate(filters.endDate)})
             </Typography>
             <Typography variant="caption" color="textSecondary">
-              Includes Paid vouchers by Payment Date & Unpaid vouchers by Voucher Generation Date
+              Vouchers generated between {formatDate(filters.startDate)} and {formatDate(filters.endDate)}
             </Typography>
           </Box>
 
