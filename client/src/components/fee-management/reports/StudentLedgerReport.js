@@ -187,44 +187,88 @@ const StudentLedgerReport = ({ onBack }) => {
   const handleExportExcel = () => {
     if (!reportData) return;
 
-    const { student, transactions, summary } = reportData;
+    const { student, admissionFeeDetails = [], voucherRows = [], summary = {} } = reportData;
     
-    let exportData = transactions.map((row, idx) => ({
-        'Date': format(new Date(row.date), 'dd/MM/yyyy'),
-        'Type': row.type.toUpperCase(),
-        'Reference': row.reference || '-',
-        'Description': row.description,
-        'Debit (+)': row.debit || 0,
-        'Credit (-)': row.credit || 0,
-        'Balance': row.balance || 0,
-    }));
+    const exportData = [];
 
-    // Add empty row
-    exportData.push({'Date': '', 'Type': '', 'Reference': '', 'Description': '', 'Debit (+)': '', 'Credit (-)': '', 'Balance': ''});
-    
-    // Add summary row
+    // Header info
+    exportData.push({ 'Col1': institutionData?.name || 'TIGES - TAJ CAMPUS', 'Col2': '', 'Col3': '', 'Col4': '', 'Col5': '', 'Col6': '', 'Col7': '', 'Col8': '', 'Col9': '', 'Col10': '', 'Col11': '' });
+    exportData.push({ 'Col1': institutionData?.address?.city || 'Rawalpindi', 'Col2': '', 'Col3': '', 'Col4': '', 'Col5': '', 'Col6': '', 'Col7': '', 'Col8': '', 'Col9': '', 'Col10': '', 'Col11': '' });
+    exportData.push({ 'Col1': 'Student Ledger', 'Col2': '', 'Col3': '', 'Col4': '', 'Col5': '', 'Col6': '', 'Col7': '', 'Col8': '', 'Col9': '', 'Col10': '', 'Col11': '' });
+    exportData.push({ 'Col1': `Complete details of student (${student.name}, ${student.fatherName || 'N/A'}, ${student.class}${student.section ? ` - ${student.section}` : ''}, Roll #: ${student.rollNumber || 'N/A'})`, 'Col2': '', 'Col3': '', 'Col4': '', 'Col5': '', 'Col6': '', 'Col7': '', 'Col8': '', 'Col9': '', 'Col10': '', 'Col11': '' });
+    exportData.push({ 'Col1': `Print Date: ${format(new Date(), 'dd/MM/yyyy hh:mm a')}`, 'Col2': '', 'Col3': '', 'Col4': '', 'Col5': '', 'Col6': '', 'Col7': '', 'Col8': '', 'Col9': '', 'Col10': '', 'Col11': '' });
+    exportData.push({});
+
+    // Section 1: Detail At the time of admiton
+    exportData.push({ 'Col1': 'Detail At the time of admiton', 'Col2': '', 'Col3': '', 'Col4': '' });
+    exportData.push({ 'Col1': 'Fee Head', 'Col2': 'Base Amount', 'Col3': 'Discount', 'Col4': 'Final Amount' });
+    let totalAdmissionFinal = 0;
+    admissionFeeDetails.forEach(item => {
+      totalAdmissionFinal += Number(item.finalAmount || 0);
+      exportData.push({
+        'Col1': item.feeHead,
+        'Col2': item.baseAmount || 0,
+        'Col3': item.discount || 0,
+        'Col4': item.finalAmount || 0
+      });
+    });
+    exportData.push({ 'Col1': 'Total', 'Col2': '', 'Col3': '', 'Col4': totalAdmissionFinal });
+    exportData.push({});
+
+    // Section 2: Vouchers Table
     exportData.push({
-        'Date': 'TOTAL',
-        'Type': '',
-        'Reference': '',
-        'Description': '',
-        'Debit (+)': summary.totalCharges,
-        'Credit (-)': summary.totalPayments,
-        'Balance': summary.currentBalance
+      'Col1': 'Voucher #',
+      'Col2': 'Fee Month',
+      'Col3': 'Issue Date:',
+      'Col4': 'Current Month Fee',
+      'Col5': 'Arears',
+      'Col6': 'Total Paid',
+      'Col7': 'Balance',
+      'Col8': 'Paid Date',
+      'Col9': 'Paid Status',
+      'Col10': 'Bank',
+      'Col11': 'FT #'
     });
 
-    exportToExcelWithBoldHeaders(
-        XLSX, 
-        exportData, 
-        'Student Ledger', 
-        `Student_Ledger_${student.enrollmentNumber}_${format(new Date(), 'yyyyMMdd')}.xlsx`,
-        {
-          'Student Name': student.name || 'N/A',
-          'Roll No': student.rollNumber || 'N/A',
-          'Class': student.class || student.className || 'N/A',
-          'Enrollment No': student.enrollmentNumber || 'N/A'
-        }
-    );
+    let sumCurrentMonthFee = 0;
+    let sumPaid = 0;
+    voucherRows.forEach(row => {
+      sumCurrentMonthFee += Number(row.currentMonthFee || 0);
+      sumPaid += Number(row.totalPaid || 0);
+      exportData.push({
+        'Col1': row.voucherNumber || '-',
+        'Col2': row.feeMonth || '',
+        'Col3': row.issueDate ? format(new Date(row.issueDate), 'd/M/yyyy') : '-',
+        'Col4': row.currentMonthFee || 0,
+        'Col5': row.arrears ? row.arrears : '',
+        'Col6': row.totalPaid ? row.totalPaid : '',
+        'Col7': row.balance !== undefined ? row.balance : 0,
+        'Col8': row.paidDate ? format(new Date(row.paidDate), 'dd/MM/yyyy') : '',
+        'Col9': row.paidStatus || 'Unpaid',
+        'Col10': row.bank || '',
+        'Col11': row.ftNumber || ''
+      });
+    });
+
+    const finalBalance = voucherRows.length > 0 ? voucherRows[voucherRows.length - 1].balance : 0;
+    exportData.push({
+      'Col1': '',
+      'Col2': 'Total',
+      'Col3': '',
+      'Col4': '',
+      'Col5': '',
+      'Col6': sumPaid,
+      'Col7': finalBalance,
+      'Col8': '',
+      'Col9': '',
+      'Col10': '',
+      'Col11': ''
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData, { skipHeader: true });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Student Ledger');
+    XLSX.writeFile(workbook, `Student_Ledger_${student.enrollmentNumber || student.rollNumber || 'Report'}_${format(new Date(), 'yyyyMMdd')}.xlsx`);
   };
 
   const handlePrint = () => {
@@ -233,10 +277,14 @@ const StudentLedgerReport = ({ onBack }) => {
 
   const renderTable = () => {
     if (!reportData) return null;
-    const { student, transactions, summary } = reportData;
+    const { student, admissionFeeDetails = [], voucherRows = [], summary = {} } = reportData;
+
+    const totalAdmissionFinal = admissionFeeDetails.reduce((sum, item) => sum + Number(item.finalAmount || 0), 0);
+    const sumPaid = voucherRows.reduce((sum, row) => sum + Number(row.totalPaid || 0), 0);
+    const finalBalance = voucherRows.length > 0 ? voucherRows[voucherRows.length - 1].balance : 0;
     
     return (
-      <Box sx={{ mt: 4, '@media print': { mt: 0 } }} className="printable-report">
+      <Box sx={{ mt: 3, '@media print': { mt: 0 } }} className="printable-report">
         <style>
           {`
             @media print {
@@ -248,100 +296,163 @@ const StudentLedgerReport = ({ onBack }) => {
                 top: 0;
                 width: 100%;
               }
-              @page { size: portrait; margin: 10mm; }
+              @page { size: landscape; margin: 8mm; }
               .no-print { display: none !important; }
             }
           `}
         </style>
 
-        {/* Report Header with Branding */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #667eea', pb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            {institutionData?.logo && (
-              <Box
-                component="img"
-                src={getLogoUrl(institutionData.logo, institutionData._id)}
-                sx={{ width: 60, height: 60, borderRadius: '50%', border: '1px solid #ddd' }}
-              />
-            )}
-            <Box>
-              <Typography variant="h5" fontWeight="bold">
-                {institutionData?.name || 'Student Ledger Report'}
-              </Typography>
-              <Typography variant="body2" color="textSecondary">
-                {institutionData?.address?.city || ''} {institutionData?.address?.state || ''}
-              </Typography>
-            </Box>
-          </Box>
-          <Box sx={{ textAlign: 'right' }}>
-            <Typography variant="h6" color="#667eea" fontWeight="bold">Student Ledger Account</Typography>
-            <Typography variant="body2" sx={{ fontSize: '0.75rem', color: 'text.secondary', mt: 1 }}>
-              Print Date: {format(new Date(), 'dd MMM yyyy hh:mm a')}
-            </Typography>
-          </Box>
+        {/* Header matching screenshot */}
+        <Box sx={{ textAlign: 'center', mb: 3 }}>
+          <Typography variant="h5" sx={{ fontWeight: 'bold', letterSpacing: 1 }}>
+            {institutionData?.name ? institutionData.name.toUpperCase() : 'TIGES - TAJ CAMPUS'}
+          </Typography>
+          <Typography variant="subtitle1" sx={{ color: 'text.secondary', fontWeight: 500, mt: 0.3 }}>
+            {institutionData?.address?.city || 'Rawalpindi'}
+          </Typography>
+          <Typography variant="h6" sx={{ fontWeight: 'bold', mt: 0.5 }}>
+            Student Ledger
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600, mt: 0.5 }}>
+            Complete details of student ({student.name}, {student.fatherName || 'N/A'}, {student.class}{student.section ? ` - ${student.section}` : ''}, Roll #: {student.rollNumber || 'N/A'})
+          </Typography>
+          <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mt: 0.5 }}>
+            Print Date: {format(new Date(), 'dd/MM/yyyy hh:mm a')}
+          </Typography>
         </Box>
 
-        <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 4, bgcolor: '#f8fafc', p: 2, borderRadius: 2, border: '1px solid #e2e8f0' }}>
-            <Box>
-                <Typography variant="caption" color="text.secondary">Student Name</Typography>
-                <Typography variant="body1" fontWeight="bold">{student.name}</Typography>
-            </Box>
-            <Box>
-                <Typography variant="caption" color="text.secondary">Registration / Adm #</Typography>
-                <Typography variant="body1" fontWeight="bold">{student.enrollmentNumber} / {student.admissionNumber}</Typography>
-            </Box>
-             <Box>
-                <Typography variant="caption" color="text.secondary">Roll Number</Typography>
-                <Typography variant="body1" fontWeight="bold">{student.rollNumber || 'N/A'}</Typography>
-            </Box>
-            <Box>
-                <Typography variant="caption" color="text.secondary">Class & Section</Typography>
-                <Typography variant="body1" fontWeight="bold">{student.class} {student.section ? `- ${student.section}` : ''}</Typography>
-            </Box>
+        {/* Section 1: Detail At the time of admiton */}
+        <Box sx={{ mb: 4, maxWidth: 500 }}>
+          <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #000' }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ bgcolor: '#f0f0f0', fontWeight: 'bold', borderBottom: '1px solid #000', py: 0.8 }}>
+                    Detail At the time of admiton
+                  </TableCell>
+                </TableRow>
+                <TableRow sx={{ bgcolor: '#e0e0e0' }}>
+                  <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid #ccc', py: 0.5 }}>Fee Head</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #ccc', py: 0.5 }}>Base Amount</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #ccc', py: 0.5 }}>Discount</TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', py: 0.5 }}>Final Amount</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {admissionFeeDetails.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} align="center" sx={{ py: 1.5, color: 'text.secondary' }}>
+                      No admission fee heads recorded
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  admissionFeeDetails.map((item, idx) => (
+                    <TableRow key={idx}>
+                      <TableCell sx={{ borderRight: '1px solid #eee', py: 0.4 }}>{item.feeHead}</TableCell>
+                      <TableCell align="right" sx={{ borderRight: '1px solid #eee', py: 0.4 }}>
+                        {item.baseAmount ? Number(item.baseAmount).toLocaleString() : '0'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ borderRight: '1px solid #eee', py: 0.4 }}>
+                        {item.discount ? Number(item.discount).toLocaleString() : '0'}
+                      </TableCell>
+                      <TableCell align="right" sx={{ py: 0.4 }}>
+                        {item.finalAmount !== undefined ? Number(item.finalAmount).toLocaleString() : '0'}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+                <TableRow sx={{ bgcolor: '#f9f9f9', borderTop: '2px solid #000' }}>
+                  <TableCell colSpan={3} align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #ccc', py: 0.5 }}>
+                    Total
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 'bold', py: 0.5 }}>
+                    {totalAdmissionFinal.toLocaleString()}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
         </Box>
 
-        <TableContainer component={Paper} sx={{ border: '1px solid #eee' }}>
+        {/* Section 2: Vouchers Ledger Table */}
+        <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #000' }}>
           <Table size="small">
             <TableHead>
-              <TableRow sx={{ bgcolor: '#f5f5f5' }}>
-                <TableCell sx={{ fontWeight: 'bold' }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Reference</TableCell>
-                <TableCell sx={{ fontWeight: 'bold' }}>Description</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Debit (+)</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Credit (-)</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Balance</TableCell>
+              <TableRow sx={{ bgcolor: '#d9d9d9' }}>
+                <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Voucher #</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Fee Month</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Issue Date:</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Current Month Fee</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Arears</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Total Paid</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Balance</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Paid Date</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Paid Statu</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.8 }}>Bank</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 'bold', py: 0.8 }}>FT #</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
-                {transactions.length === 0 ? (
-                    <TableRow>
-                        <TableCell colSpan={6} align="center" sx={{ py: 3 }}>No transactions found for this student.</TableCell>
-                    </TableRow>
-                ) : (
-                    transactions.map((row) => (
-                    <TableRow key={row.id}>
-                        <TableCell>{format(new Date(row.date), 'dd MMM yyyy')}</TableCell>
-                        <TableCell>{row.reference || '-'}</TableCell>
-                        <TableCell>{row.description}</TableCell>
-                        <TableCell align="right" sx={{ color: row.debit > 0 ? 'error.main' : 'inherit' }}>
-                            {row.debit ? row.debit.toLocaleString() : '-'}
-                        </TableCell>
-                        <TableCell align="right" sx={{ color: row.credit > 0 ? 'success.main' : 'inherit' }}>
-                            {row.credit ? row.credit.toLocaleString() : '-'}
-                        </TableCell>
-                        <TableCell align="right" sx={{ fontWeight: 'bold' }}>
-                            {row.balance.toLocaleString()}
-                        </TableCell>
-                    </TableRow>
-                    ))
-                )}
-              
-                <TableRow sx={{ bgcolor: '#eee' }}>
-                  <TableCell colSpan={3} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Total</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', color: 'error.main' }}>{summary.totalCharges.toLocaleString()}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main' }}>{summary.totalPayments.toLocaleString()}</TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 'bold' }}>{summary.currentBalance.toLocaleString()}</TableCell>
+              {voucherRows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={11} align="center" sx={{ py: 3, color: 'text.secondary' }}>
+                    No fee vouchers or payments found for this student.
+                  </TableCell>
                 </TableRow>
+              ) : (
+                voucherRows.map((row, idx) => (
+                  <TableRow key={row.id || idx} sx={{ '&:hover': { bgcolor: '#f9f9f9' } }}>
+                    <TableCell sx={{ borderRight: '1px solid #eee', py: 0.5 }}>{row.voucherNumber || '-'}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid #eee', py: 0.5 }}>{row.feeMonth}</TableCell>
+                    <TableCell sx={{ borderRight: '1px solid #eee', py: 0.5 }}>
+                      {row.issueDate ? format(new Date(row.issueDate), 'd/M/yyyy') : '-'}
+                    </TableCell>
+                    <TableCell align="right" sx={{ borderRight: '1px solid #eee', py: 0.5 }}>
+                      {row.currentMonthFee ? row.currentMonthFee.toLocaleString() : '0'}
+                    </TableCell>
+                    <TableCell align="right" sx={{ borderRight: '1px solid #eee', py: 0.5 }}>
+                      {row.arrears ? row.arrears.toLocaleString() : ''}
+                    </TableCell>
+                    <TableCell align="right" sx={{ borderRight: '1px solid #eee', py: 0.5, fontWeight: row.totalPaid > 0 ? 600 : 400 }}>
+                      {row.totalPaid ? row.totalPaid.toLocaleString() : ''}
+                    </TableCell>
+                    <TableCell align="right" sx={{ borderRight: '1px solid #eee', py: 0.5, fontWeight: 'bold' }}>
+                      {row.balance !== undefined ? row.balance.toLocaleString() : 0}
+                    </TableCell>
+                    <TableCell align="center" sx={{ borderRight: '1px solid #eee', py: 0.5 }}>
+                      {row.paidDate ? format(new Date(row.paidDate), 'dd/MM/yyyy') : ''}
+                    </TableCell>
+                    <TableCell align="center" sx={{ borderRight: '1px solid #eee', py: 0.5 }}>
+                      {row.paidStatus}
+                    </TableCell>
+                    <TableCell align="center" sx={{ borderRight: '1px solid #eee', py: 0.5 }}>
+                      {row.bank || ''}
+                    </TableCell>
+                    <TableCell align="center" sx={{ py: 0.5 }}>
+                      {row.ftNumber || ''}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+
+              {/* Total Summary Row */}
+              <TableRow sx={{ bgcolor: '#eee', borderTop: '2px solid #000' }}>
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell align="center" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.6 }}>Total</TableCell>
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.6 }}>
+                  {sumPaid.toLocaleString()}
+                </TableCell>
+                <TableCell align="right" sx={{ fontWeight: 'bold', borderRight: '1px solid #bfbfbf', py: 0.6 }}>
+                  {finalBalance.toLocaleString()}
+                </TableCell>
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell sx={{ borderRight: '1px solid #bfbfbf', py: 0.6 }} />
+                <TableCell sx={{ py: 0.6 }} />
+              </TableRow>
             </TableBody>
           </Table>
         </TableContainer>

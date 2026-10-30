@@ -673,7 +673,7 @@ class FeeService {
 
 
   /**
-   * Get Student Ledger (chronological history of charges and payments)
+   * Get Student Ledger (chronological history of charges and payments, admission details & vouchers)
    */
   async getStudentLedger(studentId, filters = {}, currentUser) {
     if (!studentId) {
@@ -694,24 +694,44 @@ class FeeService {
 
     const student = await Student.findById(studentId)
       .populate('class')
-      .populate('section');
+      .populate('section')
+      .populate('institution');
       
     if (!student) {
       throw new ApiError(404, 'Student not found');
     }
     
-    // Fetch Vouchers (Charges) - using currentMonthAmount to avoid double counting arrears
-    const voucherQuery = { student: studentId };
-    if (startDate || endDate) {
-      voucherQuery.generatedAt = {};
-      if (startDate) voucherQuery.generatedAt.$gte = new Date(startDate);
-      if (endDate) voucherQuery.generatedAt.$lte = new Date(endDate);
-    }
-    const vouchers = await FeeVoucher.find(voucherQuery).sort({ generatedAt: 1 });
+    // Fetch all StudentFee records for this student with feeHead populated
+    const studentFees = await StudentFee.find({ student: studentId })
+      .populate({
+        path: 'feeHead',
+        select: 'name priority frequencyType accountType'
+      })
+      .sort({ createdAt: 1 });
 
-    // Fetch Payments (Receipts) - excluding failed or refunded for balance purpose? 
-    // Actually showing refunded could be good too, but usually a ledger balances active payments.
-    const paymentQuery = { student: studentId, status: 'completed' };
+    // 1. Admission details / Fee heads assigned at admission
+    // Get unique fee heads (preferring earliest or initial structure assigned)
+    const admissionFeeDetails = [];
+    const seenHeads = new Set();
+    studentFees.forEach(sf => {
+      const headName = sf.feeHead?.name || 'Fee Head';
+      const headId = sf.feeHead?._id?.toString() || headName;
+      if (!seenHeads.has(headId) && headName.toLowerCase() !== 'arrears') {
+        seenHeads.add(headId);
+        admissionFeeDetails.push({
+          feeHead: headName,
+          baseAmount: Number(sf.baseAmount || 0),
+          discount: Number(sf.discountAmount || 0),
+          finalAmount: Number(sf.finalAmount || 0)
+        });
+      }
+    });
+
+    // 2. Fetch all completed payments for this student
+    const paymentQuery = { 
+      student: studentId, 
+      status: { $in: ['completed', 'success'] } 
+    };
     if (startDate || endDate) {
       paymentQuery.paymentDate = {};
       if (startDate) paymentQuery.paymentDate.$gte = new Date(startDate);
@@ -719,63 +739,270 @@ class FeeService {
     }
     const payments = await FeePayment.find(paymentQuery).sort({ paymentDate: 1 });
 
-    // Compile Transactions
-    const transactions = [];
+    // Map payments by voucher number and studentFee
+    const paymentsByVoucherNo = new Map();
+    const paymentsByStudentFee = new Map();
+    payments.forEach(p => {
+      if (p.voucherNumber) {
+        let vNo = p.voucherNumber.toString().trim();
+        if (vNo.includes('-')) vNo = vNo.split('-').pop();
+        if (!paymentsByVoucherNo.has(vNo)) paymentsByVoucherNo.set(vNo, []);
+        paymentsByVoucherNo.get(vNo).push(p);
+      }
+      const sfId = p.studentFee?.toString();
+      if (sfId) {
+        if (!paymentsByStudentFee.has(sfId)) paymentsByStudentFee.set(sfId, []);
+        paymentsByStudentFee.get(sfId).push(p);
+      }
+    });
 
-    vouchers.forEach(v => {
-      transactions.push({
-        id: v._id,
-        date: v.generatedAt || v.createdAt,
-        type: 'charge',
-        description: `Fee Voucher Generated (${v.month}/${v.year})`,
-        reference: v.voucherNumber,
-        debit: v.currentMonthAmount || 0,
-        credit: 0
+    // 3. Extract unique vouchers from studentFees (and FeeVoucher collection if present)
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    const voucherMap = new Map();
+    studentFees.forEach(sf => {
+      if (Array.isArray(sf.vouchers)) {
+        sf.vouchers.forEach(v => {
+          if (!v || v.month === undefined || v.year === undefined) return;
+          const key = `${v.year}-${v.month}`;
+          let vNo = v.voucherNumber ? v.voucherNumber.toString().trim() : '';
+          let shortVNo = vNo.includes('-') ? vNo.split('-').pop() : vNo;
+
+          if (!voucherMap.has(key)) {
+            voucherMap.set(key, {
+              key,
+              month: Number(v.month),
+              year: Number(v.year),
+              monthName: monthNames[Number(v.month) - 1] || `Month ${v.month}`,
+              voucherNumber: shortVNo || vNo,
+              fullVoucherNumber: vNo,
+              issueDate: v.generatedAt || sf.createdAt,
+              fees: []
+            });
+          }
+          const entry = voucherMap.get(key);
+          if (!entry.voucherNumber && shortVNo) {
+            entry.voucherNumber = shortVNo;
+            entry.fullVoucherNumber = vNo;
+          }
+          if (v.generatedAt && (!entry.issueDate || new Date(v.generatedAt) < new Date(entry.issueDate))) {
+            entry.issueDate = v.generatedAt;
+          }
+          entry.fees.push(sf);
+        });
+      }
+    });
+
+    // Also check FeeVoucher collection in case standalone vouchers were generated
+    const feeVoucherQuery = { student: studentId };
+    const standaloneVouchers = await FeeVoucher.find(feeVoucherQuery).sort({ year: 1, month: 1 });
+    standaloneVouchers.forEach(sv => {
+      const key = `${sv.year}-${sv.month}`;
+      let vNo = sv.voucherNumber ? sv.voucherNumber.toString().trim() : '';
+      let shortVNo = vNo.includes('-') ? vNo.split('-').pop() : vNo;
+      if (!voucherMap.has(key)) {
+        voucherMap.set(key, {
+          key,
+          month: Number(sv.month),
+          year: Number(sv.year),
+          monthName: monthNames[Number(sv.month) - 1] || `Month ${sv.month}`,
+          voucherNumber: shortVNo || vNo,
+          fullVoucherNumber: vNo,
+          issueDate: sv.generatedAt || sv.createdAt,
+          fees: [],
+          currentMonthFee: sv.currentMonthAmount || 0,
+          arrears: sv.arrearsBroughtForward || 0,
+          totalPaid: sv.paidAmount || 0,
+          remainingAmount: sv.remainingAmount || 0,
+          status: sv.status,
+          dueDate: sv.dueDate
+        });
+      }
+    });
+
+    // Sort vouchers chronologically
+    const sortedVoucherKeys = Array.from(voucherMap.keys()).sort((a, b) => {
+      const [yA, mA] = a.split('-').map(Number);
+      const [yB, mB] = b.split('-').map(Number);
+      return (yA - yB) || (mA - mB);
+    });
+
+    // Build voucher rows matching screenshot structure:
+    // Voucher # | Fee Month | Issue Date | Current Month Fee | Arrears | Total Paid | Balance | Paid Date | Paid Status | Bank | FT #
+    const voucherRows = [];
+
+    sortedVoucherKeys.forEach(k => {
+      const vData = voucherMap.get(k);
+      const { month, year, voucherNumber, fullVoucherNumber, issueDate, fees } = vData;
+
+      // Current month fee (excluding arrears head)
+      let currentMonthFee = 0;
+      fees.forEach(f => {
+        if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
+          currentMonthFee += Number(f.finalAmount || 0);
+        }
+      });
+      if (currentMonthFee === 0 && vData.currentMonthFee) {
+        currentMonthFee = vData.currentMonthFee;
+      }
+
+      // Prior arrears calculation (Ledger method)
+      let totalBilledPrev = 0;
+      let totalPaidPrev = 0;
+      studentFees.forEach(f => {
+        const hasV = f.vouchers && f.vouchers.length > 0;
+        let isPrior = false;
+        if (hasV) {
+          isPrior = f.vouchers.every(v => (Number(v.year) < year) || (Number(v.year) === year && Number(v.month) < month));
+        }
+        if (isPrior) {
+          if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
+            totalBilledPrev += Number(f.finalAmount || 0);
+          }
+          totalPaidPrev += Number(f.paidAmount || 0);
+        }
+      });
+
+      const arrearsSnapshot = fees.find(f => f.feeHead?.name?.toLowerCase() === 'arrears');
+      let arrears = 0;
+      if (arrearsSnapshot && Number(arrearsSnapshot.finalAmount || 0) > 0) {
+        arrears = Number(arrearsSnapshot.finalAmount || 0);
+      } else if (vData.arrears !== undefined && vData.arrears > 0) {
+        arrears = vData.arrears;
+      } else {
+        arrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+      }
+
+      // Find payments associated with this voucher or month
+      const relatedPayments = [
+        ...(paymentsByVoucherNo.get(voucherNumber) || []),
+        ...(paymentsByVoucherNo.get(fullVoucherNumber) || [])
+      ];
+      fees.forEach(f => {
+        const sfPayments = paymentsByStudentFee.get(f._id?.toString()) || [];
+        sfPayments.forEach(p => {
+          if (!relatedPayments.some(rp => rp._id?.toString() === p._id?.toString())) {
+            relatedPayments.push(p);
+          }
+        });
+      });
+
+      // Total Paid on this voucher
+      let totalPaid = 0;
+      if (relatedPayments.length > 0) {
+        totalPaid = relatedPayments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+      } else if (vData.totalPaid) {
+        totalPaid = vData.totalPaid;
+      } else {
+        totalPaid = fees.reduce((sum, f) => sum + Number(f.paidAmount || 0), 0);
+      }
+
+      const totalObligation = currentMonthFee + arrears;
+      let balance = Math.max(0, Math.round((totalObligation - totalPaid) * 100) / 100);
+
+      // Paid Status
+      let paidStatus = 'Unpaid';
+      if (balance <= 0.01 && (totalPaid > 0 || totalObligation === 0)) {
+        paidStatus = 'Paid';
+        balance = 0;
+      } else if (totalPaid > 0) {
+        paidStatus = 'Partial';
+      }
+
+      // Payment details: Date, Bank, FT # (Transaction ID)
+      let paidDate = null;
+      let bank = '';
+      let ftNumber = '';
+      if (relatedPayments.length > 0) {
+        const sortedPayments = [...relatedPayments].sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
+        const latestPayment = sortedPayments[0];
+        paidDate = latestPayment.paymentDate;
+        
+        const banks = Array.from(new Set(sortedPayments.map(p => p.bankName).filter(Boolean)));
+        bank = banks.join(', ');
+        
+        const fts = Array.from(new Set(sortedPayments.map(p => p.transactionId).filter(Boolean)));
+        ftNumber = fts.join(', ');
+      }
+
+      voucherRows.push({
+        id: vData.key,
+        voucherNumber: voucherNumber || '-',
+        feeMonth: vData.monthName,
+        month: vData.month,
+        year: vData.year,
+        issueDate: issueDate || null,
+        currentMonthFee,
+        arrears,
+        totalPaid,
+        balance,
+        paidDate,
+        paidStatus,
+        bank,
+        ftNumber
       });
     });
 
+    // Traditional chronological transactions for ledger summary
+    const transactions = [];
+    voucherRows.forEach(v => {
+      transactions.push({
+        id: `vch_${v.id}`,
+        date: v.issueDate || new Date(),
+        type: 'charge',
+        description: `Fee Voucher Generated (${v.feeMonth} ${v.year})`,
+        reference: v.voucherNumber,
+        debit: v.currentMonthFee,
+        credit: 0
+      });
+    });
     payments.forEach(p => {
       transactions.push({
         id: p._id,
         date: p.paymentDate,
         type: 'payment',
-        description: `Payment Received (${p.paymentMethod})`,
+        description: `Payment Received (${p.paymentMethod || 'cash'})`,
         reference: p.receiptNumber,
         debit: 0,
-        credit: p.amount || 0
+        credit: Number(p.amount || 0)
       });
     });
-
-    // Sort chronologically
     transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    // Calculate Running Balance
-    let balance = 0;
+    let runningBalance = 0;
     let totalDebit = 0;
     let totalCredit = 0;
-    
     transactions.forEach(t => {
-      balance += t.debit;
-      balance -= t.credit;
-      t.balance = balance;
+      runningBalance += t.debit;
+      runningBalance -= t.credit;
+      t.balance = runningBalance;
       totalDebit += t.debit;
       totalCredit += t.credit;
     });
+
+    const totalVouchersPaid = voucherRows.reduce((sum, r) => sum + (r.totalPaid || 0), 0);
+    const lastRowBalance = voucherRows.length > 0 ? voucherRows[voucherRows.length - 1].balance : 0;
 
     return {
       student: {
         id: student._id,
         name: student.name || student.personalDetails?.name || student.firstName || '',
+        fatherName: student.guardianInfo?.fatherName || student.fatherName || 'N/A',
         enrollmentNumber: student.enrollmentNumber || '',
-        rollNumber: student.rollNumber || '',
+        rollNumber: student.rollNumber || 'N/A',
         admissionNumber: student.applicationNumber || student.admissionNo || student.admissionNumber || '',
-        class: student.class?.name || '',
+        class: student.class?.name || (typeof student.class === 'string' ? student.class : student.className || 'N/A'),
         section: student.section?.name || ''
       },
+      admissionFeeDetails,
+      voucherRows,
       summary: {
         totalCharges: totalDebit,
         totalPayments: totalCredit,
-        currentBalance: balance
+        totalVouchersPaid,
+        currentBalance: lastRowBalance || runningBalance
       },
       transactions
     };
