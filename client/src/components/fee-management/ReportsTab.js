@@ -24,6 +24,7 @@ import BankVouchersReport from './reports/BankVouchersReport';
 import QuickPayReport from './reports/QuickPayReport';
 import MonthWiseReconciliationReport from './reports/MonthWiseReconciliationReport';
 import StudentLedgerReport from './reports/StudentLedgerReport';
+import DateRangeVouchersReport from './reports/DateRangeVouchersReport';
 
 const ReportsTab = () => {
   const [selectedReport, setSelectedReport] = useState(null);
@@ -46,6 +47,8 @@ const ReportsTab = () => {
         return <MonthWiseReconciliationReport onBack={() => setSelectedReport(null)} />;
       case 'student-ledger':
         return <StudentLedgerReport onBack={() => setSelectedReport(null)} />;
+      case 'date-range-vouchers':
+        return <DateRangeVouchersReport onBack={() => setSelectedReport(null)} />;
       default:
         return null;
     }
@@ -115,6 +118,14 @@ const ReportsTab = () => {
       icon: <ReceiptLong sx={{ fontSize: 24, color: '#f59e0b' }} />,
       bgColor: '#fef3c7',
       shadowColor: 'rgba(245, 158, 11, 0.2)'
+    },
+    {
+      id: 'date-range-vouchers',
+      title: 'Date Range Vouchers Report',
+      description: 'Vouchers filtered by date range: Paid Vouchers by Payment Date & Unpaid Vouchers by Voucher Generation Date.',
+      icon: <Receipt sx={{ fontSize: 24, color: '#0ea5e9' }} />,
+      bgColor: '#e0f2fe',
+      shadowColor: 'rgba(14, 165, 233, 0.2)'
     }
   ];
 

@@ -199,8 +199,8 @@ const StudentLedgerReport = ({ onBack }) => {
     exportData.push({ 'Col1': `Print Date: ${format(new Date(), 'dd/MM/yyyy hh:mm a')}`, 'Col2': '', 'Col3': '', 'Col4': '', 'Col5': '', 'Col6': '', 'Col7': '', 'Col8': '', 'Col9': '', 'Col10': '', 'Col11': '' });
     exportData.push({});
 
-    // Section 1: Detail At the time of admiton
-    exportData.push({ 'Col1': 'Detail At the time of admiton', 'Col2': '', 'Col3': '', 'Col4': '' });
+    // Section 1: Detail At the time of admition
+    exportData.push({ 'Col1': 'Detail At the time of admition', 'Col2': '', 'Col3': '', 'Col4': '' });
     exportData.push({ 'Col1': 'Fee Head', 'Col2': 'Base Amount', 'Col3': 'Discount', 'Col4': 'Final Amount' });
     let totalAdmissionFinal = 0;
     admissionFeeDetails.forEach(item => {
@@ -321,14 +321,14 @@ const StudentLedgerReport = ({ onBack }) => {
           </Typography>
         </Box>
 
-        {/* Section 1: Detail At the time of admiton */}
+        {/* Section 1: Detail At the time of admition */}
         <Box sx={{ mb: 4, maxWidth: 500 }}>
           <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #000' }}>
             <Table size="small">
               <TableHead>
                 <TableRow>
                   <TableCell colSpan={4} align="center" sx={{ bgcolor: '#f0f0f0', fontWeight: 'bold', borderBottom: '1px solid #000', py: 0.8 }}>
-                    Detail At the time of admiton
+                    Detail At the time of admition
                   </TableCell>
                 </TableRow>
                 <TableRow sx={{ bgcolor: '#e0e0e0' }}>
