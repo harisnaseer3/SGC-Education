@@ -28,7 +28,7 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import { getApiBaseUrl, getLogoUrl } from '../../../config/api';
 import { notifyError } from '../../../utils/notify';
-import { createAxiosConfig, getInstitutionId, exportToExcelWithBoldHeaders } from '../../../utils/feeUtils';
+import { createAxiosConfig, getInstitutionId, exportToExcelWithBoldHeaders, formatMonthYear, parseMonthYear } from '../../../utils/feeUtils';
 
 const API_URL = getApiBaseUrl();
 
@@ -40,6 +40,8 @@ const BankStatementReport = ({ onBack }) => {
   const [bankAccounts, setBankAccounts] = useState([]);
   const [institutionsMap, setInstitutionsMap] = useState({});
   const [filters, setFilters] = useState({
+    filterMode: 'dateRange', // 'dateRange' (default) or 'month'
+    monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
     dateFrom: new Date().toISOString().split('T')[0],
     dateTo: new Date().toISOString().split('T')[0],
     bankAccount: '',
@@ -254,11 +256,44 @@ const BankStatementReport = ({ onBack }) => {
       const isSuperAdmin = user?.role === 'super_admin';
       const institutionId = getInstitutionId(user, isSuperAdmin);
 
+      let fromDate = null;
+      let toDate = null;
+      let targetMonth = null;
+      let targetYear = null;
+
+      if (filters.filterMode === 'dateRange') {
+        if (!filters.dateFrom || !filters.dateTo) {
+          notifyError('Please select both Date From and Date To');
+          setLoading(false);
+          return;
+        }
+        if (filters.dateFrom > filters.dateTo) {
+          notifyError('Date From cannot be greater than Date To');
+          setLoading(false);
+          return;
+        }
+        fromDate = new Date(filters.dateFrom);
+        fromDate.setHours(0, 0, 0, 0);
+        toDate = new Date(filters.dateTo);
+        toDate.setHours(23, 59, 59, 999);
+      } else {
+        if (!filters.monthYear) {
+          notifyError('Please select Fee Month & Year');
+          setLoading(false);
+          return;
+        }
+        const parsed = parseMonthYear(filters.monthYear);
+        targetMonth = parsed.month;
+        targetYear = parsed.year;
+      }
+
       const params = {
-        startDate: filters.dateFrom,
-        endDate: filters.dateTo,
         institution: institutionId
       };
+      if (filters.filterMode === 'dateRange') {
+        params.startDate = filters.dateFrom;
+        params.endDate = filters.dateTo;
+      }
 
       // Selected bank account object if any
       const selectedBankObj = bankAccounts.find(b => b._id === filters.bankAccount);
@@ -287,19 +322,18 @@ const BankStatementReport = ({ onBack }) => {
         );
       }
 
-      // Filter Suspense Entries by date range and bank
-      if (filters.dateFrom || filters.dateTo) {
-        const fromDate = filters.dateFrom ? new Date(filters.dateFrom) : null;
-        const toDate = filters.dateTo ? new Date(filters.dateTo) : null;
-
-        if (fromDate) fromDate.setHours(0, 0, 0, 0);
-        if (toDate) toDate.setHours(23, 59, 59, 999);
-
+      // Filter Suspense Entries by date range or fee month and bank
+      if (filters.filterMode === 'dateRange') {
         rawSuspense = rawSuspense.filter(s => {
           const pDate = new Date(s.paymentDate || s.createdAt);
           if (fromDate && pDate < fromDate) return false;
           if (toDate && pDate > toDate) return false;
           return true;
+        });
+      } else if (filters.filterMode === 'month') {
+        rawSuspense = rawSuspense.filter(s => {
+          const pDate = new Date(s.paymentDate || s.createdAt);
+          return (pDate.getMonth() + 1) === targetMonth && pDate.getFullYear() === targetYear;
         });
       }
 
@@ -384,8 +418,25 @@ const BankStatementReport = ({ onBack }) => {
         campusCode: getCampusShortForm(s.institution, institution, institutionsMap)
       }));
 
+      // Filter payments by Month/Voucher when in month mode
+      let filteredPaymentTxns = paymentTxns;
+      if (filters.filterMode === 'month') {
+        filteredPaymentTxns = paymentTxns.filter(t => {
+          if (t._monthSortVal) {
+            const tYear = Math.floor(t._monthSortVal / 100);
+            const tMonth = t._monthSortVal % 100;
+            return tYear === targetYear && tMonth === targetMonth;
+          }
+          if (t.date) {
+            const d = new Date(t.date);
+            return (d.getMonth() + 1) === targetMonth && d.getFullYear() === targetYear;
+          }
+          return false;
+        });
+      }
+
       // Combine and filter by status option
-      let combined = [...paymentTxns, ...suspenseTxns];
+      let combined = [...filteredPaymentTxns, ...suspenseTxns];
       if (filters.statusFilter === 'reconciled') {
         combined = combined.filter(t => t.status === 'reconciled' || t.status === 'reconciled_suspense');
       } else if (filters.statusFilter === 'suspense') {
@@ -427,16 +478,24 @@ const BankStatementReport = ({ onBack }) => {
       ? `${selectedBankObj.bankName} (${selectedBankObj.accountNumber})` 
       : 'All Accounts';
 
+    const isMonthMode = filters.filterMode === 'month';
+    const monthLabel = isMonthMode ? formatMonthYear(...Object.values(parseMonthYear(filters.monthYear))) : '';
+    const fileSuffix = isMonthMode ? filters.monthYear : `${filters.dateFrom}_to_${filters.dateTo}`;
+    const exportMeta = isMonthMode ? {
+      'Fee Month': monthLabel,
+      'Bank Title': bankTitle
+    } : {
+      'From': formatDate(filters.dateFrom),
+      'To': formatDate(filters.dateTo),
+      'Bank Title': bankTitle
+    };
+
     exportToExcelWithBoldHeaders(
       XLSX,
       exportData,
       'Bank Transactions Report',
-      `Bank_Transactions_${filters.dateFrom}_to_${filters.dateTo}.xlsx`,
-      {
-        'From': formatDate(filters.dateFrom),
-        'To': formatDate(filters.dateTo),
-        'Bank Title': bankTitle
-      }
+      `Bank_Transactions_${fileSuffix}.xlsx`,
+      exportMeta
     );
   };
 
@@ -503,29 +562,60 @@ const BankStatementReport = ({ onBack }) => {
           Filters
         </Typography>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={3}>
+          <Grid item xs={12} sm={6} md={2}>
             <TextField
               fullWidth
-              label="Date From"
-              type="date"
-              value={filters.dateFrom}
-              onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-              InputLabelProps={{ shrink: true }}
               size="small"
-            />
+              select
+              label="Filter By"
+              value={filters.filterMode}
+              onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
+            >
+              <MenuItem value="dateRange">Date Range</MenuItem>
+              <MenuItem value="month">Fee Month / Voucher</MenuItem>
+            </TextField>
           </Grid>
-          <Grid item xs={12} sm={3}>
-            <TextField
-              fullWidth
-              label="Date To"
-              type="date"
-              value={filters.dateTo}
-              onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-              size="small"
-            />
-          </Grid>
-          <Grid item xs={12} sm={3}>
+
+          {filters.filterMode === 'dateRange' ? (
+            <>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Date From"
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  fullWidth
+                  label="Date To"
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                  size="small"
+                />
+              </Grid>
+            </>
+          ) : (
+            <Grid item xs={12} sm={6} md={4}>
+              <TextField
+                fullWidth
+                size="small"
+                type="month"
+                label="Fee Month & Year"
+                value={filters.monthYear}
+                onChange={(e) => setFilters({ ...filters, monthYear: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+          )}
+
+          <Grid item xs={12} sm={6} md={3}>
             <TextField
               fullWidth
               select
@@ -548,7 +638,7 @@ const BankStatementReport = ({ onBack }) => {
               ))}
             </TextField>
           </Grid>
-          <Grid item xs={12} sm={2}>
+          <Grid item xs={12} sm={6} md={2}>
             <TextField
               fullWidth
               select
@@ -568,7 +658,7 @@ const BankStatementReport = ({ onBack }) => {
               <MenuItem value="suspense">Suspense</MenuItem>
             </TextField>
           </Grid>
-          <Grid item xs={12} sm={1}>
+          <Grid item xs={12} sm={6} md={1}>
             <Button
               fullWidth
               variant="contained"
@@ -662,9 +752,15 @@ const BankStatementReport = ({ onBack }) => {
           </Box>
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1, px: 1, fontSize: '0.85rem' }}>
-            <Box sx={{ display: 'flex', gap: 4 }}>
-              <Typography variant="body2"><b>From:</b> {formatDate(filters.dateFrom)}</Typography>
-              <Typography variant="body2"><b>To:</b> {formatDate(filters.dateTo)}</Typography>
+            <Box sx={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+              {filters.filterMode === 'dateRange' ? (
+                <>
+                  <Typography variant="body2"><b>From:</b> {formatDate(filters.dateFrom)}</Typography>
+                  <Typography variant="body2"><b>To:</b> {formatDate(filters.dateTo)}</Typography>
+                </>
+              ) : (
+                <Typography variant="body2"><b>Fee Month:</b> {formatMonthYear(...Object.values(parseMonthYear(filters.monthYear)))}</Typography>
+              )}
               <Typography variant="body2">
                 <b>Bank Account:</b> {filters.bankAccount ? bankAccounts.find(b => b._id === filters.bankAccount)?.bankName + ' (' + bankAccounts.find(b => b._id === filters.bankAccount)?.accountNumber + ')' : 'All Accounts'}
               </Typography>
