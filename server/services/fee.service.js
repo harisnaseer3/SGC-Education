@@ -1108,6 +1108,8 @@ class FeeService {
       // Fall back to old behavior: use voucher month/year with dueDay
       dueDateObj = new Date(year, month - 1, dueDay);
     }
+    // Default validity date: 25th of the voucher month
+    const validityDateObj = new Date(year, month - 1, 25);
 
     let students = await Student.find({
       _id: { $in: studentIds },
@@ -1476,6 +1478,7 @@ class FeeService {
                   remainingAmount: effectiveBaseAmount,
                   status: 'pending',
                   dueDate: dueDateObj,
+                  validityDate: validityDateObj,
                   academicYear: latestFee.academicYear,
                   isActive: true,
                   createdBy: currentUser._id,
@@ -1484,8 +1487,12 @@ class FeeService {
              }
              
              if (!feeToUpdate.vouchers) feeToUpdate.vouchers = [];
+             feeToUpdate.dueDate = dueDateObj;
+             feeToUpdate.validityDate = validityDateObj;
              feeToUpdate.vouchers.push({
-               month, year, generatedAt: new Date(), generatedBy: currentUser._id, voucherNumber
+               month, year, generatedAt: new Date(), generatedBy: currentUser._id, voucherNumber,
+               dueDate: dueDateObj,
+               validityDate: validityDateObj
              });
              
              await feeToUpdate.save();
@@ -1501,8 +1508,12 @@ class FeeService {
              for (const fee of fees) {
                if (!fee.isActive) continue; // Only attach voucher to active non-monthly fee records
                if (!fee.vouchers) fee.vouchers = [];
+               fee.dueDate = dueDateObj;
+               fee.validityDate = validityDateObj;
                fee.vouchers.push({
-                 month, year, generatedAt: new Date(), generatedBy: currentUser._id, voucherNumber
+                 month, year, generatedAt: new Date(), generatedBy: currentUser._id, voucherNumber,
+                 dueDate: dueDateObj,
+                 validityDate: validityDateObj
                });
                await fee.save();
                updatedStudentFees.push(fee);
@@ -2832,6 +2843,127 @@ class FeeService {
     }
 
     return record;
+  }
+
+  /**
+   * Update voucher valid date and due date
+   */
+  async updateVoucherDates(data, currentUser) {
+    const {
+      studentIds,
+      voucherNumbers,
+      month,
+      year,
+      dueDate,
+      validityDate
+    } = data;
+
+    if (!dueDate && !validityDate) {
+      throw new ApiError(400, 'At least one date (due date or validity date) must be provided');
+    }
+
+    const institutionId = currentUser.role === 'super_admin' && data.institution
+      ? data.institution
+      : getInstitutionId(currentUser);
+
+    const parsedDueDate = dueDate ? new Date(dueDate) : null;
+    const parsedValidityDate = validityDate ? new Date(validityDate) : null;
+
+    if (parsedDueDate && isNaN(parsedDueDate.getTime())) {
+      throw new ApiError(400, 'Invalid Due Date');
+    }
+    if (parsedValidityDate && isNaN(parsedValidityDate.getTime())) {
+      throw new ApiError(400, 'Invalid Validity Date');
+    }
+
+    // Build filter for FeeVoucher records
+    const voucherFilter = {};
+    if (institutionId) {
+      voucherFilter.institution = institutionId;
+    }
+    if (month && year) {
+      voucherFilter.month = Number(month);
+      voucherFilter.year = Number(year);
+    }
+
+    if (voucherNumbers && Array.isArray(voucherNumbers) && voucherNumbers.length > 0) {
+      voucherFilter.voucherNumber = { $in: voucherNumbers.map(v => v.toString().trim()) };
+    } else if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
+      voucherFilter.student = { $in: studentIds };
+    }
+
+    // Build updates for FeeVoucher
+    const voucherUpdate = {};
+    if (parsedDueDate) voucherUpdate.dueDate = parsedDueDate;
+    if (parsedValidityDate) voucherUpdate.validityDate = parsedValidityDate;
+
+    let updatedVouchersCount = 0;
+    if (Object.keys(voucherFilter).length > 0) {
+      const vResult = await FeeVoucher.updateMany(voucherFilter, { $set: voucherUpdate });
+      updatedVouchersCount = vResult.modifiedCount || 0;
+    }
+
+    // Update StudentFee records
+    const studentFeeFilter = { isActive: true };
+    if (institutionId) {
+      studentFeeFilter.institution = institutionId;
+    }
+    if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
+      studentFeeFilter.student = { $in: studentIds };
+    } else if (voucherNumbers && Array.isArray(voucherNumbers) && voucherNumbers.length > 0) {
+      studentFeeFilter['vouchers.voucherNumber'] = { $in: voucherNumbers.map(v => v.toString().trim()) };
+    } else if (month && year) {
+      studentFeeFilter['vouchers'] = {
+        $elemMatch: {
+          month: Number(month),
+          year: Number(year)
+        }
+      };
+    }
+
+    // Find all matching StudentFees and update the subdocument vouchers + root dates if applicable
+    const studentFees = await StudentFee.find(studentFeeFilter);
+    let updatedStudentFeesCount = 0;
+
+    for (const sf of studentFees) {
+      let modified = false;
+
+      // Update embedded vouchers
+      if (Array.isArray(sf.vouchers)) {
+        sf.vouchers.forEach(v => {
+          let match = true;
+          if (month && Number(v.month) !== Number(month)) match = false;
+          if (year && Number(v.year) !== Number(year)) match = false;
+          if (voucherNumbers && Array.isArray(voucherNumbers) && voucherNumbers.length > 0) {
+            const vNo = v.voucherNumber ? v.voucherNumber.toString().trim() : '';
+            if (!voucherNumbers.map(x => x.toString().trim()).includes(vNo)) {
+              match = false;
+            }
+          }
+
+          if (match) {
+            if (parsedDueDate) v.dueDate = parsedDueDate;
+            if (parsedValidityDate) v.validityDate = parsedValidityDate;
+            modified = true;
+          }
+        });
+      }
+
+      // If the StudentFee record itself corresponds to this month/year or has matched vouchers, update root dates
+      if (modified) {
+        if (parsedDueDate) sf.dueDate = parsedDueDate;
+        if (parsedValidityDate) sf.validityDate = parsedValidityDate;
+        await sf.save();
+        updatedStudentFeesCount++;
+      }
+    }
+
+    return {
+      updatedVouchers: updatedVouchersCount,
+      updatedStudentFees: updatedStudentFeesCount,
+      dueDate: parsedDueDate,
+      validityDate: parsedValidityDate
+    };
   }
 }
 

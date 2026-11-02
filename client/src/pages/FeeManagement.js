@@ -56,6 +56,7 @@ import {
   AccountBalanceWallet,
   Update,
   ArrowBack,
+  DateRange,
 } from '@mui/icons-material';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
@@ -287,6 +288,13 @@ const FeeManagement = () => {
   const [selectedVoucherIds, setSelectedVoucherIds] = useState([]);
   const [selectedReceiptIds, setSelectedReceiptIds] = useState([]);
   
+  // Voucher Date Update states
+  const [voucherDateDialogOpen, setVoucherDateDialogOpen] = useState(false);
+  const [voucherDateTarget, setVoucherDateTarget] = useState(null); // null = batch/selected, object = single student
+  const [editVoucherDueDate, setEditVoucherDueDate] = useState('');
+  const [editVoucherValidityDate, setEditVoucherValidityDate] = useState('');
+  const [updatingVoucherDates, setUpdatingVoucherDates] = useState(false);
+
   // Bulk Print states
   const [bulkVoucherDialogOpen, setBulkVoucherDialogOpen] = useState(false);
   const [bulkVouchersData, setBulkVouchersData] = useState([]);
@@ -1102,6 +1110,8 @@ const FeeManagement = () => {
         let voucherNumber = 'N/A';
         let voucherAmount = 0;
         let voucherGeneratedDate = null;
+        let voucherDueDate = null;
+        let voucherValidityDate = null;
         
         // Find voucher for the selected month/year - all fees should have the same voucher number
         for (const sf of studentFees) {
@@ -1121,9 +1131,21 @@ const FeeManagement = () => {
               if (voucher.generatedAt && !voucherGeneratedDate) {
                 voucherGeneratedDate = new Date(voucher.generatedAt);
               }
+              if (voucher.dueDate && !voucherDueDate) {
+                voucherDueDate = new Date(voucher.dueDate);
+              }
+              if (voucher.validityDate && !voucherValidityDate) {
+                voucherValidityDate = new Date(voucher.validityDate);
+              }
               break; // Use the first voucher number found (they should all be the same)
             }
           }
+        }
+        if (!voucherDueDate && firstStudentFee.dueDate) {
+          voucherDueDate = new Date(firstStudentFee.dueDate);
+        }
+        if (!voucherValidityDate && firstStudentFee.validityDate) {
+          voucherValidityDate = new Date(firstStudentFee.validityDate);
         }
         
         // Calculate total amount and determine voucher status from all student fees that have vouchers for this month/year
@@ -1292,6 +1314,11 @@ const FeeManagement = () => {
           unpaidArrears = Math.max(0, Math.round((previousBalance - paidArrears) * 100) / 100);
         }
 
+        const formatToLocalYMD = (d) => {
+          if (!d || isNaN(d.getTime())) return null;
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        };
+
         const rowKey = paymentRangeMode ? `${studentIdStr}-${month}-${year}` : studentIdStr;
         uniqueStudentsMap.set(rowKey, {
           rowKey,
@@ -1313,7 +1340,11 @@ const FeeManagement = () => {
           paidAmount: displayedPaidAmount,
           remainingAmount: displayedRemaining,
           paymentDate: displayedPaymentDate,
-          generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null
+          generatedAt: voucherGeneratedDate ? voucherGeneratedDate.toISOString() : null,
+          dueDate: formatToLocalYMD(voucherDueDate),
+          validityDate: formatToLocalYMD(voucherValidityDate),
+          month,
+          year
         });
       });
       });
@@ -3181,6 +3212,7 @@ const FeeManagement = () => {
       let absentFine = 0;
       let arrears = typeof student.arrears === 'number' ? student.arrears : 0;
       let dueDate = new Date(year, month, 20); // Default to 20th of the month
+      let explicitValidityDate = null;
       let studentFees = []; // Declare outside try block for use later
       let voucherNumber = 'N/A'; // Declare outside try block for use in return statement
 
@@ -3269,11 +3301,27 @@ const FeeManagement = () => {
             .map(({ name, amount }) => ({ name, amount }));
             // Removed .filter(h => h.amount > 0) to allow 100% discounted (Rs. 0) fees to show on voucher
 
-          // Get due date from first fee with voucher
+          // Get due date and validity date from fees with voucher
           if (feesWithVouchers.length > 0) {
-            const firstFee = feesWithVouchers[0];
-            if (firstFee.dueDate) {
-              dueDate = new Date(firstFee.dueDate);
+            for (const fee of feesWithVouchers) {
+              const matchedVoucher = (fee.vouchers || []).find(v => {
+                if (!v) return false;
+                const vMonth = typeof v.month === 'string' ? parseInt(v.month, 10) : Number(v.month);
+                const vYear = typeof v.year === 'string' ? parseInt(v.year, 10) : Number(v.year);
+                return vMonth === Number(month) && vYear === Number(year);
+              });
+              if (matchedVoucher?.dueDate) {
+                dueDate = new Date(matchedVoucher.dueDate);
+              } else if (fee.dueDate && (!dueDate || isNaN(dueDate.getTime()))) {
+                dueDate = new Date(fee.dueDate);
+              }
+
+              if (matchedVoucher?.validityDate) {
+                explicitValidityDate = new Date(matchedVoucher.validityDate);
+                break;
+              } else if (fee.validityDate && !explicitValidityDate) {
+                explicitValidityDate = new Date(fee.validityDate);
+              }
             }
           }
 
@@ -3368,23 +3416,36 @@ const FeeManagement = () => {
       const payableWithinDueDate = currentMonthFeeTotal + arrears;
       const payableAfterDueDate = payableWithinDueDate + lateFeeFine + absentFine;
 
-      // Format dates correctly
-      const issueDate = new Date().toISOString().split('T')[0];
-      const formattedDueDate = dueDate.toISOString().split('T')[0];
+      // Helper to format Date object into local YYYY-MM-DD avoiding UTC day shift
+      const toLocalDateString = (d) => {
+        if (!d || isNaN(d.getTime())) return '';
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      };
+
+      // Format dates correctly in local time
+      const issueDate = toLocalDateString(new Date());
+      const formattedDueDate = toLocalDateString(dueDate);
       
-      // Valid date logic: If due date is in a future month/year (beyond voucher month),
-      // set valid date equal to due date. Otherwise, set to last day of voucher month.
+      // Valid date logic: If an explicit validity date was set, use it.
+      // Otherwise: If due date is in a future month/year (beyond voucher month),
+      // set valid date equal to due date. Otherwise, default to 25th of voucher month.
       let validDate;
-      const dueDateMonth = dueDate.getMonth() + 1; // 1-indexed
-      const dueDateYear = dueDate.getFullYear();
-      
-      if (dueDateYear > year || (dueDateYear === year && dueDateMonth > month)) {
-        // Due date is in a future month/year - use due date as valid date
-        validDate = formattedDueDate;
+      if (explicitValidityDate && !isNaN(explicitValidityDate.getTime())) {
+        validDate = toLocalDateString(explicitValidityDate);
       } else {
-        // Due date is in current or past voucher month - use last day of voucher month
-        const lastDayOfMonth = new Date(year, month, 0).getDate();
-        validDate = new Date(year, month - 1, lastDayOfMonth).toISOString().split('T')[0];
+        const dueDateMonth = dueDate.getMonth() + 1; // 1-indexed
+        const dueDateYear = dueDate.getFullYear();
+        
+        if (dueDateYear > year || (dueDateYear === year && dueDateMonth > month)) {
+          // Due date is in a future month/year - use due date as valid date
+          validDate = formattedDueDate;
+        } else {
+          // Due date is in current or past voucher month - default to 25th of voucher month
+          validDate = toLocalDateString(new Date(year, month - 1, 25));
+        }
       }
 
       // Get student name - use personalInfo.name (single field)
@@ -3430,7 +3491,16 @@ const FeeManagement = () => {
       // Format dates for display (e.g., "31 Jan 2026")
       const formatDateForDisplay = (dateStr) => {
         if (!dateStr) return 'N/A';
+        // If string is YYYY-MM-DD, parse parts directly to avoid timezone offset
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
+          const parts = dateStr.split('T')[0].split('-');
+          const y = parseInt(parts[0], 10);
+          const m = parseInt(parts[1], 10) - 1;
+          const d = parseInt(parts[2], 10);
+          return `${d} ${monthNames[m]} ${y}`;
+        }
         const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return 'N/A';
         const day = date.getDate();
         const monthName = monthNames[date.getMonth()];
         const year = date.getFullYear();
@@ -3851,6 +3921,85 @@ const FeeManagement = () => {
       notifyError(err.response?.data?.message || 'Failed to assign fee structure');
     } finally {
       setAssignFeeStructureLoading(false);
+    }
+  };
+
+  // Open Voucher Date Dialog
+  const handleOpenVoucherDateDialog = (student = null) => {
+    setVoucherDateTarget(student);
+    if (student) {
+      setEditVoucherDueDate(student.dueDate || '');
+      setEditVoucherValidityDate(student.validityDate || '');
+    } else {
+      // Batch mode: default due date is 20th of month, valid date is 25th of month
+      const { month, year } = parseMonthYear(printVoucherFilters.monthYear);
+      const defaultDue = new Date(year, month - 1, 20);
+      const defaultValid = new Date(year, month - 1, 25);
+      const toIsoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      setEditVoucherDueDate(toIsoDay(defaultDue));
+      setEditVoucherValidityDate(toIsoDay(defaultValid));
+    }
+    setVoucherDateDialogOpen(true);
+  };
+
+  const handleSaveVoucherDates = async () => {
+    if (!editVoucherDueDate && !editVoucherValidityDate) {
+      notifyError('Please enter at least one date (Due Date or Validity Date)');
+      return;
+    }
+
+    try {
+      setUpdatingVoucherDates(true);
+      const institutionId = getInstitutionId();
+      const { month, year } = parseMonthYear(printVoucherFilters.monthYear);
+
+      let payload = {
+        institution: institutionId,
+        dueDate: editVoucherDueDate || null,
+        validityDate: editVoucherValidityDate || null
+      };
+
+      if (voucherDateTarget) {
+        // Single student
+        payload.studentIds = [voucherDateTarget.studentId || voucherDateTarget._id];
+        payload.voucherNumbers = voucherDateTarget.voucherNumber && voucherDateTarget.voucherNumber !== 'N/A'
+          ? [voucherDateTarget.voucherNumber]
+          : undefined;
+        payload.month = voucherDateTarget.month || month;
+        payload.year = voucherDateTarget.year || year;
+      } else if (selectedVoucherIds.length > 0) {
+        // Selected students in table
+        const filteredStudents = getFilteredPrintVoucherStudents();
+        const selectedStudents = filteredStudents.filter(s =>
+          selectedVoucherIds.includes(s._id || s.studentId)
+        );
+        payload.studentIds = selectedStudents.map(s => s.studentId || s._id);
+        payload.voucherNumbers = selectedStudents
+          .map(s => s.voucherNumber)
+          .filter(v => v && v !== 'N/A');
+        payload.month = month;
+        payload.year = year;
+      } else {
+        // Entire month batch for current filter
+        payload.month = month;
+        payload.year = year;
+      }
+
+      const response = await axios.put(
+        `${API_URL}/fees/vouchers/dates`,
+        payload,
+        createAxiosConfig()
+      );
+
+      notifySuccess(response.data.message || 'Voucher dates updated successfully');
+      setVoucherDateDialogOpen(false);
+      setVoucherDateTarget(null);
+      await fetchPrintVoucherStudents();
+    } catch (err) {
+      console.error('Error updating voucher dates:', err);
+      notifyError(err.response?.data?.message || 'Failed to update voucher dates');
+    } finally {
+      setUpdatingVoucherDates(false);
     }
   };
 
@@ -5292,6 +5441,20 @@ const FeeManagement = () => {
                   >
                     Clear Filters
                   </Button>
+                  {hasPermission(PERMISSIONS.FEES.UPDATE_VOUCHER_DATES) && (
+                    <Button
+                      variant="contained"
+                      size="small"
+                      startIcon={<DateRange />}
+                      sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
+                      disabled={printVoucherStudents.length === 0 || loading}
+                      onClick={() => handleOpenVoucherDateDialog(null)}
+                    >
+                      {selectedVoucherIds.length > 0
+                        ? `Update Dates (${selectedVoucherIds.length})`
+                        : 'Update Voucher Dates'}
+                    </Button>
+                  )}
                   <Button
                     variant="contained"
                     size="small"
@@ -5552,6 +5715,16 @@ const FeeManagement = () => {
                         <TableCell>{capitalizeFirstOnly(student.class || 'N/A')}</TableCell>
                         <TableCell>
                           <Box sx={{ display: 'flex', gap: 1 }}>
+                            {hasPermission(PERMISSIONS.FEES.UPDATE_VOUCHER_DATES) && (
+                              <IconButton
+                                size="small"
+                                sx={{ color: '#4f46e5' }}
+                                title="Update Voucher Dates"
+                                onClick={() => handleOpenVoucherDateDialog(student)}
+                              >
+                                <DateRange fontSize="small" />
+                              </IconButton>
+                            )}
                             <IconButton
                               size="small"
                               color="primary"
@@ -8278,6 +8451,84 @@ const FeeManagement = () => {
               disabled={bulkVouchersData.length === 0}
             >
               Print All
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Update Voucher Dates Dialog */}
+        <Dialog
+          open={voucherDateDialogOpen}
+          onClose={() => {
+            if (!updatingVoucherDates) {
+              setVoucherDateDialogOpen(false);
+              setVoucherDateTarget(null);
+            }
+          }}
+          maxWidth="xs"
+          fullWidth
+        >
+          <DialogTitle sx={{ fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: 1 }}>
+            <DateRange sx={{ color: '#4f46e5' }} />
+            Update Voucher Dates
+          </DialogTitle>
+          <DialogContent>
+            <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              <Alert severity="info" sx={{ fontSize: '0.8rem', py: 0.5 }}>
+                {voucherDateTarget ? (
+                  <>
+                    Updating dates for <strong>{voucherDateTarget.name}</strong> (Voucher: {voucherDateTarget.voucherNumber || 'N/A'})
+                  </>
+                ) : selectedVoucherIds.length > 0 ? (
+                  <>
+                    Updating dates for <strong>{selectedVoucherIds.length}</strong> selected voucher(s)
+                  </>
+                ) : (
+                  <>
+                    Updating dates for <strong>ALL</strong> vouchers in month <strong>{printVoucherFilters.monthYear}</strong>
+                  </>
+                )}
+              </Alert>
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Due Date"
+                type="date"
+                value={editVoucherDueDate}
+                onChange={(e) => setEditVoucherDueDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Last day to pay before late fine applies"
+              />
+
+              <TextField
+                fullWidth
+                size="small"
+                label="Validity Date"
+                type="date"
+                value={editVoucherValidityDate}
+                onChange={(e) => setEditVoucherValidityDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                helperText="Final date until which the bank accepts this challan"
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button
+              onClick={() => {
+                setVoucherDateDialogOpen(false);
+                setVoucherDateTarget(null);
+              }}
+              disabled={updatingVoucherDates}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSaveVoucherDates}
+              disabled={updatingVoucherDates}
+              sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
+            >
+              {updatingVoucherDates ? <CircularProgress size={22} color="inherit" /> : 'Save Dates'}
             </Button>
           </DialogActions>
         </Dialog>

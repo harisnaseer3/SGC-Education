@@ -78,6 +78,10 @@ const feeVoucherSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    validityDate: {
+      type: Date,
+      default: null,
+    },
     installmentPlan: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'InstallmentPlan',

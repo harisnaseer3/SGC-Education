@@ -441,6 +441,18 @@ const removeReconciliationAttachment = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Attachment removed successfully', data: record });
 });
 
+/**
+ * Update voucher valid date and due date
+ */
+const updateVoucherDates = asyncHandler(async (req, res) => {
+  const result = await feeService.updateVoucherDates(req.body, req.user);
+  res.json({
+    success: true,
+    message: 'Voucher dates updated successfully',
+    data: result
+  });
+});
+
 module.exports = {
   getFeeStructureMatrix,
   getFeeStructureByClass,
@@ -466,5 +478,6 @@ module.exports = {
   saveMonthlyReconciliation,
   uploadReconciliationAttachment,
   removeReconciliationAttachment,
-  checkTransactionId
+  checkTransactionId,
+  updateVoucherDates
 };

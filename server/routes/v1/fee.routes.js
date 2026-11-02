@@ -61,6 +61,7 @@ router.delete('/payments/:paymentId', hasAnyPermission(PERMISSIONS.FEES.DELETE, 
 
 // Voucher routes
 router.delete('/vouchers', hasAnyPermission(PERMISSIONS.FEES.DELETE, PERMISSIONS.FEES.DELETE_VOUCHER), feeController.deleteVoucher);
+router.put('/vouchers/dates', hasAnyPermission(PERMISSIONS.FEES.MANAGE, PERMISSIONS.FEES.UPDATE_VOUCHER_DATES), feeController.updateVoucherDates);
 
 // Suspense management routes
 router.get('/suspense', hasAnyPermission(PERMISSIONS.FEES.VIEW, PERMISSIONS.FEES.MANAGE), feeController.getSuspenseEntries);

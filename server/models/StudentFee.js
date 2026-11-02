@@ -73,6 +73,9 @@ const studentFeeSchema = new mongoose.Schema({
   dueDate: {
     type: Date
   },
+  validityDate: {
+    type: Date
+  },
   lastPaymentDate: {
     type: Date
   },
@@ -103,6 +106,12 @@ const studentFeeSchema = new mongoose.Schema({
     voucherNumber: {
       type: String,
       trim: true
+    },
+    dueDate: {
+      type: Date
+    },
+    validityDate: {
+      type: Date
     }
   }],
   isActive: {
