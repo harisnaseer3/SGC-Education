@@ -1610,16 +1610,26 @@ class FeeService {
         }
       }
 
-      const tenSecondsAgo = new Date(Date.now() - 10000);
-      const existingPayment = await FeePayment.findOne({
+      // If this payment is reconciled from suspense, payments sharing the same transactionId
+      // for the SAME student are permitted (so all fee items get grouped under that transaction).
+      // For non-suspense payments, allow only within a 10s burst for the same student.
+      const queryExisting = {
         transactionId: { $regex: tidRegex },
         status: { $ne: 'refunded' },
-        ...(instId ? { institution: instId } : {}),
-        $or: [
+        ...(instId ? { institution: instId } : {})
+      };
+
+      if (paymentData.isFromSuspense) {
+        queryExisting.student = { $ne: studentObjId };
+      } else {
+        const tenSecondsAgo = new Date(Date.now() - 10000);
+        queryExisting.$or = [
           { student: { $ne: studentObjId } },
           { createdAt: { $lt: tenSecondsAgo } }
-        ]
-      });
+        ];
+      }
+
+      const existingPayment = await FeePayment.findOne(queryExisting);
       if (existingPayment) {
         throw new ApiError(400, `Transaction ID "${trimmedTid}" already exists.`);
       }
@@ -2388,7 +2398,7 @@ class FeeService {
 
   // Suspense Management - Reconcile unidentified payment to a student
   async reconcileSuspenseEntry(reconciliationData, currentUser) {
-    const { suspenseEntryId, studentId, studentFeeId, remarks } = reconciliationData;
+    const { suspenseEntryId, studentId, studentFeeId, studentFeeIds, remarks } = reconciliationData;
 
     // Find suspense entry by ID and unidentified status (global lookup across campuses)
     const suspenseEntry = await SuspenseEntry.findOne({
@@ -2408,75 +2418,155 @@ class FeeService {
 
     const institutionId = student.institution || reconciliationData.institution || suspenseEntry.institution;
 
-    const studentFee = await StudentFee.findById(studentFeeId);
-    if (!studentFee) throw new ApiError(404, 'Student fee not found');
-
-    // Calculate how much can be paid (capped by fee remaining amount)
-    // Use slightly higher precision comparison to avoid floating point issues
-    let paymentAmount = suspenseEntry.amount;
-    const remainingFee = studentFee.remainingAmount;
-    
-    // Check if we need to split (if suspense amount > fee remaining)
-    let originalSuspenseEntry = suspenseEntry;
-    let reconciledSuspenseEntry = suspenseEntry;
-
-    if (paymentAmount > remainingFee) {
-        paymentAmount = remainingFee;
-        const balanceAmount = suspenseEntry.amount - paymentAmount;
-
-        // 1. Update the original entry to have the balance amount (it stays Unidentified)
-        originalSuspenseEntry.amount = balanceAmount;
-        const studentName = student?.personalDetails?.name || studentId;
-        originalSuspenseEntry.remarks = `Balance after reconciling ${paymentAmount} to ${studentName}`;
-        await originalSuspenseEntry.save();
-
-        // 2. Create a NEW entry for the reconciled portion
-        reconciledSuspenseEntry = await SuspenseEntry.create({
-            institution: institutionId,
-            amount: paymentAmount,
-            paymentDate: suspenseEntry.paymentDate,
-            paymentMethod: suspenseEntry.paymentMethod,
-            transactionId: suspenseEntry.transactionId ? `${suspenseEntry.transactionId}_PAID_${Date.now()}` : undefined,
-            bankName: suspenseEntry.bankName,
-            remarks: `[Reconciled Portion] ${remarks || ''}`.trim(),
-            status: 'reconciled', // Will be updated with reconciledData below
-            createdBy: currentUser._id
-        });
+    // Support multiple student fee selection or single studentFeeId
+    let targetFeeIds = [];
+    if (Array.isArray(studentFeeIds) && studentFeeIds.length > 0) {
+      targetFeeIds = studentFeeIds;
+    } else if (studentFeeId) {
+      targetFeeIds = [studentFeeId];
+    } else {
+      throw new ApiError(400, 'Please select at least one fee item to pay');
     }
 
-    // Record the payment using the existing recordPayment logic
-    const paymentData = {
-      student: studentId,
-      studentFeeId: studentFeeId,
-      amount: paymentAmount,
-      paymentDate: reconciledSuspenseEntry.paymentDate,
-      paymentMethod: reconciledSuspenseEntry.paymentMethod,
-      transactionId: reconciledSuspenseEntry.transactionId,
-      bankName: reconciledSuspenseEntry.bankName,
-      remarks: `[Reconciled from Suspense] ${remarks || ''} ${reconciledSuspenseEntry.remarks || ''}`.trim(),
-      isFromSuspense: true
-    };
+    // Fetch the target student fees
+    const feesToPay = await StudentFee.find({
+      _id: { $in: targetFeeIds },
+      student: studentId
+    }).populate('feeHead');
 
-    const paymentResult = await this.recordPayment(paymentData, currentUser);
+    if (feesToPay.length === 0) {
+      throw new ApiError(404, 'Selected student fees not found');
+    }
 
-    // Update the reconciled entry status and link
-    reconciledSuspenseEntry.status = 'reconciled';
-    reconciledSuspenseEntry.reconciledData = {
-      student: studentId,
-      payment: paymentResult.payment._id,
-      reconciledAt: Date.now(),
-      reconciledBy: currentUser._id
-    };
+    // Determine the latest voucher number AMONG THE SELECTED FEES TO PAY
+    // (e.g. if reconciling Aug, Sep, Oct, the payment should be under October's voucher,
+    // NOT under an unpaid future month like November that was NOT selected/paid).
+    let latestVoucherNumber = null;
+    let latestFeeYear = -1;
+    let latestFeeMonth = -1;
 
-    await reconciledSuspenseEntry.save();
+    feesToPay.forEach(sf => {
+      (sf.vouchers || []).forEach(v => {
+        if (!v || !v.voucherNumber) return;
+        const vYear = Number(v.year) || 0;
+        const vMonth = Number(v.month) || 0;
+        if (vYear > latestFeeYear || (vYear === latestFeeYear && vMonth >= latestFeeMonth)) {
+          latestFeeYear = vYear;
+          latestFeeMonth = vMonth;
+          latestVoucherNumber = v.voucherNumber.toString().trim();
+        }
+      });
+    });
+
+    // Fallback: if none of the selected fees have vouchers, check fee year/month or other student fees
+    if (!latestVoucherNumber) {
+      for (const f of feesToPay) {
+        if (f.vouchers && f.vouchers.length > 0 && f.vouchers[0].voucherNumber) {
+          latestVoucherNumber = f.vouchers[0].voucherNumber;
+          break;
+        }
+      }
+    }
+
+    // Sort target fees chronologically (oldest month first) so older arrears get cleared first
+    feesToPay.sort((a, b) => {
+      const aV = a.vouchers && a.vouchers.length > 0 ? a.vouchers[0] : null;
+      const bV = b.vouchers && b.vouchers.length > 0 ? b.vouchers[0] : null;
+      const aYear = aV ? Number(aV.year) : (a.year || 0);
+      const bYear = bV ? Number(bV.year) : (b.year || 0);
+      const aMonth = aV ? Number(aV.month) : (a.month || 0);
+      const bMonth = bV ? Number(bV.month) : (b.month || 0);
+      if (aYear !== bYear) return aYear - bYear;
+      return aMonth - bMonth;
+    });
+
+    let availableFund = suspenseEntry.amount;
+    let totalPaidInBatch = 0;
+    const recordedPayments = [];
+
+    for (const sf of feesToPay) {
+      if (availableFund <= 0.01) break;
+
+      const remaining = Math.max(0, (sf.finalAmount || 0) - (sf.paidAmount || 0));
+      if (remaining <= 0.01) continue;
+
+      const payThis = Math.min(availableFund, remaining);
+
+      // Record payment under the latest voucher number
+      const paymentData = {
+        student: studentId,
+        studentFeeId: sf._id,
+        amount: Math.round(payThis * 100) / 100,
+        paymentDate: suspenseEntry.paymentDate,
+        paymentMethod: suspenseEntry.paymentMethod,
+        transactionId: suspenseEntry.transactionId ? suspenseEntry.transactionId.trim() : undefined,
+        bankName: suspenseEntry.bankName,
+        remarks: `[Reconciled from Suspense] ${remarks || ''}`.trim(),
+        voucherNumber: latestVoucherNumber,
+        isFromSuspense: true
+      };
+
+      const pResult = await this.recordPayment(paymentData, currentUser);
+      recordedPayments.push(pResult.payment);
+
+      totalPaidInBatch += payThis;
+      availableFund = Math.max(0, Math.round((availableFund - payThis) * 100) / 100);
+    }
+
+    if (recordedPayments.length === 0) {
+      throw new ApiError(400, 'Selected fee items are already fully paid or cannot be reconciled');
+    }
+
+    const firstPayment = recordedPayments[0];
+    let reconciledSuspenseEntry = suspenseEntry;
+    const remainingBalance = availableFund;
+
+    if (remainingBalance > 0.01) {
+      // Split: original entry keeps remaining balance and stays unidentified
+      suspenseEntry.amount = remainingBalance;
+      const studentName = student?.personalDetails?.name || studentId;
+      suspenseEntry.remarks = `Balance after reconciling ${totalPaidInBatch} to ${studentName}`;
+      await suspenseEntry.save();
+
+      // Create a reconciled entry for the paid portion
+      reconciledSuspenseEntry = await SuspenseEntry.create({
+        institution: institutionId,
+        amount: totalPaidInBatch,
+        paymentDate: suspenseEntry.paymentDate,
+        paymentMethod: suspenseEntry.paymentMethod,
+        transactionId: suspenseEntry.transactionId ? `${suspenseEntry.transactionId}_PAID_${Date.now()}` : undefined,
+        bankName: suspenseEntry.bankName,
+        remarks: `[Reconciled Portion] ${remarks || ''}`.trim(),
+        status: 'reconciled',
+        reconciledData: {
+          student: studentId,
+          payment: firstPayment._id,
+          reconciledAt: Date.now(),
+          reconciledBy: currentUser._id
+        },
+        createdBy: currentUser._id
+      });
+    } else {
+      // Fully reconciled
+      suspenseEntry.status = 'reconciled';
+      suspenseEntry.reconciledData = {
+        student: studentId,
+        payment: firstPayment._id,
+        reconciledAt: Date.now(),
+        reconciledBy: currentUser._id
+      };
+      await suspenseEntry.save();
+    }
 
     return {
-      message: paymentAmount < suspenseEntry.amount ? 
-        `Partial reconciliation successful. Balance of ${originalSuspenseEntry.amount} remains.` : 
-        'Suspense entry reconciled successfully',
-      payment: paymentResult.payment,
+      message: remainingBalance > 0.01
+        ? `Partial reconciliation successful. Balance of ${remainingBalance} remains.`
+        : 'Suspense entry reconciled successfully',
+      payment: firstPayment,
+      payments: recordedPayments,
       suspenseEntry: reconciledSuspenseEntry,
-      remainingBalance: paymentAmount < suspenseEntry.amount ? originalSuspenseEntry.amount : 0
+      remainingBalance: remainingBalance > 0.01 ? remainingBalance : 0,
+      voucherNumber: latestVoucherNumber
     };
   }
 

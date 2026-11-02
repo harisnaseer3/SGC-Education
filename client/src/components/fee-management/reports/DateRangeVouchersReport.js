@@ -295,14 +295,18 @@ const DateRangeVouchersReport = ({ onBack }) => {
         const arrearsPaymentsOnVoucher = arrearsRecordOnVoucher ? parseFloat(arrearsRecordOnVoucher.paidAmount || 0) : 0;
         const paidArrearsOnThisVoucher = Math.max(paidArrearsViaVoucherNumber, arrearsPaymentsOnVoucher);
 
-        // Prefer stored snapshot on voucher if available, else ledger balance + paidArrears
+        // Previous Balance (P.Bal / Arrears):
+        // Dynamic unpaid arrears calculation from previous billing periods
+        // Add back any arrears already collected through THIS voucher so displayed arrears stay stable for this voucher,
+        // but if prior periods are fully paid (outstandingPrevArrears === 0), do not force a stale snapshot from an unpaid future voucher!
         let previousBalance = 0;
+        const liveArrears = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
         if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.finalAmount || 0) > 0) {
-          previousBalance = parseFloat(arrearsRecordOnVoucher.finalAmount || 0);
-        } else if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.baseAmount || 0) > 0) {
-          previousBalance = parseFloat(arrearsRecordOnVoucher.baseAmount || 0);
+          // If stored snapshot exists, ensure it is capped by live arrears if prior months got paid after voucher generation
+          const snapshotAmount = parseFloat(arrearsRecordOnVoucher.finalAmount || arrearsRecordOnVoucher.baseAmount || 0);
+          previousBalance = Math.min(snapshotAmount, liveArrears);
         } else {
-          previousBalance = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
+          previousBalance = liveArrears;
         }
 
         // Regular fees paid on current month lines (excluding arrears head)

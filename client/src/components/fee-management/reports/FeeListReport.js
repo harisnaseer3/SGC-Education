@@ -362,17 +362,15 @@ const FeeListReport = ({ onBack }) => {
         const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
 
         // Previous Balance (P.Bal):
-        // ALWAYS prefer the arrears snapshot billed on this voucher so arrears stay attributed to their
-        // billed month even after the voucher is paid. Fall back to live ledger only when no snapshot exists.
+        // Add back any arrears already collected through this voucher so displayed arrears remain stable,
+        // but ensure stale snapshot is capped by actual live outstanding debt from prior months.
         let previousBalance = 0;
+        const liveArrears = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
         if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
-          previousBalance = parseFloat(arrearsFee.finalAmount || 0);
-        } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
-          previousBalance = parseFloat(arrearsFee.baseAmount || 0);
+          const snapshotAmount = parseFloat(arrearsFee.finalAmount || arrearsFee.baseAmount || 0);
+          previousBalance = Math.min(snapshotAmount, liveArrears);
         } else {
-          // No snapshot: use live ledger. Add back any arrears already collected through this voucher
-          // so the displayed arrears remain stable regardless of payment state.
-          previousBalance = Math.max(0, Math.round((outstandingPrev + arrearsPaymentsOnVoucher) * 100) / 100);
+          previousBalance = liveArrears;
         }
 
         // Compute paidArrearsOnThisVoucher using the same voucher-number-based approach as

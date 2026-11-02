@@ -548,6 +548,7 @@ const FeeManagement = () => {
   const [reconciliationStudents, setReconciliationStudents] = useState([]);
   const [searchingReconciliationStudents, setSearchingReconciliationStudents] = useState(false);
   const [selectedReconciliationStudent, setSelectedReconciliationStudent] = useState(null);
+  const [selectedReconcileFeeIds, setSelectedReconcileFeeIds] = useState([]);
   const [reconciling, setReconciling] = useState(false);
 
   // Institutions
@@ -1233,16 +1234,16 @@ const FeeManagement = () => {
         });
 
         // Previous Balance (P.Bal / Arrears):
-        // When a voucher is paid or partially paid, the arrears billed on that voucher must remain visible and not be wiped out.
-        // 1. Prefer explicit snapshot on the voucher (arrearsRecordOnVoucher.finalAmount or arrearsRecordOnVoucher.baseAmount)
-        // 2. Or (outstandingPrevArrears + paidArrearsOnThisVoucher) so that paid arrears do NOT reduce the displayed arrears on this voucher
+        // Dynamic unpaid arrears calculation from previous billing periods
+        // Add back any arrears already collected through THIS voucher so displayed arrears stay stable for this voucher,
+        // but if prior periods are fully paid (outstandingPrevArrears === 0), do not force a stale snapshot from an unpaid future voucher!
         let previousBalance = 0;
+        const liveArrears = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
         if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.finalAmount || 0) > 0) {
-          previousBalance = parseFloat(arrearsRecordOnVoucher.finalAmount || 0);
-        } else if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.baseAmount || 0) > 0) {
-          previousBalance = parseFloat(arrearsRecordOnVoucher.baseAmount || 0);
+          const snapshotAmount = parseFloat(arrearsRecordOnVoucher.finalAmount || arrearsRecordOnVoucher.baseAmount || 0);
+          previousBalance = Math.min(snapshotAmount, liveArrears);
         } else {
-          previousBalance = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
+          previousBalance = liveArrears;
         }
 
         const regularPaid = feesWithVoucher.reduce((sum, f) => {
@@ -3119,6 +3120,7 @@ const FeeManagement = () => {
     setReconciliationDialogOpen(false);
     setSelectedSuspenseEntry(null);
     setSelectedReconciliationStudent(null);
+    setSelectedReconcileFeeIds([]);
     setReconciliationStudents([]);
     setOutstandingFees([]);
     setReconciliationCampus('');
@@ -3129,14 +3131,30 @@ const FeeManagement = () => {
     });
   };
 
-  const handleReconcile = async (studentId, studentFeeId) => {
+  const handleReconcile = async (studentId, studentFeeIdsToPay = null) => {
     try {
       setReconciling(true);
       const targetCampus = reconciliationCampus || selectedReconciliationStudent?.studentId?.institution || getInstitutionId();
+      
+      let feeIds = [];
+      if (Array.isArray(studentFeeIdsToPay)) {
+        feeIds = studentFeeIdsToPay;
+      } else if (typeof studentFeeIdsToPay === 'string') {
+        feeIds = [studentFeeIdsToPay];
+      } else if (selectedReconcileFeeIds.length > 0) {
+        feeIds = selectedReconcileFeeIds;
+      }
+
+      if (feeIds.length === 0) {
+        notifyError('Please select at least one fee/month to reconcile');
+        setReconciling(false);
+        return;
+      }
+
       const payload = {
         suspenseEntryId: selectedSuspenseEntry._id,
         studentId,
-        studentFeeId,
+        studentFeeIds: feeIds,
         remarks: 'Reconciled from Suspense Dialog',
         institution: targetCampus
       };
@@ -3152,7 +3170,7 @@ const FeeManagement = () => {
       if (remainingBalance > 0) {
         // Keep modal open, update remaining total
         setSelectedSuspenseEntry(prev => ({ ...prev, amount: remainingBalance }));
-        
+        setSelectedReconcileFeeIds([]);
         // Refresh outstanding fees so the applied fee disappears from the modal list
         await fetchOutstandingFees(studentId, null, targetCampus);
       } else {
@@ -9313,6 +9331,7 @@ const FeeManagement = () => {
                             variant="outlined"
                             onClick={() => {
                               setSelectedReconciliationStudent(s);
+                              setSelectedReconcileFeeIds([]);
                               const studentId = s.studentId?._id || s.studentId;
                               if (studentId) fetchOutstandingFees(studentId, null, reconciliationCampus);
                             }}
@@ -9342,10 +9361,30 @@ const FeeManagement = () => {
                     Change Student
                   </Button>
                 </Box>
-                <TableContainer sx={{ maxHeight: 300 }}>
+                <TableContainer sx={{ maxHeight: 320 }}>
                   <Table size="small">
                     <TableHead sx={{ bgcolor: '#f8f9fa' }}>
                       <TableRow>
+                        <TableCell padding="checkbox">
+                          <Checkbox
+                            size="small"
+                            indeterminate={
+                              selectedReconcileFeeIds.length > 0 &&
+                              selectedReconcileFeeIds.length < outstandingFees.length
+                            }
+                            checked={
+                              outstandingFees.length > 0 &&
+                              selectedReconcileFeeIds.length === outstandingFees.length
+                            }
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedReconcileFeeIds(outstandingFees.map(f => f._id));
+                              } else {
+                                setSelectedReconcileFeeIds([]);
+                              }
+                            }}
+                          />
+                        </TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Voucher #</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Fee Head</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>Month</TableCell>
@@ -9355,18 +9394,32 @@ const FeeManagement = () => {
                     </TableHead>
                     <TableBody>
                       {loadingOutstandingFees ? (
-                        <TableRow><TableCell colSpan={5} align="center"><CircularProgress /></TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} align="center"><CircularProgress /></TableCell></TableRow>
                       ) : outstandingFees.length === 0 ? (
-                        <TableRow><TableCell colSpan={5} align="center">No outstanding fees found for this student</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={6} align="center">No outstanding fees found for this student</TableCell></TableRow>
                       ) : (
                         outstandingFees.map((fee) => {
                           const voucher = fee.vouchers && fee.vouchers.length > 0 ? fee.vouchers[0] : null;
                           const monthDisplay = voucher 
                             ? formatMonthYear(voucher.month, voucher.year) 
                             : (fee.month && fee.year ? formatMonthYear(fee.month, fee.year) : '-');
+                          const isChecked = selectedReconcileFeeIds.includes(fee._id);
 
                           return (
-                            <TableRow key={fee._id}>
+                            <TableRow key={fee._id} hover selected={isChecked}>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  size="small"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setSelectedReconcileFeeIds(prev =>
+                                      prev.includes(fee._id)
+                                        ? prev.filter(id => id !== fee._id)
+                                        : [...prev, fee._id]
+                                    );
+                                  }}
+                                />
+                              </TableCell>
                               <TableCell>{fee.vouchers?.[0]?.voucherNumber || '-'}</TableCell>
                               <TableCell>{fee.feeHead?.name || '-'}</TableCell>
                               <TableCell>{monthDisplay}</TableCell>
@@ -9376,7 +9429,7 @@ const FeeManagement = () => {
                                   variant="contained" 
                                   color="success" 
                                   size="small"
-                                  onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, fee._id)}
+                                  onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, [fee._id])}
                                   disabled={reconciling}
                                 >
                                   {reconciling ? <CircularProgress size={16} color="inherit" /> : 'Apply Fund'}
@@ -9389,6 +9442,28 @@ const FeeManagement = () => {
                     </TableBody>
                   </Table>
                 </TableContainer>
+
+                {outstandingFees.length > 0 && (
+                  <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center', p: 1.5, bgcolor: '#f8f9fa', borderRadius: 1, border: '1px solid #e0e0e0' }}>
+                    <Typography variant="body2" color="text.secondary">
+                      {selectedReconcileFeeIds.length > 0 ? (
+                        <>Selected: <strong>{selectedReconcileFeeIds.length}</strong> fee item(s) (Selected Total: Rs. {outstandingFees.filter(f => selectedReconcileFeeIds.includes(f._id)).reduce((sum, f) => sum + Math.max(0, (f.finalAmount || 0) - (f.paidAmount || 0)), 0).toLocaleString()})</>
+                      ) : (
+                        <>Select months/fees using checkboxes to reconcile together under the latest voucher.</>
+                      )}
+                    </Typography>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      size="small"
+                      disabled={selectedReconcileFeeIds.length === 0 || reconciling}
+                      onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, selectedReconcileFeeIds)}
+                      sx={{ bgcolor: '#4f46e5', '&:hover': { bgcolor: '#4338ca' } }}
+                    >
+                      {reconciling ? <CircularProgress size={16} color="inherit" /> : `Reconcile Selected (${selectedReconcileFeeIds.length})`}
+                    </Button>
+                  </Box>
+                )}
               </Box>
             )}
           </DialogContent>

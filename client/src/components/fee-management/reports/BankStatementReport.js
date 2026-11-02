@@ -322,24 +322,36 @@ const BankStatementReport = ({ onBack }) => {
             ? `VCH__${p.voucherNumber}__${studentName}`
             : p._id;
 
-        // Get fee month from studentFee.vouchers
+        // Get fee month and sortable date value from studentFee.vouchers or payment
         let feeMonth = '';
+        let monthSortVal = 0;
         if (p.studentFee && p.studentFee.vouchers && p.studentFee.vouchers.length > 0) {
           const v = p.studentFee.vouchers[0];
           if (v && v.month && v.year) {
             feeMonth = new Date(v.year, v.month - 1, 1).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' });
+            monthSortVal = Number(v.year) * 100 + Number(v.month);
           }
+        }
+        if (!feeMonth && p.feeMonth && p.feeMonth !== 'N/A') {
+          feeMonth = p.feeMonth;
         }
 
         if (txnMap[groupKey]) {
           txnMap[groupKey].amount += p.amount;
-          // Keep the earliest feeMonth if we have multiple fee heads
-          if (!txnMap[groupKey].feeMonth && feeMonth) {
+          // When consolidating multiple months/heads into one transaction, prefer the latest fee month
+          if (monthSortVal > (txnMap[groupKey]._monthSortVal || 0)) {
             txnMap[groupKey].feeMonth = feeMonth;
+            txnMap[groupKey]._monthSortVal = monthSortVal;
+          } else if (!txnMap[groupKey].feeMonth && feeMonth) {
+            txnMap[groupKey].feeMonth = feeMonth;
+          }
+          if (p.voucherNumber && (!txnMap[groupKey].voucherNumber || txnMap[groupKey].voucherNumber === '-')) {
+            txnMap[groupKey].voucherNumber = p.voucherNumber;
           }
         } else {
           txnMap[groupKey] = {
             _id: p._id,
+            _monthSortVal: monthSortVal,
             date: p.paymentDate || p.createdAt,
             amount: p.amount,
             transactionId: p.transactionId || '-',
