@@ -686,6 +686,43 @@ const FinanceDashboard = () => {
     XLSX.writeFile(wb, `All_Campus_Receivable_Report_${fileSuffix}.xlsx`);
   };
 
+  const getBankShortName = (name) => {
+    if (!name) return '';
+    const clean = name.trim().toUpperCase();
+    if (clean.includes('MEEZAN')) return 'MBL';
+    if (clean.includes('HABIB') || clean.includes('HBL')) return 'HBL';
+    if (clean.includes('UNITED') || clean.includes('UBL')) return 'UBL';
+    if (clean.includes('NATIONAL') || clean.includes('NBP')) return 'NBP';
+    if (clean.includes('ALLIED') || clean.includes('ABL')) return 'ABL';
+    if (clean.includes('ASKARI') || clean.includes('AKBL')) return 'AKBL';
+    if (clean.includes('ALFALAH') || clean.includes('BAFL')) return 'BAFL';
+    if (clean.includes('FAYSAL') || clean.includes('FBL')) return 'FBL';
+    if (clean.includes('PUNJAB') || clean.includes('BOP')) return 'BOP';
+    if (clean.includes('MCB')) return 'MCB';
+    if (clean.includes('JS BANK') || clean.includes('JSB')) return 'JSB';
+    if (clean.includes('DUBAI') || clean.includes('DIB')) return 'DIB';
+    if (clean.includes('STANDARD') || clean.includes('SCB')) return 'SCB';
+    if (clean.includes('SONERI')) return 'SBL';
+    if (clean.includes('ISLAMI')) return 'BIPL';
+
+    const words = clean.split(/\s+/);
+    if (words.length > 1) {
+      return words.map(w => w[0]).join('');
+    }
+    return clean.substring(0, 4);
+  };
+
+  const formatBankWithLast3 = (bankName, accountNumber) => {
+    const shortName = getBankShortName(bankName);
+    const accNum = accountNumber && accountNumber !== 'N/A' ? String(accountNumber).trim() : '';
+    const last3 = accNum.length >= 3 ? accNum.slice(-3) : accNum;
+
+    if (shortName && last3) {
+      return `${shortName}-${last3}`;
+    }
+    return shortName || last3 || bankName || '-';
+  };
+
   const handlePrintFinancialReport = () => {
     window.print();
   };
@@ -734,7 +771,7 @@ const FinanceDashboard = () => {
       groupRows.forEach(r => {
         const row = [
           r.sNo,
-          r.bankName,
+          formatBankWithLast3(r.bankName, r.accountNumber),
           ...campuses.flatMap(c => {
             const val = r.campusAmounts?.[c._id];
             return [
@@ -2223,7 +2260,7 @@ const FinanceDashboard = () => {
                                             {row.sNo}
                                           </td>
                                           <td style={{ border: '1px solid #1e293b', padding: '9px 14px', fontWeight: 700, color: '#000000', textAlign: 'left' }}>
-                                            {row.bankName}
+                                            {formatBankWithLast3(row.bankName, row.accountNumber)}
                                           </td>
                                           {bankReportData.campuses.map(campus => {
                                             const campData = row.campusAmounts?.[campus._id];

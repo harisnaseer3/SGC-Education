@@ -442,26 +442,14 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         institution: { $in: selectedInstitutionIds },
         status: 'completed'
       };
-      const dateConds = [];
-      if (parsedPaymentStartDate && parsedPaymentEndDate) {
-        dateConds.push(
-          { paymentDate: { $gte: parsedPaymentStartDate, $lte: parsedPaymentEndDate } },
-          { createdAt: { $gte: parsedPaymentStartDate, $lte: parsedPaymentEndDate } }
-        );
-      } else if (parsedPaymentStartDate) {
-        dateConds.push(
-          { paymentDate: { $gte: parsedPaymentStartDate } },
-          { createdAt: { $gte: parsedPaymentStartDate } }
-        );
-      } else if (parsedPaymentEndDate) {
-        dateConds.push(
-          { paymentDate: { $lte: parsedPaymentEndDate } },
-          { createdAt: { $lte: parsedPaymentEndDate } }
-        );
+      const paymentDateCond = {};
+      if (parsedPaymentStartDate) {
+        paymentDateCond.$gte = parsedPaymentStartDate;
       }
-      if (dateConds.length > 0) {
-        paymentDateMatch.$or = dateConds;
+      if (parsedPaymentEndDate) {
+        paymentDateCond.$lte = parsedPaymentEndDate;
       }
+      paymentDateMatch.paymentDate = paymentDateCond;
 
       const pipeline = [{ $match: paymentDateMatch }];
 
@@ -1249,42 +1237,22 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     institution: { $in: institutionIds },
     status: 'completed'
   };
-  if (parsedStartDate && parsedEndDate) {
-    paymentQuery.$or = [
-      { paymentDate: { $gte: parsedStartDate, $lte: parsedEndDate } },
-      { createdAt: { $gte: parsedStartDate, $lte: parsedEndDate } }
-    ];
-  } else if (parsedStartDate) {
-    paymentQuery.$or = [
-      { paymentDate: { $gte: parsedStartDate } },
-      { createdAt: { $gte: parsedStartDate } }
-    ];
-  } else if (parsedEndDate) {
-    paymentQuery.$or = [
-      { paymentDate: { $lte: parsedEndDate } },
-      { createdAt: { $lte: parsedEndDate } }
-    ];
+  if (parsedStartDate || parsedEndDate) {
+    const pDateCond = {};
+    if (parsedStartDate) pDateCond.$gte = parsedStartDate;
+    if (parsedEndDate) pDateCond.$lte = parsedEndDate;
+    paymentQuery.paymentDate = pDateCond;
   }
 
   const suspenseQuery = {
     institution: { $in: institutionIds },
     status: { $in: ['unidentified', 'reconciled'] }
   };
-  if (parsedStartDate && parsedEndDate) {
-    suspenseQuery.$or = [
-      { paymentDate: { $gte: parsedStartDate, $lte: parsedEndDate } },
-      { createdAt: { $gte: parsedStartDate, $lte: parsedEndDate } }
-    ];
-  } else if (parsedStartDate) {
-    suspenseQuery.$or = [
-      { paymentDate: { $gte: parsedStartDate } },
-      { createdAt: { $gte: parsedStartDate } }
-    ];
-  } else if (parsedEndDate) {
-    suspenseQuery.$or = [
-      { paymentDate: { $lte: parsedEndDate } },
-      { createdAt: { $lte: parsedEndDate } }
-    ];
+  if (parsedStartDate || parsedEndDate) {
+    const sDateCond = {};
+    if (parsedStartDate) sDateCond.$gte = parsedStartDate;
+    if (parsedEndDate) sDateCond.$lte = parsedEndDate;
+    suspenseQuery.paymentDate = sDateCond;
   }
 
   const reconQuery = {
