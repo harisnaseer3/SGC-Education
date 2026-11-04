@@ -29,13 +29,30 @@ const activeStudentLookupStages = [
   { $match: { 'studentDoc.isActive': { $ne: false } } }
 ];
 
-// Helper: compute dynamic voucher stats matching FeeManagement page logic
+// Helper: compute dynamic voucher stats matching FeeManagement Print Voucher logic exactly
 const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
-  // Fetch all student fees for the query, populated with feeHead and student
-  const allStudentFees = await StudentFee.find(matchQuery)
-    .populate({ path: 'feeHead', select: 'name' })
-    .populate({ path: 'student', select: '_id isActive' })
-    .lean();
+  // Query all student fees and completed payments for the matched institutions
+  const [allStudentFees, allPayments] = await Promise.all([
+    StudentFee.find(matchQuery)
+      .populate({ path: 'feeHead', select: 'name' })
+      .populate({ path: 'student', select: '_id isActive' })
+      .lean(),
+    FeePayment.find({
+      ...(matchQuery.institution ? { institution: matchQuery.institution } : {}),
+      status: { $in: ['completed', 'success'] }
+    }).select('voucherNumber amount studentFee status').lean()
+  ]);
+
+  // Index payments by voucherNumber (clean trailing number)
+  const paymentsByVoucher = new Map();
+  allPayments.forEach(p => {
+    if (p.voucherNumber && p.voucherNumber.toString().trim()) {
+      let vNo = p.voucherNumber.toString().trim();
+      if (vNo.includes('-')) vNo = vNo.split('-').pop();
+      if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
+      paymentsByVoucher.get(vNo).push(p);
+    }
+  });
 
   // Filter out fees of inactive students
   const activeStudentFees = allStudentFees.filter(sf => sf.student && sf.student.isActive !== false);
@@ -86,8 +103,17 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
         sf.vouchers && sf.vouchers.some(v => v && Number(v.month) === month && Number(v.year) === year)
       );
 
-      const arrearsFee = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
-      const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
+      // Extract voucher number for this student/month/year
+      let voucherNumber = 'N/A';
+      for (const sf of feesWithVoucher) {
+        const v = (sf.vouchers || []).find(v => v && Number(v.month) === month && Number(v.year) === year && v.voucherNumber);
+        if (v && v.voucherNumber) {
+          let vNo = v.voucherNumber.toString().trim();
+          if (vNo.includes('-')) vNo = vNo.split('-').pop();
+          voucherNumber = vNo;
+          break;
+        }
+      }
 
       let voucherAmount = 0;
       let regularPaid = 0;
@@ -128,27 +154,38 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null) => {
 
       const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
+      // Match Print Voucher logic: sum payments made under THIS voucher number for previous fees
+      const voucherPayments = voucherNumber !== 'N/A' ? (paymentsByVoucher.get(voucherNumber) || []) : [];
+      const paidArrearsViaVoucherNumber = voucherPayments.reduce((sum, p) => {
+        const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+        const isCurrentFee = feesWithVoucher.some(f => f._id?.toString() === sfId && f.feeHead?.name?.toLowerCase() !== 'arrears');
+        if (!isCurrentFee) {
+          return sum + parseFloat(p.amount || 0);
+        }
+        return sum;
+      }, 0);
+
+      const arrearsFee = feesWithVoucher.find(sf => sf.feeHead?.name?.toLowerCase() === 'arrears');
+      const arrearsPaymentsOnVoucher = arrearsFee ? parseFloat(arrearsFee.paidAmount || 0) : 0;
+      const paidArrearsOnThisVoucher = Math.max(paidArrearsViaVoucherNumber, arrearsPaymentsOnVoucher);
+
       // Previous Balance (P.Bal):
-      // Prefer the arrears snapshot billed on the voucher (matches Print Voucher & Reports logic).
-      // Fall back to the live ledger (outstandingPrevArrears + arrearsPaymentsOnVoucher) only when there
-      // is no snapshot — this ensures paid arrears remain attributed to the voucher they were billed on.
+      // Exact Print Voucher calculation: live arrears capped by snapshot if present
       let previousBalance = 0;
+      const liveArrears = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
       if (arrearsFee && parseFloat(arrearsFee.finalAmount || 0) > 0) {
-        previousBalance = parseFloat(arrearsFee.finalAmount || 0);
-      } else if (arrearsFee && parseFloat(arrearsFee.baseAmount || 0) > 0) {
-        previousBalance = parseFloat(arrearsFee.baseAmount || 0);
-      } else if (outstandingPrevArrears > 0 || (totalBilledPrev > 0 || totalPaidPrev > 0)) {
-        previousBalance = Math.max(0, Math.round((outstandingPrevArrears + arrearsPaymentsOnVoucher) * 100) / 100);
+        const snapshotAmount = parseFloat(arrearsFee.finalAmount || arrearsFee.baseAmount || 0);
+        previousBalance = Math.min(snapshotAmount, liveArrears);
       } else {
-        previousBalance = outstandingPrevArrears;
+        previousBalance = liveArrears;
       }
 
       // Current remaining arrears after payments on this voucher
-      const currentRemainingArrears = Math.max(0, Math.round((previousBalance - arrearsPaymentsOnVoucher) * 100) / 100);
+      const currentRemainingArrears = Math.max(0, Math.round((previousBalance - paidArrearsOnThisVoucher) * 100) / 100);
 
       const displayedBilled = voucherAmount + previousBalance;
-      const totalPaidForVoucher = regularPaid + arrearsPaymentsOnVoucher;
-      const displayedRemaining = Math.max(0, displayedBilled - totalPaidForVoucher);
+      const totalPaidForVoucher = regularPaid + paidArrearsOnThisVoucher;
+      const displayedRemaining = Math.max(0, Math.round((displayedBilled - totalPaidForVoucher) * 100) / 100);
 
       // Determine status
       let voucherStatus = 'unpaid';
