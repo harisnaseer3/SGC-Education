@@ -3037,8 +3037,13 @@ class FeeService {
       updatedVouchersCount = vResult.modifiedCount || 0;
     }
 
-    // Update StudentFee records
-    const studentFeeFilter = { isActive: true };
+    // Update StudentFee records (both active records and history records that hold vouchers)
+    const studentFeeFilter = {
+      $or: [
+        { isActive: true },
+        { vouchers: { $exists: true, $not: { $size: 0 } } }
+      ]
+    };
     if (institutionId) {
       studentFeeFilter.institution = institutionId;
     }
