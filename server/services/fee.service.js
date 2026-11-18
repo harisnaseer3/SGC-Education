@@ -3009,6 +3009,16 @@ class FeeService {
       throw new ApiError(400, 'Invalid Generated Date');
     }
 
+    // Prepare regex/exact matching for voucher numbers if provided (accounting for prefixes like VCH-YYYY-MM-XXXXX)
+    let voucherRegexes = null;
+    if (voucherNumbers && Array.isArray(voucherNumbers) && voucherNumbers.length > 0) {
+      voucherRegexes = voucherNumbers.map(v => {
+        const clean = v.toString().trim();
+        const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        return new RegExp(`(^|-)${escaped}$`, 'i');
+      });
+    }
+
     // Build filter for FeeVoucher records
     const voucherFilter = {};
     if (institutionId) {
@@ -3019,8 +3029,8 @@ class FeeService {
       voucherFilter.year = Number(year);
     }
 
-    if (voucherNumbers && Array.isArray(voucherNumbers) && voucherNumbers.length > 0) {
-      voucherFilter.voucherNumber = { $in: voucherNumbers.map(v => v.toString().trim()) };
+    if (voucherRegexes) {
+      voucherFilter.voucherNumber = { $in: voucherRegexes };
     } else if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
       voucherFilter.student = { $in: studentIds };
     }
@@ -3048,19 +3058,10 @@ class FeeService {
       studentFeeFilter.institution = institutionId;
     }
 
-    // Prepare regex/exact matching for voucher numbers if provided (accounting for prefixes like VCH-YYYY-MM-XXXXX)
-    let voucherRegexes = null;
-    if (voucherNumbers && Array.isArray(voucherNumbers) && voucherNumbers.length > 0) {
-      voucherRegexes = voucherNumbers.map(v => {
-        const clean = v.toString().trim();
-        const escaped = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        return new RegExp(`(^|-)${escaped}$`, 'i');
-      });
-    }
-
     if (studentIds && Array.isArray(studentIds) && studentIds.length > 0) {
       studentFeeFilter.student = { $in: studentIds };
-    } else if (voucherRegexes) {
+    }
+    if (voucherRegexes) {
       studentFeeFilter['vouchers.voucherNumber'] = { $in: voucherRegexes };
     } else if (month && year) {
       studentFeeFilter['vouchers'] = {
