@@ -304,18 +304,12 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null, paymentRa
       }
       monthlyMap.get(key).vouchers.push(voucherData);
 
-      // In payment range mode, match Print Voucher filter: only include vouchers with paymentDate inside range
+      // In payment range mode, include ALL vouchers so Grand Total (Receivable) is complete.
+      // The received amount is already filtered to range payments via displayedPaidAmount above.
+      // This ensures: Receivable = full billed amount, Received = range payments, Balance = Receivable - Received.
       if (isPaymentRangeMode) {
-        if (displayedPaymentDate) {
-          const pd = new Date(displayedPaymentDate);
-          const payDay = toLocalDay(pd);
-          const inRange = (!paymentRange.startDate || payDay >= paymentRange.startDate) &&
-                          (!paymentRange.endDate || payDay <= paymentRange.endDate);
-          if (inRange) {
-            rangeVouchersList.push(voucherData);
-            rangeStudentIds.add(studentId);
-          }
-        }
+        rangeVouchersList.push(voucherData);
+        rangeStudentIds.add(studentId);
       }
     });
   });
@@ -693,9 +687,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       }
       const instOutstanding = Math.max(0, totalBilled - instCollected);
       const currentVouchers = Math.max(0, totalBilled - totalArrears);
-      const displayedStudentCount = (paymentRangeObj && instFinStats.total !== undefined)
-        ? (instFinStats.total || 0)
-        : activeStudentsCount;
+      // In payment range mode, instFinStats.total covers all-time students (too broad).
+      // Always use activeStudentsCount for the student column so it shows enrolled students.
+      const displayedStudentCount = activeStudentsCount;
 
       return {
         _id: instId,
