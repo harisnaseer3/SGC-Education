@@ -218,6 +218,17 @@ const FeeManagement = () => {
   });
   const [changeMonthlyFeeDialog, setChangeMonthlyFeeDialog] = useState(false);
   const [bankAccounts, setBankAccounts] = useState([]);
+
+  // Returns the preferred default bank account: skip any account whose name
+  // contains "(main)" (case-insensitive) so that the plain "Bank Islami"
+  // account is selected by default rather than "Bank Islami (Main)".
+  const getDefaultBankAccount = (accounts) => {
+    if (!accounts || accounts.length === 0) return null;
+    const preferred = accounts.find(
+      b => !b.bankName || !/\(main\)/i.test(b.bankName)
+    );
+    return preferred || accounts[0];
+  };
   const [changeMonthlyFeeForm, setChangeMonthlyFeeForm] = useState({
     operation: 'update',
     feeHead: '',
@@ -630,10 +641,11 @@ const FeeManagement = () => {
       const accounts = response.data.data || [];
       setBankAccounts(accounts);
       if (accounts.length > 0) {
+        const defaultBank = getDefaultBankAccount(accounts);
         setManualDepositForm(prev => ({
           ...prev,
-          bankAccount: prev.bankAccount || accounts[0]._id,
-          bankName: prev.bankName || accounts[0].bankName || ''
+          bankAccount: prev.bankAccount || defaultBank._id,
+          bankName: prev.bankName || defaultBank.bankName || ''
         }));
       }
     } catch (err) {
@@ -647,10 +659,11 @@ const FeeManagement = () => {
 
   useEffect(() => {
     if (bankAccounts.length > 0 && !manualDepositForm.bankAccount) {
+      const defaultBank = getDefaultBankAccount(bankAccounts);
       setManualDepositForm(prev => ({
         ...prev,
-        bankAccount: bankAccounts[0]._id,
-        bankName: bankAccounts[0].bankName || ''
+        bankAccount: defaultBank._id,
+        bankName: defaultBank.bankName || ''
       }));
     }
   }, [bankAccounts, manualDepositForm.bankAccount]);
@@ -2786,7 +2799,7 @@ const FeeManagement = () => {
       notifySuccess(`Successfully recorded payment(s) totaling Rs. ${totalPayment.toLocaleString()}`);
       
       // Reset form
-      const defaultBank = bankAccounts.length > 0 ? bankAccounts[0] : null;
+      const defaultBank = getDefaultBankAccount(bankAccounts);
       setManualDepositForm({
         paymentMethod: 'bank',
         bankAccount: defaultBank ? defaultBank._id : '',
