@@ -49,10 +49,12 @@ const DateRangeVouchersReport = ({ onBack }) => {
 
   // Filters
   const [filters, setFilters] = useState({
-    filterMode: 'month', // default: 'month'
+    filterMode: 'month', // 'month', 'dateRange' (voucher generated date), 'paymentRange' (all paid vouchers in range)
     monthYear: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
     startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10),
     endDate: new Date().toISOString().slice(0, 10),
+    paymentStartDate: '',
+    paymentEndDate: '',
     statusFilter: 'all', // 'all', 'paid', 'unpaid'
     classId: 'all',
     searchTerm: ''
@@ -137,9 +139,22 @@ const DateRangeVouchersReport = ({ onBack }) => {
         notifyError('Start Date cannot be greater than End Date');
         return;
       }
-    } else {
+    } else if (filters.filterMode === 'month') {
       if (!filters.monthYear) {
         notifyError('Please select Fee Month & Year');
+        return;
+      }
+      if (filters.paymentStartDate && filters.paymentEndDate && filters.paymentStartDate > filters.paymentEndDate) {
+        notifyError('Payment Start Date cannot be greater than Payment End Date');
+        return;
+      }
+    } else if (filters.filterMode === 'paymentRange') {
+      if (!filters.paymentStartDate || !filters.paymentEndDate) {
+        notifyError('Please select both Payment Start Date and Payment End Date');
+        return;
+      }
+      if (filters.paymentStartDate > filters.paymentEndDate) {
+        notifyError('Payment Start Date cannot be greater than Payment End Date');
         return;
       }
     }
@@ -158,9 +173,40 @@ const DateRangeVouchersReport = ({ onBack }) => {
       const allStudentFees = feesRes.data.data || [];
       const allPayments = paymentsRes.data.data || [];
 
-      // 1. Group completed payments by voucher number & student
+      // Helper for calendar day string comparison (YYYY-MM-DD)
+      const toLocalDay = (d) => {
+        if (!d) return null;
+        const dateObj = new Date(d);
+        if (isNaN(dateObj.getTime())) return null;
+        return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`;
+      };
+
+      const payStartFilter = filters.filterMode === 'paymentRange' ? filters.paymentStartDate : (filters.filterMode === 'month' ? filters.paymentStartDate : '');
+      const payEndFilter = filters.filterMode === 'paymentRange' ? filters.paymentEndDate : (filters.filterMode === 'month' ? filters.paymentEndDate : '');
+      const hasPaymentDateFilter = !!(payStartFilter || payEndFilter);
+
+      const isPaymentInRange = (p) => {
+        if (!p.paymentDate) return false;
+        const pDay = toLocalDay(p.paymentDate);
+        if (!pDay) return false;
+        if (payStartFilter && pDay < payStartFilter) return false;
+        if (payEndFilter && pDay > payEndFilter) return false;
+        return true;
+      };
+
+      // The "home" voucher of a fee line = its earliest voucher (used for payments recorded without a voucher number)
+      const getHomeVoucherNumber = (sf) => {
+        const vs = (sf.vouchers || []).filter(v => v && v.voucherNumber);
+        if (vs.length === 0) return null;
+        vs.sort((a, b) => (Number(a.year) - Number(b.year)) || (Number(a.month) - Number(b.month)));
+        const vNo = vs[0].voucherNumber.toString().trim();
+        return vNo.includes('-') ? vNo.split('-').pop() : vNo;
+      };
+
+      // 1. Group completed payments by voucher number, student, and fee
       const paymentsByVoucher = new Map();
       const paymentsByStudent = new Map();
+      const unvoucheredPaymentsByFee = new Map();
       const completedPayments = allPayments.filter(p => p.status === 'completed' || p.status === 'success');
 
       completedPayments.forEach(p => {
@@ -168,6 +214,12 @@ const DateRangeVouchersReport = ({ onBack }) => {
         if (vNo) {
           if (!paymentsByVoucher.has(vNo)) paymentsByVoucher.set(vNo, []);
           paymentsByVoucher.get(vNo).push(p);
+        } else {
+          const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
+          if (sfId) {
+            if (!unvoucheredPaymentsByFee.has(sfId)) unvoucheredPaymentsByFee.set(sfId, []);
+            unvoucheredPaymentsByFee.get(sfId).push(p);
+          }
         }
         const sId = p.student?._id?.toString() || (typeof p.student === 'string' ? p.student : null);
         if (sId) {
@@ -234,15 +286,37 @@ const DateRangeVouchersReport = ({ onBack }) => {
       voucherRecordsMap.forEach(vGroup => {
         const { student, studentId, voucherNumber, rawVoucherNumber, month, year, generatedAt, dueDate, feeLines } = vGroup;
 
+        // Collect all payments associated with this voucher
+        const voucherPayments = voucherNumber !== 'N/A' ? (paymentsByVoucher.get(voucherNumber) || []) : [];
+        
+        // Also include payments without voucher number that belong to this fee line's home voucher
+        if (voucherNumber !== 'N/A') {
+          feeLines.forEach(f => {
+            if (getHomeVoucherNumber(f) !== voucherNumber) return;
+            const unv = unvoucheredPaymentsByFee.get(f._id?.toString()) || [];
+            unv.forEach(p => {
+              if (!voucherPayments.some(existing => existing._id?.toString() === p._id?.toString())) {
+                voucherPayments.push(p);
+              }
+            });
+          });
+        }
+
+        // Filter payments by payment date range if applied
+        const rangePayments = hasPaymentDateFilter ? voucherPayments.filter(isPaymentInRange) : voucherPayments;
+
         // Check inclusion filter:
-        // In dateRange mode: voucher generatedAt between startDate and endDate
-        // In month mode: voucher month === targetMonth and year === targetYear
+        // - 'dateRange': voucher generatedAt between startDate and endDate
+        // - 'month': voucher month === targetMonth and year === targetYear (matching Print Voucher page!)
+        // - 'paymentRange': all vouchers that received payment within the selected payment date range
         let includeInReport = false;
         if (filters.filterMode === 'dateRange') {
           const generatedDayStr = toLocalDateString(generatedAt);
           includeInReport = generatedDayStr && (generatedDayStr >= startDateFilter && generatedDayStr <= endDateFilter);
-        } else {
+        } else if (filters.filterMode === 'month') {
           includeInReport = Number(month) === Number(targetMonth) && Number(year) === Number(targetYear);
+        } else if (filters.filterMode === 'paymentRange') {
+          includeInReport = rangePayments.length > 0;
         }
 
         if (!includeInReport) return;
@@ -276,10 +350,6 @@ const DateRangeVouchersReport = ({ onBack }) => {
 
         const outstandingPrevArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
-        // Payments specifically for this voucher number
-        const voucherPayments = voucherNumber !== 'N/A' ? (paymentsByVoucher.get(voucherNumber) || []) : [];
-        const feeLineIds = new Set(feeLines.map(f => f._id?.toString()));
-
         // Paid Arrears via voucher number: payments recorded against older fee lines under this voucher number
         const paidArrearsViaVoucherNumber = voucherPayments.reduce((sum, p) => {
           const sfId = p.studentFee?._id?.toString() || p.studentFee?.toString();
@@ -297,12 +367,9 @@ const DateRangeVouchersReport = ({ onBack }) => {
 
         // Previous Balance (P.Bal / Arrears):
         // Dynamic unpaid arrears calculation from previous billing periods
-        // Add back any arrears already collected through THIS voucher so displayed arrears stay stable for this voucher,
-        // but if prior periods are fully paid (outstandingPrevArrears === 0), do not force a stale snapshot from an unpaid future voucher!
         let previousBalance = 0;
         const liveArrears = Math.max(0, Math.round((outstandingPrevArrears + paidArrearsOnThisVoucher) * 100) / 100);
         if (arrearsRecordOnVoucher && parseFloat(arrearsRecordOnVoucher.finalAmount || 0) > 0) {
-          // If stored snapshot exists, ensure it is capped by live arrears if prior months got paid after voucher generation
           const snapshotAmount = parseFloat(arrearsRecordOnVoucher.finalAmount || arrearsRecordOnVoucher.baseAmount || 0);
           previousBalance = Math.min(snapshotAmount, liveArrears);
         } else {
@@ -315,16 +382,27 @@ const DateRangeVouchersReport = ({ onBack }) => {
           return sum + parseFloat(f.paidAmount || 0);
         }, 0);
 
-        // Total Paid on this voucher = regular paid + arrears paid under this voucher
+        // Total Lifetime Paid on this voucher = regular paid + arrears paid under this voucher
         const totalPaidForVoucher = regularPaid + paidArrearsOnThisVoucher;
         const totalVoucherObligation = currentMonthAmount + previousBalance;
-        const remainingAmount = Math.max(0, Math.round((totalVoucherObligation - totalPaidForVoucher) * 100) / 100);
+        const lifetimeRemaining = Math.max(0, Math.round((totalVoucherObligation - totalPaidForVoucher) * 100) / 100);
+
+        // Determine Paid Amount & Remaining Balance:
+        // When Payment Date Range is active:
+        // - displayedPaidAmount reflects the actual payments collected during that range
+        // - remainingAmount reflects the actual outstanding balance on the voucher (matching Print Voucher)
+        let displayedPaidAmount = totalPaidForVoucher;
+        if (hasPaymentDateFilter) {
+          displayedPaidAmount = Math.round(rangePayments.reduce((s, p) => s + parseFloat(p.amount || 0), 0) * 100) / 100;
+        }
+
+        const remainingAmount = lifetimeRemaining;
 
         // Determine Status
         let status = 'Unpaid';
         if (remainingAmount <= 0.01 && (totalPaidForVoucher > 0 || totalVoucherObligation === 0)) {
           status = 'Paid';
-        } else if (totalPaidForVoucher > 0) {
+        } else if (displayedPaidAmount > 0 || totalPaidForVoucher > 0) {
           status = 'Partial';
         }
 
@@ -333,7 +411,13 @@ const DateRangeVouchersReport = ({ onBack }) => {
         let paymentBanks = [];
         let transactionIds = [];
 
-        if (voucherPayments.length > 0) {
+        const paymentsForMetadata = hasPaymentDateFilter ? rangePayments : voucherPayments;
+        if (paymentsForMetadata.length > 0) {
+          const sorted = [...paymentsForMetadata].sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
+          latestPaymentDate = sorted[0].paymentDate ? new Date(sorted[0].paymentDate) : null;
+          paymentBanks = Array.from(new Set(sorted.map(p => p.bankName).filter(Boolean)));
+          transactionIds = Array.from(new Set(sorted.map(p => p.transactionId).filter(Boolean)));
+        } else if (voucherPayments.length > 0 && !hasPaymentDateFilter) {
           const sorted = [...voucherPayments].sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate));
           latestPaymentDate = sorted[0].paymentDate ? new Date(sorted[0].paymentDate) : null;
           paymentBanks = Array.from(new Set(sorted.map(p => p.bankName).filter(Boolean)));
@@ -368,7 +452,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
           currentMonthAmount,
           arrears: previousBalance,
           totalDue: totalVoucherObligation,
-          paidAmount: totalPaidForVoucher,
+          paidAmount: displayedPaidAmount,
           remainingAmount,
           status,
           bank: paymentBanks.join(', ') || '-',
@@ -505,8 +589,20 @@ const DateRangeVouchersReport = ({ onBack }) => {
     });
 
     const titleSuffix = filters.filterMode === 'dateRange' 
-      ? `${filters.startDate}_to_${filters.endDate}`
-      : filters.monthYear;
+      ? `Generated_${filters.startDate}_to_${filters.endDate}`
+      : filters.filterMode === 'paymentRange'
+        ? `Payment_${filters.paymentStartDate}_to_${filters.paymentEndDate}`
+        : filters.paymentStartDate || filters.paymentEndDate
+          ? `${filters.monthYear}_Paid_${filters.paymentStartDate || 'Start'}_to_${filters.paymentEndDate || 'End'}`
+          : filters.monthYear;
+
+    const filterCriteriaDisplay = filters.filterMode === 'dateRange'
+      ? `Generated Date: ${filters.startDate} to ${filters.endDate}`
+      : filters.filterMode === 'paymentRange'
+        ? `Payment Date Range: ${filters.paymentStartDate} to ${filters.paymentEndDate}`
+        : filters.paymentStartDate || filters.paymentEndDate
+          ? `Fee Month: ${filters.monthYear} | Paid Between: ${filters.paymentStartDate || 'Start'} to ${filters.paymentEndDate || 'End'}`
+          : `Fee Month: ${filters.monthYear}`;
 
     exportToExcelWithBoldHeaders(
       XLSX,
@@ -514,8 +610,8 @@ const DateRangeVouchersReport = ({ onBack }) => {
       'Vouchers Report',
       `Vouchers_Report_${titleSuffix}.xlsx`,
       {
-        'Filter Mode': filters.filterMode === 'dateRange' ? 'Date Range' : 'Fee Month',
-        'Filter Criteria': filters.filterMode === 'dateRange' ? `${filters.startDate} to ${filters.endDate}` : filters.monthYear,
+        'Filter Mode': filters.filterMode === 'dateRange' ? 'Voucher Generated Date' : (filters.filterMode === 'paymentRange' ? 'Payment Date Range' : 'Fee Month'),
+        'Filter Criteria': filterCriteriaDisplay,
         'Institution': institution?.name || 'SGC Education'
       }
     );
@@ -552,65 +648,118 @@ const DateRangeVouchersReport = ({ onBack }) => {
           Vouchers Report Filters
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
-          View all vouchers generated in a specific <b>Date Range</b> or <b>Fee Month</b> with exact arrears, paid amount, and remaining balance.
+          View vouchers with exact arrears, fee amounts, and bank collections matching the <b>Bank Statement Report</b> and <b>Print Voucher</b> page.
         </Typography>
 
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={2.5}>
             <TextField
               fullWidth
               size="small"
               select
-              label="Filter By"
+              label="Filter Mode"
               value={filters.filterMode}
               onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
             >
-              <MenuItem value="dateRange">Date Range</MenuItem>
-              <MenuItem value="month">Fee Month</MenuItem>
+              <MenuItem value="month">Fee Month (with Payment Dates)</MenuItem>
+              <MenuItem value="paymentRange">Payment Date Range (Bank Match)</MenuItem>
+              <MenuItem value="dateRange">Voucher Generated Date Range</MenuItem>
             </TextField>
           </Grid>
 
-          {filters.filterMode === 'dateRange' ? (
+          {filters.filterMode === 'month' && (
             <>
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   fullWidth
                   size="small"
-                  type="date"
-                  label="From Date"
-                  value={filters.startDate}
-                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  type="month"
+                  label="Fee Month & Year"
+                  value={filters.monthYear}
+                  onChange={(e) => setFilters({ ...filters, monthYear: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-
               <Grid item xs={12} sm={6} md={2}>
                 <TextField
                   fullWidth
                   size="small"
                   type="date"
-                  label="To Date"
+                  label="Payment From (Optional)"
+                  value={filters.paymentStartDate}
+                  onChange={(e) => setFilters({ ...filters, paymentStartDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={2}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Payment To (Optional)"
+                  value={filters.paymentEndDate}
+                  onChange={(e) => setFilters({ ...filters, paymentEndDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </>
+          )}
+
+          {filters.filterMode === 'paymentRange' && (
+            <>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Payment Date From"
+                  value={filters.paymentStartDate}
+                  onChange={(e) => setFilters({ ...filters, paymentStartDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Payment Date To"
+                  value={filters.paymentEndDate}
+                  onChange={(e) => setFilters({ ...filters, paymentEndDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+            </>
+          )}
+
+          {filters.filterMode === 'dateRange' && (
+            <>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Generated Date From"
+                  value={filters.startDate}
+                  onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+                  InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  type="date"
+                  label="Generated Date To"
                   value={filters.endDate}
                   onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
             </>
-          ) : (
-            <Grid item xs={12} sm={6} md={4}>
-              <TextField
-                fullWidth
-                size="small"
-                type="month"
-                label="Fee Month & Year"
-                value={filters.monthYear}
-                onChange={(e) => setFilters({ ...filters, monthYear: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
           )}
 
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={filters.filterMode === 'month' ? 1.5 : 1.75}>
             <TextField
               fullWidth
               size="small"
@@ -626,7 +775,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={filters.filterMode === 'month' ? 2 : 1.75}>
             <TextField
               fullWidth
               size="small"
@@ -641,7 +790,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
             </TextField>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={2}>
+          <Grid item xs={12} sm={6} md={filters.filterMode === 'month' ? 2 : 2.5}>
             <Button
               fullWidth
               variant="contained"
@@ -654,7 +803,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
             </Button>
           </Grid>
 
-          <Grid item xs={12} sm={6} md={4}>
+          <Grid item xs={12} sm={6} md={filters.filterMode === 'month' ? 10 : 9.5}>
             <TextField
               fullWidth
               size="small"
@@ -772,7 +921,13 @@ const DateRangeVouchersReport = ({ onBack }) => {
               {institution?.name || 'SGC Education System'}
             </Typography>
             <Typography variant="subtitle1" fontWeight="bold">
-              Vouchers Report - {filters.filterMode === 'dateRange' ? `${formatDate(filters.startDate)} to ${formatDate(filters.endDate)}` : filters.monthYear}
+              Vouchers Report - {filters.filterMode === 'dateRange' 
+                ? `${formatDate(filters.startDate)} to ${formatDate(filters.endDate)}` 
+                : filters.filterMode === 'paymentRange'
+                  ? `Payment Range: ${formatDate(filters.paymentStartDate)} to ${formatDate(filters.paymentEndDate)}`
+                  : filters.paymentStartDate || filters.paymentEndDate
+                    ? `Fee Month: ${filters.monthYear} (Paid: ${formatDate(filters.paymentStartDate)} to ${formatDate(filters.paymentEndDate)})`
+                    : `Fee Month: ${filters.monthYear}`}
             </Typography>
           </Box>
 
