@@ -1608,7 +1608,25 @@ class FeeService {
         let matchedVoucher = null;
         if (voucherNumber && Array.isArray(studentFee.vouchers)) {
           const vNoClean = voucherNumber.toString().trim();
-          matchedVoucher = studentFee.vouchers.find(v => v.voucherNumber && (v.voucherNumber.toString().trim() === vNoClean || vNoClean.endsWith(v.voucherNumber.toString().trim())));
+          matchedVoucher = studentFee.vouchers.find(v => v.voucherNumber && (
+            v.voucherNumber.toString().trim() === vNoClean || 
+            vNoClean.endsWith(v.voucherNumber.toString().trim()) ||
+            v.voucherNumber.toString().trim().endsWith(vNoClean)
+          ));
+        }
+        if (!matchedVoucher && voucherNumber) {
+          // If the studentFee record itself is an older fee head and doesn't have the new voucher,
+          // look up the voucher on another studentFee for this student
+          const feeWithVoucher = await StudentFee.findOne({
+            student: studentFee.student?._id || studentFee.student,
+            'vouchers.voucherNumber': voucherNumber
+          });
+          if (feeWithVoucher && Array.isArray(feeWithVoucher.vouchers)) {
+            matchedVoucher = feeWithVoucher.vouchers.find(v => v && v.voucherNumber && (
+              v.voucherNumber.toString().trim() === voucherNumber.toString().trim() ||
+              voucherNumber.toString().trim().endsWith(v.voucherNumber.toString().trim())
+            ));
+          }
         }
         if (!matchedVoucher && Array.isArray(studentFee.vouchers) && studentFee.vouchers.length > 0) {
           // Use latest voucher
@@ -2506,6 +2524,52 @@ class FeeService {
       }
     }
 
+    // Validate that suspenseEntry.paymentDate is not earlier than any voucher generated date
+    if (suspenseEntry.paymentDate) {
+      const pDate = new Date(suspenseEntry.paymentDate);
+      if (!isNaN(pDate.getTime())) {
+        const pDayStr = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}-${String(pDate.getDate()).padStart(2, '0')}`;
+
+        // Check vouchers across feesToPay
+        for (const sf of feesToPay) {
+          if (!sf.vouchers || !Array.isArray(sf.vouchers)) continue;
+          for (const v of sf.vouchers) {
+            if (!v || !v.generatedAt) continue;
+            const gDate = new Date(v.generatedAt);
+            if (isNaN(gDate.getTime())) continue;
+            const gDayStr = `${gDate.getFullYear()}-${String(gDate.getMonth() + 1).padStart(2, '0')}-${String(gDate.getDate()).padStart(2, '0')}`;
+            if (pDayStr < gDayStr) {
+              const vDisplay = v.voucherNumber || latestVoucherNumber || 'voucher';
+              throw new ApiError(400, `Cannot reconcile payment: Suspense payment date (${pDayStr}) is earlier than voucher generated date (${gDayStr}) for voucher ${vDisplay}. Please update the voucher generated date in Print Voucher before reconciling.`);
+            }
+          }
+        }
+
+        // Also check latestVoucherNumber if it was identified
+        if (latestVoucherNumber) {
+          const feeWithVoucher = await StudentFee.findOne({
+            student: studentId,
+            'vouchers.voucherNumber': latestVoucherNumber
+          });
+          if (feeWithVoucher && Array.isArray(feeWithVoucher.vouchers)) {
+            const matchedV = feeWithVoucher.vouchers.find(v => v && v.voucherNumber && (
+              v.voucherNumber.toString().trim() === latestVoucherNumber ||
+              latestVoucherNumber.endsWith(v.voucherNumber.toString().trim())
+            ));
+            if (matchedV && matchedV.generatedAt) {
+              const gDate = new Date(matchedV.generatedAt);
+              if (!isNaN(gDate.getTime())) {
+                const gDayStr = `${gDate.getFullYear()}-${String(gDate.getMonth() + 1).padStart(2, '0')}-${String(gDate.getDate()).padStart(2, '0')}`;
+                if (pDayStr < gDayStr) {
+                  throw new ApiError(400, `Cannot reconcile payment: Suspense payment date (${pDayStr}) is earlier than voucher generated date (${gDayStr}) for voucher ${latestVoucherNumber}. Please update the voucher generated date in Print Voucher before reconciling.`);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
     // Sort target fees chronologically (oldest month first) so older arrears get cleared first
     feesToPay.sort((a, b) => {
       const aV = a.vouchers && a.vouchers.length > 0 ? a.vouchers[0] : null;
@@ -3075,6 +3139,38 @@ class FeeService {
     // Find all matching StudentFees and update the subdocument vouchers + root dates if applicable
     const studentFees = await StudentFee.find(studentFeeFilter);
     let updatedStudentFeesCount = 0;
+
+    // If updating generatedDate, ensure it is NOT later than any existing payment recorded for these fees/vouchers
+    if (parsedGeneratedDate) {
+      const genDayStr = `${parsedGeneratedDate.getFullYear()}-${String(parsedGeneratedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedGeneratedDate.getDate()).padStart(2, '0')}`;
+      const sfIds = studentFees.map(sf => sf._id);
+      
+      const paymentConditions = [];
+      if (sfIds.length > 0) {
+        paymentConditions.push({ studentFee: { $in: sfIds } });
+      }
+      if (voucherRegexes && voucherRegexes.length > 0) {
+        paymentConditions.push({ voucherNumber: { $in: voucherRegexes } });
+      }
+
+      if (paymentConditions.length > 0) {
+        const paymentFilter = {
+          $or: paymentConditions,
+          status: { $in: ['completed', 'success', 'paid'] }
+        };
+
+        const existingPayments = await FeePayment.find(paymentFilter).select('paymentDate voucherNumber studentFee');
+        for (const p of existingPayments) {
+          if (!p.paymentDate) continue;
+          const pDate = new Date(p.paymentDate);
+          if (isNaN(pDate.getTime())) continue;
+          const pDayStr = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}-${String(pDate.getDate()).padStart(2, '0')}`;
+          if (genDayStr > pDayStr) {
+            throw new ApiError(400, `Cannot set voucher generated date to ${genDayStr}: A payment was already recorded on ${pDayStr} for this voucher (${p.voucherNumber || 'N/A'}). Voucher generated date cannot be later than payment date.`);
+          }
+        }
+      }
+    }
 
     for (const sf of studentFees) {
       let modified = false;

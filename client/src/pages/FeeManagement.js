@@ -3172,6 +3172,31 @@ const FeeManagement = () => {
         return;
       }
 
+      // Pre-validation: Check if suspense paymentDate is earlier than any selected voucher's generated date
+      if (selectedSuspenseEntry?.paymentDate) {
+        const pDate = new Date(selectedSuspenseEntry.paymentDate);
+        if (!isNaN(pDate.getTime())) {
+          const pDayStr = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}-${String(pDate.getDate()).padStart(2, '0')}`;
+          
+          for (const fid of feeIds) {
+            const targetFee = outstandingFees.find(f => f._id === fid);
+            if (!targetFee) continue;
+            const vs = targetFee.vouchers || [];
+            for (const v of vs) {
+              if (!v || !v.generatedAt) continue;
+              const gDate = new Date(v.generatedAt);
+              if (isNaN(gDate.getTime())) continue;
+              const gDayStr = `${gDate.getFullYear()}-${String(gDate.getMonth() + 1).padStart(2, '0')}-${String(gDate.getDate()).padStart(2, '0')}`;
+              if (pDayStr < gDayStr) {
+                notifyError(`Cannot reconcile: Suspense payment date (${pDayStr}) is earlier than voucher generated date (${gDayStr}) for voucher ${v.voucherNumber || 'N/A'}. Please update the voucher generated date in Print Voucher before reconciling.`);
+                setReconciling(false);
+                return;
+              }
+            }
+          }
+        }
+      }
+
       const payload = {
         suspenseEntryId: selectedSuspenseEntry._id,
         studentId,
@@ -3988,6 +4013,42 @@ const FeeManagement = () => {
     if (!editVoucherGeneratedDate && !editVoucherDueDate && !editVoucherValidityDate) {
       notifyError('Please enter at least one date (Generated Date, Due Date, or Validity Date)');
       return;
+    }
+
+    // Pre-validation: ensure generatedDate cannot be later than an existing payment date
+    if (editVoucherGeneratedDate) {
+      const gDate = new Date(editVoucherGeneratedDate);
+      if (!isNaN(gDate.getTime())) {
+        const gDay = `${gDate.getFullYear()}-${String(gDate.getMonth() + 1).padStart(2, '0')}-${String(gDate.getDate()).padStart(2, '0')}`;
+        
+        if (voucherDateTarget && voucherDateTarget.paymentDate) {
+          const pDate = new Date(voucherDateTarget.paymentDate);
+          if (!isNaN(pDate.getTime())) {
+            const pDay = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}-${String(pDate.getDate()).padStart(2, '0')}`;
+            if (gDay > pDay) {
+              notifyError(`Cannot set voucher generated date to ${gDay}: This voucher was already paid on ${pDay}. Generated date cannot be later than payment date.`);
+              return;
+            }
+          }
+        } else if (!voucherDateTarget && selectedVoucherIds.length > 0) {
+          const filteredStudents = getFilteredPrintVoucherStudents();
+          const selectedStudents = filteredStudents.filter(s =>
+            selectedVoucherIds.includes(s._id || s.studentId)
+          );
+          const conflictStudent = selectedStudents.find(s => {
+            if (!s.paymentDate) return false;
+            const pDate = new Date(s.paymentDate);
+            if (isNaN(pDate.getTime())) return false;
+            const pDay = `${pDate.getFullYear()}-${String(pDate.getMonth() + 1).padStart(2, '0')}-${String(pDate.getDate()).padStart(2, '0')}`;
+            return gDay > pDay;
+          });
+          if (conflictStudent) {
+            const pDay = new Date(conflictStudent.paymentDate).toISOString().split('T')[0];
+            notifyError(`Cannot set generated date to ${gDay}: Student ${conflictStudent.name || ''} has payment on ${pDay}. Generated date cannot be later than payment date.`);
+            return;
+          }
+        }
+      }
     }
 
     try {
@@ -9411,6 +9472,22 @@ const FeeManagement = () => {
                     Change Student
                   </Button>
                 </Box>
+
+                {outstandingFees.some(f => {
+                  const v = f.vouchers?.[0];
+                  if (!v?.generatedAt || !selectedSuspenseEntry?.paymentDate) return false;
+                  const vG = new Date(v.generatedAt);
+                  const sP = new Date(selectedSuspenseEntry.paymentDate);
+                  return !isNaN(vG.getTime()) && !isNaN(sP.getTime()) && (
+                    `${sP.getFullYear()}-${String(sP.getMonth() + 1).padStart(2, '0')}-${String(sP.getDate()).padStart(2, '0')}` <
+                    `${vG.getFullYear()}-${String(vG.getMonth() + 1).padStart(2, '0')}-${String(vG.getDate()).padStart(2, '0')}`
+                  );
+                }) && (
+                  <Alert severity="warning" sx={{ mb: 2 }}>
+                    <strong>Date Mismatch Notice:</strong> One or more vouchers were generated on a date later than this suspense payment date ({selectedSuspenseEntry?.paymentDate ? new Date(selectedSuspenseEntry.paymentDate).toLocaleDateString('en-GB') : ''}). Payment cannot be earlier than voucher generated date. Please update the voucher generated date in <strong>Print Voucher</strong> first to reconcile.
+                  </Alert>
+                )}
+
                 <TableContainer sx={{ maxHeight: 320 }}>
                   <Table size="small">
                     <TableHead sx={{ bgcolor: '#f8f9fa' }}>
@@ -9454,6 +9531,12 @@ const FeeManagement = () => {
                             ? formatMonthYear(voucher.month, voucher.year) 
                             : (fee.month && fee.year ? formatMonthYear(fee.month, fee.year) : '-');
                           const isChecked = selectedReconcileFeeIds.includes(fee._id);
+                          const voucherGenDate = voucher?.generatedAt ? new Date(voucher.generatedAt) : null;
+                          const suspensePayDate = selectedSuspenseEntry?.paymentDate ? new Date(selectedSuspenseEntry.paymentDate) : null;
+                          const isDateConflict = voucherGenDate && suspensePayDate && !isNaN(voucherGenDate.getTime()) && !isNaN(suspensePayDate.getTime()) && (
+                            `${suspensePayDate.getFullYear()}-${String(suspensePayDate.getMonth() + 1).padStart(2, '0')}-${String(suspensePayDate.getDate()).padStart(2, '0')}` <
+                            `${voucherGenDate.getFullYear()}-${String(voucherGenDate.getMonth() + 1).padStart(2, '0')}-${String(voucherGenDate.getDate()).padStart(2, '0')}`
+                          );
 
                           return (
                             <TableRow key={fee._id} hover selected={isChecked}>
@@ -9470,14 +9553,29 @@ const FeeManagement = () => {
                                   }}
                                 />
                               </TableCell>
-                              <TableCell>{fee.vouchers?.[0]?.voucherNumber || '-'}</TableCell>
+                              <TableCell>
+                                {fee.vouchers?.[0]?.voucherNumber || '-'}
+                                {voucherGenDate && (
+                                  <Typography
+                                    variant="caption"
+                                    sx={{
+                                      display: 'block',
+                                      color: isDateConflict ? '#d32f2f' : 'text.secondary',
+                                      fontWeight: isDateConflict ? 600 : 400
+                                    }}
+                                  >
+                                    Gen: {voucherGenDate.toLocaleDateString('en-GB')}
+                                    {isDateConflict && ' (After Payment)'}
+                                  </Typography>
+                                )}
+                              </TableCell>
                               <TableCell>{fee.feeHead?.name || '-'}</TableCell>
                               <TableCell>{monthDisplay}</TableCell>
                               <TableCell>Rs. {(fee.remainingAmount || (fee.finalAmount - (fee.paidAmount || 0))).toLocaleString()}</TableCell>
                               <TableCell>
                                 <Button 
                                   variant="contained" 
-                                  color="success" 
+                                  color={isDateConflict ? "warning" : "success"}
                                   size="small"
                                   onClick={() => handleReconcile(selectedReconciliationStudent.studentId?._id || selectedReconciliationStudent.studentId, [fee._id])}
                                   disabled={reconciling}
