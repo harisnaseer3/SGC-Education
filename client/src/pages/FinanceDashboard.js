@@ -180,7 +180,7 @@ const FinanceDashboard = () => {
       if (saved !== null) return saved;
     }
     sessionStorage.removeItem('finance_startDate');
-    return getStartOfMonth();
+    return '';
   });
 
   const [endDate, setEndDate] = useState(() => {
@@ -189,7 +189,7 @@ const FinanceDashboard = () => {
       if (saved !== null) return saved;
     }
     sessionStorage.removeItem('finance_endDate');
-    return getTodayDate();
+    return '';
   });
 
   const [campusList, setCampusList] = useState([]);
@@ -206,14 +206,14 @@ const FinanceDashboard = () => {
       const saved = sessionStorage.getItem('finance_startDate');
       if (saved !== null) return saved;
     }
-    return getStartOfMonth();
+    return '';
   });
   const [receivablePaymentEnd, setReceivablePaymentEnd] = useState(() => {
     if (preserveFilters) {
       const saved = sessionStorage.getItem('finance_endDate');
       if (saved !== null) return saved;
     }
-    return getTodayDate();
+    return '';
   });
 
   // Banks Statement Report States
@@ -230,14 +230,14 @@ const FinanceDashboard = () => {
       const saved = sessionStorage.getItem('finance_startDate');
       if (saved !== null) return saved;
     }
-    return getStartOfMonth();
+    return '';
   });
   const [bankPaymentEnd, setBankPaymentEnd] = useState(() => {
     if (preserveFilters) {
       const saved = sessionStorage.getItem('finance_endDate');
       if (saved !== null) return saved;
     }
-    return getTodayDate();
+    return '';
   });
 
   const isAllTime = !startDate && !endDate;
@@ -266,18 +266,16 @@ const FinanceDashboard = () => {
   };
 
   const handleClearFilters = () => {
-    const startOfMonth = getStartOfMonth();
-    const today = getTodayDate();
     setSelectedCampus('all');
-    setStartDate(startOfMonth);
-    setEndDate(today);
-    setReceivablePaymentStart(startOfMonth);
-    setReceivablePaymentEnd(today);
-    setBankPaymentStart(startOfMonth);
-    setBankPaymentEnd(today);
+    setStartDate('');
+    setEndDate('');
+    setReceivablePaymentStart('');
+    setReceivablePaymentEnd('');
+    setBankPaymentStart('');
+    setBankPaymentEnd('');
     sessionStorage.setItem('finance_selectedCampus', 'all');
-    sessionStorage.setItem('finance_startDate', startOfMonth);
-    sessionStorage.setItem('finance_endDate', today);
+    sessionStorage.setItem('finance_startDate', '');
+    sessionStorage.setItem('finance_endDate', '');
   };
 
   useEffect(() => {
