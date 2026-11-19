@@ -300,10 +300,12 @@ const FinanceDashboard = () => {
       if (bankFilterType === 'month') {
         if (bankReportMonth) {
           params.append('monthKey', bankReportMonth);
+        } else if (!startDate && !endDate) {
+          params.append('allTime', 'true');
         }
       } else {
-        const bStart = startDate !== undefined && startDate !== null ? startDate : bankPaymentStart;
-        const bEnd = endDate !== undefined && endDate !== null ? endDate : bankPaymentEnd;
+        const bStart = bankPaymentStart || startDate || '';
+        const bEnd = bankPaymentEnd || endDate || '';
         if (bStart) {
           params.append('paymentStartDate', bStart);
           params.append('startDate', bStart);
@@ -312,14 +314,13 @@ const FinanceDashboard = () => {
           params.append('paymentEndDate', bEnd);
           params.append('endDate', bEnd);
         }
+        if (!bStart && !bEnd) {
+          params.append('allTime', 'true');
+        }
       }
 
       if (selectedCampus && selectedCampus !== 'all') {
         params.append('institution', selectedCampus);
-      }
-
-      if (!startDate && !endDate) {
-        params.append('allTime', 'true');
       }
 
       const response = await axios.get(`${getApiUrl('dashboard/banks-statement-report')}?${params.toString()}`, {
@@ -349,10 +350,12 @@ const FinanceDashboard = () => {
       if (receivableFilterType === 'month') {
         if (receivableMonth) {
           params.append('monthKey', receivableMonth);
+        } else if (!startDate && !endDate) {
+          params.append('allTime', 'true');
         }
       } else {
-        const rStart = startDate !== undefined && startDate !== null ? startDate : receivablePaymentStart;
-        const rEnd = endDate !== undefined && endDate !== null ? endDate : receivablePaymentEnd;
+        const rStart = receivablePaymentStart || startDate || '';
+        const rEnd = receivablePaymentEnd || endDate || '';
         if (rStart) {
           params.append('paymentStartDate', rStart);
           params.append('startDate', rStart);
@@ -361,12 +364,11 @@ const FinanceDashboard = () => {
           params.append('paymentEndDate', rEnd);
           params.append('endDate', rEnd);
         }
+        if (!rStart && !rEnd) {
+          params.append('allTime', 'true');
+        }
       }
 
-      if (!startDate && !endDate) {
-        params.append('allTime', 'true');
-      }
-      
       const response = await axios.get(`${getApiUrl('dashboard/stats')}?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
