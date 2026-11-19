@@ -304,12 +304,23 @@ const fetchDynamicVoucherStats = async (matchQuery, dateFilter = null, paymentRa
       }
       monthlyMap.get(key).vouchers.push(voucherData);
 
-      // In payment range mode, include ALL vouchers so Grand Total (Receivable) is complete.
-      // The received amount is already filtered to range payments via displayedPaidAmount above.
-      // This ensures: Receivable = full billed amount, Received = range payments, Balance = Receivable - Received.
+      // In payment range mode, only include vouchers whose billing month falls within
+      // the payment date range (e.g. Nov 2026 filter → only Nov 2026 vouchers).
+      // Received = payments made within the date range (already computed via displayedPaidAmount).
+      // Balance = Receivable − Received.
       if (isPaymentRangeMode) {
-        rangeVouchersList.push(voucherData);
-        rangeStudentIds.add(studentId);
+        const startYM = paymentRange.startDate
+          ? parseInt(paymentRange.startDate.split('-')[0]) * 100 + parseInt(paymentRange.startDate.split('-')[1])
+          : null;
+        const endYM = paymentRange.endDate
+          ? parseInt(paymentRange.endDate.split('-')[0]) * 100 + parseInt(paymentRange.endDate.split('-')[1])
+          : null;
+        const voucherYM = year * 100 + month;
+        const isInMonthRange = (!startYM || voucherYM >= startYM) && (!endYM || voucherYM <= endYM);
+        if (isInMonthRange) {
+          rangeVouchersList.push(voucherData);
+          rangeStudentIds.add(studentId);
+        }
       }
     });
   });
