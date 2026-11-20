@@ -4132,6 +4132,132 @@ const FeeManagement = () => {
     }
   };
 
+  const printElementViaIframe = (elementId, title = 'Fee Voucher') => {
+    const printArea = document.getElementById(elementId);
+    if (!printArea) {
+      window.print();
+      return;
+    }
+
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${title}</title>
+          <style>
+            @page {
+              size: landscape;
+              margin: 4mm;
+            }
+            * {
+              box-sizing: border-box;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            html, body {
+              margin: 0;
+              padding: 0;
+              background: #fff;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              width: 100%;
+            }
+            .voucher-page {
+              page-break-after: always;
+              page-break-inside: avoid;
+              box-sizing: border-box;
+              padding: 0;
+              margin: 0;
+              display: block;
+            }
+            .voucher-page:last-child {
+              page-break-after: avoid;
+            }
+            .voucher-three-column-box {
+              display: flex !important;
+              flex-direction: row !important;
+              gap: 8px !important;
+              width: 100% !important;
+              height: auto !important;
+            }
+            .voucher-copy-box {
+              flex: 1 1 0% !important;
+              width: 32% !important;
+              border: 1.5px solid #000 !important;
+              padding: 4px 6px !important;
+              font-size: 7.5pt !important;
+              position: relative !important;
+              background: #fff !important;
+              box-sizing: border-box !important;
+              display: flex !important;
+              flex-direction: column !important;
+              justifyContent: space-between !important;
+            }
+            .voucher-watermark-overlay {
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 100% !important;
+              height: 100% !important;
+              display: flex !important;
+              align-items: center !important;
+              justifyContent: center !important;
+              pointer-events: none !important;
+              z-index: 10 !important;
+            }
+            table {
+              width: 100% !important;
+              border-collapse: collapse !important;
+              margin-bottom: 3px !important;
+              font-size: 6.5pt !important;
+            }
+            table td, table th {
+              border: 1px solid #000 !important;
+              padding: 1.5px 3px !important;
+              line-height: 1.15 !important;
+            }
+            img {
+              width: 34px !important;
+              height: 34px !important;
+              max-width: 34px !important;
+              max-height: 34px !important;
+              object-fit: contain !important;
+              display: block !important;
+              margin: 0 auto 2px auto !important;
+            }
+            .no-print {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          ${printArea.innerHTML}
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    iframe.contentWindow.focus();
+    setTimeout(() => {
+      iframe.contentWindow.print();
+      setTimeout(() => {
+        try {
+          document.body.removeChild(iframe);
+        } catch (e) {}
+      }, 1000);
+    }, 300);
+  };
+
   const handleViewVoucher = async (student) => {
     setSelectedVoucherStudent(student);
     setVoucherDialogOpen(true);
@@ -7855,18 +7981,11 @@ const FeeManagement = () => {
                       }
                       html, body {
                         width: 100% !important;
-                        height: 100% !important;
-                        max-height: 100% !important;
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
-                        overflow: hidden !important;
-                      }
-                      body * {
-                        visibility: hidden !important;
-                      }
-                      #voucher-print-area, #voucher-print-area * {
-                        visibility: visible !important;
+                        overflow: visible !important;
                       }
                       .MuiBackdrop-root,
                       .MuiDialogTitle-root,
@@ -7874,19 +7993,38 @@ const FeeManagement = () => {
                       .no-print {
                         display: none !important;
                       }
-                      #voucher-print-area {
-                        position: fixed !important;
-                        left: 0 !important;
-                        top: 0 !important;
+                      .MuiDialog-root,
+                      .MuiDialog-container {
+                        position: static !important;
+                        display: block !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        border: none !important;
+                      }
+                      .MuiDialog-paper {
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        max-width: none !important;
                         width: 100% !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                        border: none !important;
+                        background: transparent !important;
+                      }
+                      .MuiDialogContent-root {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        overflow: visible !important;
+                      }
+                      #voucher-print-area {
+                        display: block !important;
+                        width: 100% !important;
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         box-sizing: border-box !important;
-                        display: block !important;
                         overflow: visible !important;
-                        z-index: 999999 !important;
                         page-break-after: avoid !important;
                         page-break-before: avoid !important;
                         page-break-inside: avoid !important;
@@ -7896,10 +8034,8 @@ const FeeManagement = () => {
                         flex-direction: row !important;
                         gap: 8px !important;
                         width: 100% !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         box-sizing: border-box !important;
-                        align-items: stretch !important;
                         overflow: visible !important;
                         page-break-after: avoid !important;
                         page-break-inside: avoid !important;
@@ -7913,8 +8049,7 @@ const FeeManagement = () => {
                         display: flex !important;
                         flex-direction: column !important;
                         justifyContent: space-between !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         position: relative !important;
                         overflow: visible !important;
                         page-break-inside: avoid !important;
@@ -7950,7 +8085,6 @@ const FeeManagement = () => {
                       .voucher-copy-box table th {
                         padding: 1.5px 3px !important;
                         line-height: 1.15 !important;
-                        border: 1px solid #000 !important;
                       }
                     }
                   `}
@@ -7964,8 +8098,7 @@ const FeeManagement = () => {
                     gap: 2,
                     '@media print': {
                       gap: '8px',
-                      height: '196mm',
-                      maxHeight: '196mm',
+                      height: 'auto',
                       width: '100%',
                       boxSizing: 'border-box'
                     }
@@ -7988,8 +8121,7 @@ const FeeManagement = () => {
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          height: '196mm',
-                          maxHeight: '196mm',
+                          height: 'auto',
                           boxSizing: 'border-box',
                           position: 'relative',
                           overflow: 'visible'
@@ -8306,7 +8438,7 @@ const FeeManagement = () => {
               startIcon={<Print />} 
               sx={{ bgcolor: '#667eea' }}
               onClick={() => {
-                window.print();
+                printElementViaIframe('voucher-print-area', 'Fee Voucher');
               }}
             >
               Print
@@ -8356,17 +8488,11 @@ const FeeManagement = () => {
                       }
                       html, body {
                         width: 100% !important;
-                        height: 100% !important;
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
                         overflow: visible !important;
-                      }
-                      body * {
-                        visibility: hidden !important;
-                      }
-                      #bulk-voucher-print-area, #bulk-voucher-print-area * {
-                        visibility: visible !important;
                       }
                       .MuiBackdrop-root,
                       .MuiDialogTitle-root,
@@ -8804,7 +8930,7 @@ const FeeManagement = () => {
               startIcon={<Print />} 
               sx={{ bgcolor: '#667eea' }}
               onClick={() => {
-                window.print();
+                printElementViaIframe('bulk-voucher-print-area', 'Fee Vouchers');
               }}
               disabled={bulkVouchersData.length === 0}
             >
