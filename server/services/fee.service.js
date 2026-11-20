@@ -833,6 +833,7 @@ class FeeService {
     // Build voucher rows matching screenshot structure:
     // Voucher # | Fee Month | Issue Date | Current Month Fee | Arrears | Total Paid | Balance | Paid Date | Paid Status | Bank | FT #
     const voucherRows = [];
+    let voucherRunningBalance = 0;
 
     sortedVoucherKeys.forEach(k => {
       const vData = voucherMap.get(k);
@@ -862,25 +863,35 @@ class FeeService {
           if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
             totalBilledPrev += Number(f.finalAmount || 0);
           }
-          totalPaidPrev += Number(f.paidAmount || 0);
+          const fPayments = paymentsByStudentFee.get(f._id?.toString()) || [];
+          fPayments.forEach(p => {
+            const pDate = new Date(p.paymentDate || p.createdAt);
+            if (issueDate && pDate <= new Date(issueDate)) {
+              totalPaidPrev += Number(p.amount || 0);
+            }
+          });
         }
       });
+
+      const calculatedPriorArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
       const arrearsSnapshot = fees.find(f => f.feeHead?.name?.toLowerCase() === 'arrears');
       let arrears = 0;
       if (arrearsSnapshot && Number(arrearsSnapshot.finalAmount || 0) > 0) {
-        arrears = Number(arrearsSnapshot.finalAmount || 0);
-      } else if (vData.arrears !== undefined && vData.arrears > 0) {
+        // Protect against corrupted snapshot that exceeds total historical billing prior to this voucher
+        if (totalBilledPrev > 0 && Number(arrearsSnapshot.finalAmount || 0) <= totalBilledPrev) {
+          arrears = Number(arrearsSnapshot.finalAmount || 0);
+        } else {
+          arrears = calculatedPriorArrears;
+        }
+      } else if (vData.arrears !== undefined && vData.arrears > 0 && (totalBilledPrev === 0 || vData.arrears <= totalBilledPrev)) {
         arrears = vData.arrears;
       } else {
-        arrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
+        arrears = calculatedPriorArrears;
       }
 
-      // Find payments associated with this voucher or month
-      const relatedPayments = [
-        ...(paymentsByVoucherNo.get(voucherNumber) || []),
-        ...(paymentsByVoucherNo.get(fullVoucherNumber) || [])
-      ];
+      // Find payments associated with this voucher's fee items
+      const relatedPayments = [];
       fees.forEach(f => {
         const sfPayments = paymentsByStudentFee.get(f._id?.toString()) || [];
         sfPayments.forEach(p => {
@@ -888,6 +899,22 @@ class FeeService {
             relatedPayments.push(p);
           }
         });
+      });
+
+      // Include any payment explicitly tagged with this voucher number that is NOT already assigned to an earlier fee
+      const vPayments = [
+        ...(paymentsByVoucherNo.get(voucherNumber) || []),
+        ...(paymentsByVoucherNo.get(fullVoucherNumber) || [])
+      ];
+      vPayments.forEach(p => {
+        if (p.studentFee) {
+          const sfId = p.studentFee.toString();
+          const belongsToCurrentVoucher = fees.some(f => f._id.toString() === sfId);
+          if (!belongsToCurrentVoucher) return; // Belongs to an earlier month's fee, already counted there!
+        }
+        if (!relatedPayments.some(rp => rp._id?.toString() === p._id?.toString())) {
+          relatedPayments.push(p);
+        }
       });
 
       // Total Paid on this voucher
@@ -900,12 +927,13 @@ class FeeService {
         totalPaid = fees.reduce((sum, f) => sum + Number(f.paidAmount || 0), 0);
       }
 
-      const totalObligation = currentMonthFee + arrears;
-      let balance = Math.max(0, Math.round((totalObligation - totalPaid) * 100) / 100);
+      // Running cumulative balance: previous balance + current charges - current payments
+      voucherRunningBalance = Math.max(0, Math.round((voucherRunningBalance + currentMonthFee - totalPaid) * 100) / 100);
+      let balance = voucherRunningBalance;
 
       // Paid Status
       let paidStatus = 'Unpaid';
-      if (balance <= 0.01 && (totalPaid > 0 || totalObligation === 0)) {
+      if (balance <= 0.01 && (totalPaid > 0 || currentMonthFee === 0)) {
         paidStatus = 'Paid';
         balance = 0;
       } else if (totalPaid > 0) {
@@ -1385,11 +1413,11 @@ class FeeService {
 
           // Arrears Calculation Logic: Ledger Method
           // Arrears = (Total Billed Previous Non-Arrears) - (Total Paid Previous All Heads)
+          let calculatedArrears = 0;
           const isArrearsHead = latestFee.feeHead?.name?.toLowerCase() === 'arrears';
           if (isArrearsHead) {
             let totalBilledPrev = 0;
             let totalPaidPrev = 0;
-            const startDate = new Date(year, month - 1, 1);
             
             for (const [otherHeadId, otherFees] of feesByHead.entries()) {
               const otherHeadName = otherFees[0]?.feeHead?.name?.toLowerCase() || '';
@@ -1421,56 +1449,56 @@ class FeeService {
             }
 
             // Arrears is the net outstanding from previous periods
-            let calculatedArrears = Math.max(0, totalBilledPrev - totalPaidPrev);
+            calculatedArrears = Math.max(0, totalBilledPrev - totalPaidPrev);
             calculatedArrears = Math.round(calculatedArrears * 100) / 100;
 
-            // Update the arrears record with the calculated amount
+            console.log(`[generateVouchers] Calculated Arrears for student ${studentIdStr}: Billed=${totalBilledPrev}, Paid=${totalPaidPrev}, Result=${calculatedArrears}`);
+
+            // If calculated arrears is <= 0, do not create or attach an arrears voucher
+            if (calculatedArrears <= 0) {
+              console.log(`[generateVouchers] Skipping zero Arrears for student ${studentIdStr}`);
+              continue;
+            }
+          }
+
+          const isUsed = (latestFee.vouchers && latestFee.vouchers.length > 0) || 
+                         latestFee.status === 'paid' || 
+                         latestFee.paidAmount > 0;
+
+          // For Arrears: ONLY update latestFee if it is a virgin record (has no vouchers yet).
+          // NEVER mutate latestFee if it is already used (belongs to a previous voucher)!
+          if (isArrearsHead && !isUsed) {
             if (latestFee.finalAmount !== calculatedArrears) {
               latestFee.baseAmount = calculatedArrears;
               latestFee.finalAmount = calculatedArrears;
               latestFee.remainingAmount = calculatedArrears;
               await latestFee.save();
-              console.log(`[generateVouchers] Updated Arrears for student ${studentIdStr}: Billed=${totalBilledPrev}, Paid=${totalPaidPrev}, Result=${calculatedArrears}`);
             }
           }
 
-          // Skip zero-amount fee records (unless it's arrears we just calculated to be > 0)
-          if (latestFee.finalAmount <= 0) {
+          // Skip zero-amount fee records (for non-arrears)
+          if (!isArrearsHead && latestFee.finalAmount <= 0) {
             console.log(`[generateVouchers] Skipping zero-amount fee record ${latestFee._id} for feeHead ${latestFee.feeHead?.name || latestFee.feeHead}`);
             continue;
           }
-
 
           if (isMonthly) {
              // For Monthly, we create ONE new record for the month.
              // We use the latest active fee as a template.
              // Even if we have 10 history records, we only create 1 new one.
 
-             // Logic: Always create NEW for monthly, unless we want to reuse a "Virgin" pending one?
-             // If latestFee is "Virgin" (no vouchers, pending), usage is debatable.
-             // But consistent approach: If it has vouchers or is paid/partial -> Create New.
-             // If it has NO vouchers and is pending -> Reuse it.
-             
-             const isUsed = (latestFee.vouchers && latestFee.vouchers.length > 0) || 
-                            latestFee.status === 'paid' || 
-                            latestFee.paidAmount > 0;
-                            
              let feeToUpdate = latestFee;
              
              if (isUsed) {
-                // Deactivate the old record as it is now history
+                // Deactivate the old record as it is now history - preserve its historical amounts!
                 latestFee.isActive = false;
                 latestFee.updatedAt = new Date();
                 latestFee.updatedBy = currentUser._id;
                 await latestFee.save();
 
-                // IMPORTANT: Use finalAmount as the new baseAmount for the cloned record.
-                // When a fee increase is applied via updateFeeStructure (discountOperation='increase'),
-                // the student's effective fee is stored in finalAmount, NOT baseAmount (which retains
-                // the original class-level fee from the global FeeStructure).
-                // Copying baseAmount here would revert the increase on every voucher clone cycle.
-                var effectiveBaseAmount = latestFee.finalAmount;
-                // Use the parsed due date object
+                // For Arrears, use calculatedArrears; for regular heads, use latestFee.finalAmount
+                const effectiveBaseAmount = isArrearsHead ? calculatedArrears : latestFee.finalAmount;
+
                 feeToUpdate = new StudentFee({
                   institution: latestFee.institution,
                   student: latestFee.student,
