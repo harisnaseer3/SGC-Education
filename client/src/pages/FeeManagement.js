@@ -7845,14 +7845,21 @@ const FeeManagement = () => {
                 {/* Print Styles */}
                 <style>
                   {`
+                    @page {
+                      size: landscape;
+                      margin: 4mm;
+                    }
                     @media print {
+                      #root {
+                        display: none !important;
+                      }
                       html, body {
+                        width: 100% !important;
                         height: 100% !important;
-                        max-height: 100% !important;
-                        overflow: visible !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
+                        overflow: hidden !important;
                       }
                       body * {
                         visibility: hidden !important;
@@ -7860,67 +7867,125 @@ const FeeManagement = () => {
                       #voucher-print-area, #voucher-print-area * {
                         visibility: visible !important;
                       }
-                      /* Ensure MUI Dialog portal containers don't clip the print area */
-                      .MuiDialog-root, .MuiDialog-root *,
-                      .MuiModal-root, .MuiModal-root * {
-                        overflow: visible !important;
+                      .MuiBackdrop-root,
+                      .MuiDialogTitle-root,
+                      .MuiDialogActions-root,
+                      .no-print {
+                        display: none !important;
+                      }
+                      .MuiDialog-root,
+                      .MuiDialog-container {
                         position: static !important;
-                        transform: none !important;
+                        display: block !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        border: none !important;
+                      }
+                      .MuiDialog-paper {
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        max-width: none !important;
+                        width: 100% !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                        border: none !important;
+                        background: transparent !important;
+                      }
+                      .MuiDialogContent-root {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        overflow: visible !important;
                       }
                       #voucher-print-area {
-                        position: fixed !important;
-                        left: 0 !important;
-                        top: 0 !important;
+                        display: block !important;
                         width: 100% !important;
-                        height: 195mm !important;
-                        max-height: 195mm !important;
+                        height: 196mm !important;
+                        max-height: 196mm !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         box-sizing: border-box !important;
-                        display: flex !important;
-                        flex-direction: column !important;
-                        overflow: visible !important;
-                        z-index: 999999 !important;
                         page-break-after: avoid !important;
                         page-break-before: avoid !important;
                         page-break-inside: avoid !important;
                       }
-                      #voucher-print-area img {
-                        width: 40px !important;
-                        height: 40px !important;
-                        max-width: 40px !important;
-                        max-height: 40px !important;
-                        object-fit: contain !important;
-                        display: block !important;
-                        margin: 0 auto 4px auto !important;
-                      }
-                      .no-print {
-                        display: none !important;
+                      .voucher-three-column-box {
+                        display: flex !important;
+                        flex-direction: row !important;
+                        gap: 8px !important;
+                        width: 100% !important;
+                        height: 196mm !important;
+                        max-height: 196mm !important;
+                        box-sizing: border-box !important;
+                        page-break-after: avoid !important;
+                        page-break-inside: avoid !important;
                       }
                       .voucher-copy-box {
+                        flex: 1 1 0% !important;
                         border: 2px solid #000 !important;
                         box-sizing: border-box !important;
-                        overflow: visible !important;
+                        padding: 4px 6px !important;
+                        font-size: 7.5pt !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        justifyContent: space-between !important;
+                        height: 196mm !important;
+                        max-height: 196mm !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                        page-break-inside: avoid !important;
                       }
-                      @page {
-                        size: landscape;
-                        margin: 4mm;
+                      .voucher-watermark-overlay {
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justifyContent: center !important;
+                        pointer-events: none !important;
+                        z-index: 10 !important;
+                      }
+                      #voucher-print-area img {
+                        width: 34px !important;
+                        height: 34px !important;
+                        max-width: 34px !important;
+                        max-height: 34px !important;
+                        object-fit: contain !important;
+                        display: block !important;
+                        margin: 0 auto 2px auto !important;
+                      }
+                      .voucher-copy-box table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        margin-bottom: 3px !important;
+                        font-size: 6.5pt !important;
+                      }
+                      .voucher-copy-box table td,
+                      .voucher-copy-box table th {
+                        padding: 1.5px 3px !important;
+                        line-height: 1.15 !important;
                       }
                     }
                   `}
                 </style>
 
                 {/* Three-Column Voucher Layout */}
-                <Box sx={{ 
-                  display: 'flex', 
-                  gap: 2,
-                  '@media print': {
-                    gap: '10px',
-                    height: '100%',
-                    flex: 1,
-                    alignItems: 'stretch'
-                  }
-                }}>
+                <Box 
+                  className="voucher-three-column-box"
+                  sx={{ 
+                    display: 'flex', 
+                    gap: 2,
+                    '@media print': {
+                      gap: '8px',
+                      height: '196mm',
+                      maxHeight: '196mm',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }
+                  }}
+                >
                   {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
                     <Box 
                       key={copyIndex}
@@ -7933,12 +7998,13 @@ const FeeManagement = () => {
                         position: 'relative',
                         overflow: 'hidden',
                         '@media print': {
-                          fontSize: '8.5pt',
-                          padding: '8px 10px',
+                          fontSize: '7.5pt',
+                          padding: '4px 6px',
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          height: '100%',
+                          height: '196mm',
+                          maxHeight: '196mm',
                           boxSizing: 'border-box',
                           position: 'relative',
                           overflow: 'hidden'
@@ -7947,19 +8013,29 @@ const FeeManagement = () => {
                     >
                       {/* Watermark Overlay */}
                       {(voucherData.voucherStatus === 'Paid' || voucherData.voucherStatus === 'Partial') && (
-                        <Box sx={{
-                          position: 'absolute',
-                          top: 0,
-                          left: 0,
-                          width: '100%',
-                          height: '100%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          pointerEvents: 'none',
-                          zIndex: 10,
-                          '@media print': { zIndex: 10 }
-                        }}>
+                        <Box 
+                          className="voucher-watermark-overlay"
+                          sx={{
+                            position: 'absolute',
+                            top: 0,
+                            left: 0,
+                            width: '100%',
+                            height: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            pointerEvents: 'none',
+                            zIndex: 10,
+                            '@media print': {
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '100%',
+                              zIndex: 10
+                            }
+                          }}
+                        >
                           <Typography sx={{
                             fontSize: voucherData.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
                             fontWeight: 900,
@@ -7974,8 +8050,10 @@ const FeeManagement = () => {
                             whiteSpace: 'nowrap',
                             lineHeight: 1,
                             '@media print': {
-                              fontSize: voucherData.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
+                              fontSize: voucherData.voucherStatus === 'Paid' ? '2.5rem' : '1.8rem',
                               color: voucherData.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)',
+                              border: `2px solid ${voucherData.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)'}`,
+                              padding: '8px 12px',
                               WebkitPrintColorAdjust: 'exact',
                               printColorAdjust: 'exact'
                             }
@@ -8206,7 +8284,7 @@ const FeeManagement = () => {
                       </Box>
 
                       {/* Barcode */}
-                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, '@media print': { mt: 0.5 } }}>
                         <Box
                           sx={{
                             width: '100%',
@@ -8215,10 +8293,11 @@ const FeeManagement = () => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            bgcolor: '#fff'
+                            bgcolor: '#fff',
+                            '@media print': { height: '22px' }
                           }}
                         >
-                          <Typography sx={{ fontSize: '0.6rem', color: '#666', fontFamily: 'monospace' }}>
+                          <Typography sx={{ fontSize: '0.6rem', color: '#666', fontFamily: 'monospace', '@media print': { fontSize: '0.55rem' } }}>
                             |||||||||||||||||||||||||||
                           </Typography>
                         </Box>
@@ -8282,14 +8361,21 @@ const FeeManagement = () => {
               <Box id="bulk-voucher-print-area">
                 <style>
                   {`
+                    @page {
+                      size: landscape;
+                      margin: 4mm;
+                    }
                     @media print {
+                      #root {
+                        display: none !important;
+                      }
                       html, body {
+                        width: 100% !important;
                         height: 100% !important;
-                        max-height: 100% !important;
-                        overflow: visible !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
+                        overflow: visible !important;
                       }
                       body * {
                         visibility: hidden !important;
@@ -8297,58 +8383,114 @@ const FeeManagement = () => {
                       #bulk-voucher-print-area, #bulk-voucher-print-area * {
                         visibility: visible !important;
                       }
-                      /* Ensure MUI Dialog portal containers don't clip the print area */
-                      .MuiDialog-root, .MuiDialog-root *,
-                      .MuiModal-root, .MuiModal-root * {
-                        overflow: visible !important;
+                      .MuiBackdrop-root,
+                      .MuiDialogTitle-root,
+                      .MuiDialogActions-root,
+                      .no-print {
+                        display: none !important;
+                      }
+                      .MuiDialog-root,
+                      .MuiDialog-container {
                         position: static !important;
-                        transform: none !important;
+                        display: block !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        border: none !important;
+                      }
+                      .MuiDialog-paper {
+                        box-shadow: none !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        max-width: none !important;
+                        width: 100% !important;
+                        height: auto !important;
+                        overflow: visible !important;
+                        border: none !important;
+                        background: transparent !important;
+                      }
+                      .MuiDialogContent-root {
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        overflow: visible !important;
                       }
                       #bulk-voucher-print-area {
-                        position: absolute !important;
-                        left: 0 !important;
-                        top: 0 !important;
+                        display: block !important;
                         width: 100% !important;
                         margin: 0 !important;
                         padding: 0 !important;
-                        z-index: 999999 !important;
-                      }
-                      #bulk-voucher-print-area img {
-                        width: 40px !important;
-                        height: 40px !important;
-                        max-width: 40px !important;
-                        max-height: 40px !important;
-                        object-fit: contain !important;
-                        display: block !important;
-                        margin: 0 auto 4px auto !important;
+                        box-sizing: border-box !important;
                       }
                       .voucher-page {
                         page-break-after: always !important;
                         page-break-inside: avoid !important;
-                        height: 195mm !important;
-                        max-height: 195mm !important;
+                        height: 196mm !important;
+                        max-height: 196mm !important;
                         box-sizing: border-box !important;
                         padding: 0 !important;
                         margin: 0 !important;
-                        border-bottom: none !important;
-                        display: flex !important;
-                        flex-direction: column !important;
-                        overflow: visible !important;
+                        display: block !important;
+                        overflow: hidden !important;
                       }
                       .voucher-page:last-child,
                       .voucher-page:last-of-type {
                         page-break-after: avoid !important;
-                        page-break-before: avoid !important;
-                        border-bottom: none !important;
+                      }
+                      .voucher-three-column-box {
+                        display: flex !important;
+                        flex-direction: row !important;
+                        gap: 8px !important;
+                        width: 100% !important;
+                        height: 196mm !important;
+                        max-height: 196mm !important;
+                        box-sizing: border-box !important;
+                        page-break-inside: avoid !important;
                       }
                       .voucher-copy-box {
+                        flex: 1 1 0% !important;
                         border: 2px solid #000 !important;
                         box-sizing: border-box !important;
-                        overflow: visible !important;
+                        padding: 4px 6px !important;
+                        font-size: 7.5pt !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        justifyContent: space-between !important;
+                        height: 196mm !important;
+                        max-height: 196mm !important;
+                        position: relative !important;
+                        overflow: hidden !important;
+                        page-break-inside: avoid !important;
                       }
-                      @page {
-                        size: landscape;
-                        margin: 4mm;
+                      .voucher-watermark-overlay {
+                        position: absolute !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 100% !important;
+                        height: 100% !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justifyContent: center !important;
+                        pointer-events: none !important;
+                        z-index: 10 !important;
+                      }
+                      #bulk-voucher-print-area img {
+                        width: 34px !important;
+                        height: 34px !important;
+                        max-width: 34px !important;
+                        max-height: 34px !important;
+                        object-fit: contain !important;
+                        display: block !important;
+                        margin: 0 auto 2px auto !important;
+                      }
+                      .voucher-copy-box table {
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                        margin-bottom: 3px !important;
+                        font-size: 6.5pt !important;
+                      }
+                      .voucher-copy-box table td,
+                      .voucher-copy-box table th {
+                        padding: 1.5px 3px !important;
+                        line-height: 1.15 !important;
                       }
                     }
                   `}
@@ -8356,16 +8498,21 @@ const FeeManagement = () => {
                 
                 {bulkVouchersData.map((data, index) => (
                   <Box key={index} className="voucher-page" sx={{ mb: 4 }}>
-                    <Box sx={{ 
-                      display: 'flex', 
-                      gap: 2,
-                      '@media print': {
-                        gap: '10px',
-                        height: '100%',
-                        flex: 1,
-                        alignItems: 'stretch'
-                      }
-                    }}>
+                    <Box 
+                      className="voucher-three-column-box"
+                      sx={{ 
+                        display: 'flex', 
+                        gap: 2,
+                        '@media print': {
+                          gap: '8px',
+                          height: '196mm',
+                          maxHeight: '196mm',
+                          width: '100%',
+                          flex: 1,
+                          alignItems: 'stretch'
+                        }
+                      }}
+                    >
                       {['Parent\'s Copy', 'School\'s Copy', 'Bank\'s Copy'].map((copyType, copyIndex) => (
                         <Box 
                           key={copyIndex}
@@ -8378,12 +8525,13 @@ const FeeManagement = () => {
                             position: 'relative',
                             overflow: 'hidden',
                             '@media print': {
-                              fontSize: '8.5pt',
-                              padding: '8px 10px',
+                              fontSize: '7.5pt',
+                              padding: '4px 6px',
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              height: '100%',
+                              height: '196mm',
+                              maxHeight: '196mm',
                               boxSizing: 'border-box',
                               position: 'relative',
                               overflow: 'hidden'
@@ -8392,19 +8540,29 @@ const FeeManagement = () => {
                         >
                           {/* Watermark Overlay */}
                           {(data.voucherStatus === 'Paid' || data.voucherStatus === 'Partial') && (
-                            <Box sx={{
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              width: '100%',
-                              height: '100%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              pointerEvents: 'none',
-                              zIndex: 10,
-                              '@media print': { zIndex: 10 }
-                            }}>
+                            <Box 
+                              className="voucher-watermark-overlay"
+                              sx={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                pointerEvents: 'none',
+                                zIndex: 10,
+                                '@media print': {
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  width: '100%',
+                                  height: '100%',
+                                  zIndex: 10
+                                }
+                              }}
+                            >
                               <Typography sx={{
                                 fontSize: data.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
                                 fontWeight: 900,
@@ -8419,8 +8577,10 @@ const FeeManagement = () => {
                                 whiteSpace: 'nowrap',
                                 lineHeight: 1,
                                 '@media print': {
-                                  fontSize: data.voucherStatus === 'Paid' ? '4.5rem' : '3rem',
+                                  fontSize: data.voucherStatus === 'Paid' ? '2.5rem' : '1.8rem',
                                   color: data.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)',
+                                  border: `2px solid ${data.voucherStatus === 'Paid' ? 'rgba(0,140,0,0.22)' : 'rgba(200,100,0,0.22)'}`,
+                                  padding: '8px 12px',
                                   WebkitPrintColorAdjust: 'exact',
                                   printColorAdjust: 'exact'
                                 }
@@ -8626,7 +8786,7 @@ const FeeManagement = () => {
                           </Box>
 
                           {/* Barcode */}
-                          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+                          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1, '@media print': { mt: 0.5 } }}>
                             <Box
                               sx={{
                                 width: '100%',
@@ -8635,10 +8795,11 @@ const FeeManagement = () => {
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                bgcolor: '#fff'
+                                bgcolor: '#fff',
+                                '@media print': { height: '22px' }
                               }}
                             >
-                              <Typography sx={{ fontSize: '0.6rem', color: '#666', fontFamily: 'monospace' }}>
+                              <Typography sx={{ fontSize: '0.6rem', color: '#666', fontFamily: 'monospace', '@media print': { fontSize: '0.55rem' } }}>
                                 |||||||||||||||||||||||||||
                               </Typography>
                             </Box>
