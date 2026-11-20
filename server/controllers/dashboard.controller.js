@@ -1370,7 +1370,7 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
   const suspenseQuery = {
     institution: { $in: institutionIds },
-    status: { $in: ['unidentified', 'reconciled'] }
+    status: 'unidentified'
   };
   if (parsedStartDate || parsedEndDate) {
     const sDateCond = {};
@@ -1406,8 +1406,8 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
   }
 
   const [feePayments, suspenseEntries, reconRecords] = await Promise.all([
-    FeePayment.find(paymentQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate').lean(),
-    SuspenseEntry.find(suspenseQuery).select('institution amount paymentMethod bankName remarks transactionId createdAt paymentDate status').lean(),
+    FeePayment.find(paymentQuery).select('institution amount paymentMethod bankAccount bankName remarks transactionId createdAt paymentDate').lean(),
+    SuspenseEntry.find(suspenseQuery).select('institution amount paymentMethod bankAccount bankName remarks transactionId createdAt paymentDate status').lean(),
     MonthReconciliation.find(reconQuery).select('institution bankAccount monthKey reconcileAmount').lean()
   ]);
 
@@ -1416,14 +1416,42 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
   // Helper function to resolve which bank account a payment belongs to
   const resolveBank = (item) => {
+    const instIdStr = (item.institution?._id || item.institution)?.toString();
+
     if (item.bankAccount) {
       const bId = (item.bankAccount._id || item.bankAccount).toString();
       const b = bankAccounts.find(x => x._id.toString() === bId);
       if (b) return b;
     }
 
+    // Prioritize bank accounts linked to the payment's institution
+    const campusAccounts = instIdStr
+      ? bankAccounts.filter(b => (b.institutions || []).some(id => (id._id || id).toString() === instIdStr))
+      : [];
+
     if (item.bankName) {
       const pClean = cleanStr(item.bankName);
+
+      // Check campus-specific accounts first
+      if (campusAccounts.length > 0) {
+        let exactCampus = campusAccounts.find(b => cleanStr(b.bankName) === pClean);
+        if (exactCampus) return exactCampus;
+
+        let bestCampus = null;
+        let maxCampusLen = 0;
+        for (const b of campusAccounts) {
+          const bClean = cleanStr(b.bankName);
+          if (bClean.includes(pClean) || pClean.includes(bClean)) {
+            const matchLen = Math.min(bClean.length, pClean.length);
+            if (matchLen > maxCampusLen) {
+              maxCampusLen = matchLen;
+              bestCampus = b;
+            }
+          }
+        }
+        if (bestCampus) return bestCampus;
+      }
+
       let exact = bankAccounts.find(b => cleanStr(b.bankName) === pClean);
       if (exact) return exact;
 
@@ -1444,6 +1472,20 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
     if (item.remarks) {
       const rClean = cleanStr(item.remarks);
+
+      if (campusAccounts.length > 0) {
+        let bestCampus = null;
+        let maxCampusLen = 0;
+        for (const b of campusAccounts) {
+          const bClean = cleanStr(b.bankName);
+          if (bClean.length > 2 && rClean.includes(bClean) && bClean.length > maxCampusLen) {
+            maxCampusLen = bClean.length;
+            bestCampus = b;
+          }
+        }
+        if (bestCampus) return bestCampus;
+      }
+
       let bestMatch = null;
       let maxLen = 0;
       for (const b of bankAccounts) {
@@ -1458,19 +1500,19 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     return null;
   };
 
-  // Matrix: [bankId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 }
+  // Matrix: [bankId][instId] = { collections: 0, reconciled: 0, suspense: 0 }
   const matrix = {};
   bankAccounts.forEach(b => {
     const bId = b._id.toString();
     matrix[bId] = {};
     institutions.forEach(inst => {
-      matrix[bId][inst._id.toString()] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
+      matrix[bId][inst._id.toString()] = { collections: 0, reconciled: 0, suspense: 0 };
     });
   });
 
   const unmappedBanks = new Map();
 
-  // Aggregate FeePayments
+  // Aggregate FeePayments (includes direct collections and payments reconciled from suspense)
   feePayments.forEach(p => {
     const instId = (p.institution?._id || p.institution)?.toString();
     if (!instId) return;
@@ -1479,18 +1521,18 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     if (matchedBank) {
       const bId = matchedBank._id.toString();
       if (!matrix[bId]) matrix[bId] = {};
-      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0, suspense: 0 };
       matrix[bId][instId].collections += (p.amount || 0);
     } else if (p.bankName) {
       const key = p.bankName.trim();
       if (!unmappedBanks.has(key)) unmappedBanks.set(key, {});
       const entry = unmappedBanks.get(key);
-      if (!entry[instId]) entry[instId] = { collections: 0, reconciledSuspense: 0, suspense: 0 };
+      if (!entry[instId]) entry[instId] = { collections: 0, suspense: 0 };
       entry[instId].collections += (p.amount || 0);
     }
   });
 
-  // Aggregate SuspenseEntries
+  // Aggregate SuspenseEntries (only unidentified suspense entries)
   suspenseEntries.forEach(s => {
     const instId = (s.institution?._id || s.institution)?.toString();
     if (!instId) return;
@@ -1499,22 +1541,14 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     if (matchedBank) {
       const bId = matchedBank._id.toString();
       if (!matrix[bId]) matrix[bId] = {};
-      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
-      if (s.status === 'unidentified') {
-        matrix[bId][instId].suspense += (s.amount || 0);
-      } else {
-        matrix[bId][instId].reconciledSuspense += (s.amount || 0);
-      }
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0, suspense: 0 };
+      matrix[bId][instId].suspense += (s.amount || 0);
     } else if (s.bankName) {
       const key = s.bankName.trim();
       if (!unmappedBanks.has(key)) unmappedBanks.set(key, {});
       const entry = unmappedBanks.get(key);
-      if (!entry[instId]) entry[instId] = { collections: 0, reconciledSuspense: 0, suspense: 0 };
-      if (s.status === 'unidentified') {
-        entry[instId].suspense += (s.amount || 0);
-      } else {
-        entry[instId].reconciledSuspense += (s.amount || 0);
-      }
+      if (!entry[instId]) entry[instId] = { collections: 0, suspense: 0 };
+      entry[instId].suspense += (s.amount || 0);
     }
   });
 
@@ -1526,7 +1560,7 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     if (r.bankAccount) {
       const bId = (r.bankAccount._id || r.bankAccount).toString();
       if (!matrix[bId]) matrix[bId] = {};
-      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
+      if (!matrix[bId][instId]) matrix[bId][instId] = { collections: 0, reconciled: 0, suspense: 0 };
       matrix[bId][instId].reconciled += (r.reconcileAmount || 0);
     }
   });
@@ -1571,10 +1605,9 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
     matrix[virtualAcc._id] = {};
     institutions.forEach(inst => {
       const instId = inst._id.toString();
-      const uEntry = instMap[instId] || { collections: 0, reconciledSuspense: 0, suspense: 0 };
+      const uEntry = instMap[instId] || { collections: 0, suspense: 0 };
       matrix[virtualAcc._id][instId] = {
         collections: uEntry.collections || 0,
-        reconciledSuspense: uEntry.reconciledSuspense || 0,
         reconciled: 0,
         suspense: uEntry.suspense || 0
       };
@@ -1611,19 +1644,19 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
       institutions.forEach(inst => {
         const instId = inst._id.toString();
-        const cell = matrix[bId]?.[instId] || { collections: 0, reconciledSuspense: 0, reconciled: 0, suspense: 0 };
+        const cell = matrix[bId]?.[instId] || { collections: 0, reconciled: 0, suspense: 0 };
         
         let recAmount = 0;
         if (mode === 'collections') {
-          recAmount = cell.collections + (cell.reconciledSuspense || 0);
+          recAmount = cell.collections;
         } else if (mode === 'reconciled') {
-          recAmount = cell.reconciled > 0 ? cell.reconciled : (cell.collections + (cell.reconciledSuspense || 0));
+          recAmount = cell.reconciled > 0 ? cell.reconciled : cell.collections;
         } else {
           // auto mode: if custom payment dates are set, use collections because bank reconciliation is recorded at whole-month granularity
           if (effectiveStart || effectiveEnd) {
-            recAmount = cell.collections + (cell.reconciledSuspense || 0);
+            recAmount = cell.collections;
           } else {
-            recAmount = cell.reconciled > 0 ? cell.reconciled : (cell.collections + (cell.reconciledSuspense || 0));
+            recAmount = cell.reconciled > 0 ? cell.reconciled : cell.collections;
           }
         }
         const suspAmount = cell.suspense || 0;
