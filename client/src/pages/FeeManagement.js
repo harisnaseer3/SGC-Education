@@ -7855,11 +7855,11 @@ const FeeManagement = () => {
                       }
                       html, body {
                         width: 100% !important;
-                        height: 100% !important;
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                       }
                       body * {
                         visibility: hidden !important;
@@ -7900,11 +7900,11 @@ const FeeManagement = () => {
                       #voucher-print-area {
                         display: block !important;
                         width: 100% !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         box-sizing: border-box !important;
+                        overflow: visible !important;
                         page-break-after: avoid !important;
                         page-break-before: avoid !important;
                         page-break-inside: avoid !important;
@@ -7914,9 +7914,9 @@ const FeeManagement = () => {
                         flex-direction: row !important;
                         gap: 8px !important;
                         width: 100% !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         box-sizing: border-box !important;
+                        overflow: visible !important;
                         page-break-after: avoid !important;
                         page-break-inside: avoid !important;
                       }
@@ -7929,10 +7929,9 @@ const FeeManagement = () => {
                         display: flex !important;
                         flex-direction: column !important;
                         justifyContent: space-between !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         position: relative !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         page-break-inside: avoid !important;
                       }
                       .voucher-watermark-overlay {
@@ -7979,8 +7978,7 @@ const FeeManagement = () => {
                     gap: 2,
                     '@media print': {
                       gap: '8px',
-                      height: '196mm',
-                      maxHeight: '196mm',
+                      height: 'auto',
                       width: '100%',
                       boxSizing: 'border-box'
                     }
@@ -8003,11 +8001,10 @@ const FeeManagement = () => {
                           display: 'flex',
                           flexDirection: 'column',
                           justifyContent: 'space-between',
-                          height: '196mm',
-                          maxHeight: '196mm',
+                          height: 'auto',
                           boxSizing: 'border-box',
                           position: 'relative',
-                          overflow: 'hidden'
+                          overflow: 'visible'
                         }
                       }}
                     >
@@ -8423,13 +8420,11 @@ const FeeManagement = () => {
                       .voucher-page {
                         page-break-after: always !important;
                         page-break-inside: avoid !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
                         box-sizing: border-box !important;
                         padding: 0 !important;
                         margin: 0 !important;
                         display: block !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                       }
                       .voucher-page:last-child,
                       .voucher-page:last-of-type {
@@ -8440,9 +8435,9 @@ const FeeManagement = () => {
                         flex-direction: row !important;
                         gap: 8px !important;
                         width: 100% !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         box-sizing: border-box !important;
+                        overflow: visible !important;
                         page-break-inside: avoid !important;
                       }
                       .voucher-copy-box {
@@ -8454,10 +8449,9 @@ const FeeManagement = () => {
                         display: flex !important;
                         flex-direction: column !important;
                         justifyContent: space-between !important;
-                        height: 196mm !important;
-                        max-height: 196mm !important;
+                        height: auto !important;
                         position: relative !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         page-break-inside: avoid !important;
                       }
                       .voucher-watermark-overlay {
@@ -8505,8 +8499,7 @@ const FeeManagement = () => {
                         gap: 2,
                         '@media print': {
                           gap: '8px',
-                          height: '196mm',
-                          maxHeight: '196mm',
+                          height: 'auto',
                           width: '100%',
                           flex: 1,
                           alignItems: 'stretch'
@@ -8530,11 +8523,10 @@ const FeeManagement = () => {
                               display: 'flex',
                               flexDirection: 'column',
                               justifyContent: 'space-between',
-                              height: '196mm',
-                              maxHeight: '196mm',
+                              height: 'auto',
                               boxSizing: 'border-box',
                               position: 'relative',
-                              overflow: 'hidden'
+                              overflow: 'visible'
                             }
                           }}
                         >
