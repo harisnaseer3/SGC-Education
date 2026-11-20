@@ -3292,6 +3292,7 @@ const FeeManagement = () => {
       let dueDate = new Date(year, month, 20); // Default to 20th of the month
       let explicitValidityDate = null;
       let studentFees = []; // Declare outside try block for use later
+      let feesWithVouchers = []; // Declare outside try block for use in voucher calculations
       let voucherNumber = 'N/A'; // Declare outside try block for use in return statement
 
       // Get student ID from admission
@@ -3310,7 +3311,7 @@ const FeeManagement = () => {
         
         // Filter to only include StudentFee records that have vouchers for the selected month/year
         // This ensures we only show fee heads that were selected during voucher generation
-        const feesWithVouchers = studentFees.filter(fee => {
+        feesWithVouchers = studentFees.filter(fee => {
           // Check if vouchers array exists and has items
           if (!fee.vouchers || !Array.isArray(fee.vouchers) || fee.vouchers.length === 0) {
             return false;
