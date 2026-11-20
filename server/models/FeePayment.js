@@ -47,6 +47,10 @@ const feePaymentSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  bankAccount: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'BankAccount'
+  },
   bankName: {
     type: String,
     trim: true

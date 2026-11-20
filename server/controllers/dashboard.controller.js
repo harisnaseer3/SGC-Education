@@ -1345,13 +1345,13 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
   // 1. Fetch active bank accounts
   let bankAccounts = await BankAccount.find({ isActive: true })
-    .select('_id bankName accountTitle accountNumber branchCode institutions')
+    .select('_id bankName accountTitle accountNumber branchCode institutions institution')
     .sort({ bankName: 1 })
     .lean();
 
   if (!bankAccounts || bankAccounts.length === 0) {
     bankAccounts = await BankAccount.find({})
-      .select('_id bankName accountTitle accountNumber branchCode institutions')
+      .select('_id bankName accountTitle accountNumber branchCode institutions institution')
       .sort({ bankName: 1 })
       .lean();
   }
@@ -1426,8 +1426,34 @@ const getBanksStatementReport = asyncHandler(async (req, res) => {
 
     // Prioritize bank accounts linked to the payment's institution
     const campusAccounts = instIdStr
-      ? bankAccounts.filter(b => (b.institutions || []).some(id => (id._id || id).toString() === instIdStr))
+      ? bankAccounts.filter(b => {
+          if (b.institution && (b.institution._id || b.institution).toString() === instIdStr) return true;
+          return (b.institutions || []).some(id => (id._id || id).toString() === instIdStr);
+        })
       : [];
+
+    // Check if account number digits (last 3 or 4) are explicitly present in bankName or remarks
+    const rawText = `${item.bankName || ''} ${item.remarks || ''}`;
+    if (rawText.trim()) {
+      if (campusAccounts.length > 0) {
+        for (const b of campusAccounts) {
+          const accDigits = (b.accountNumber || '').replace(/[^0-9]/g, '');
+          const last4 = accDigits.slice(-4);
+          const last3 = accDigits.slice(-3);
+          if ((last4 && rawText.includes(last4)) || (last3 && rawText.includes(last3))) {
+            return b;
+          }
+        }
+      }
+      for (const b of bankAccounts) {
+        const accDigits = (b.accountNumber || '').replace(/[^0-9]/g, '');
+        const last4 = accDigits.slice(-4);
+        const last3 = accDigits.slice(-3);
+        if ((last4 && rawText.includes(last4)) || (last3 && rawText.includes(last3))) {
+          return b;
+        }
+      }
+    }
 
     if (item.bankName) {
       const pClean = cleanStr(item.bankName);

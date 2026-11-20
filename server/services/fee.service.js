@@ -1551,7 +1551,7 @@ class FeeService {
    * Updates StudentFee paidAmount and status
    */
   async recordPayment(paymentData, currentUser) {
-    const { studentFeeId, amount, paymentMethod = 'cash', paymentDate, remarks, chequeNumber, bankName, transactionId, voucherNumber } = paymentData;
+    const { studentFeeId, amount, paymentMethod = 'cash', paymentDate, remarks, chequeNumber, bankAccount, bankName, transactionId, voucherNumber } = paymentData;
 
     if (!studentFeeId || !amount || amount <= 0) {
       throw new ApiError(400, 'Student fee ID and valid payment amount are required');
@@ -1747,6 +1747,7 @@ class FeeService {
           paymentDate: paymentDate || new Date(),
           paymentMethod: paymentMethod,
           chequeNumber: chequeNumber,
+          bankAccount: bankAccount || undefined,
           bankName: bankName,
           transactionId: transactionId,
           remarks: remarks,

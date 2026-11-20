@@ -2777,6 +2777,7 @@ const FeeManagement = () => {
                   paymentDate: manualDepositForm.paymentDate,
                   remarks: manualDepositForm.remarks,
                   chequeNumber: manualDepositForm.chequeNumber,
+                  bankAccount: manualDepositForm.bankAccount || undefined,
                   bankName: manualDepositForm.bankName,
                   transactionId: manualDepositForm.transactionId,
                   voucherNumber: voucherNumber
