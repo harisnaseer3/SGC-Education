@@ -4123,10 +4123,6 @@ const FeeManagement = () => {
       return;
     }
 
-    const headStyles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
-      .map(el => el.outerHTML)
-      .join('\n');
-
     const iframe = document.createElement('iframe');
     iframe.style.position = 'fixed';
     iframe.style.right = '0';
@@ -4143,7 +4139,6 @@ const FeeManagement = () => {
       <html>
         <head>
           <title>${title}</title>
-          ${headStyles}
           <style>
             @page {
               size: landscape;
@@ -4254,7 +4249,9 @@ const FeeManagement = () => {
               align-items: center !important;
               justify-content: center !important;
               pointer-events: none !important;
-              z-index: 10 !important;
+              z-index: 0 !important;
+              background: transparent !important;
+              background-color: transparent !important;
               overflow: hidden !important;
             }
             .voucher-watermark-text {
@@ -4276,6 +4273,15 @@ const FeeManagement = () => {
             .voucher-watermark-partial {
               color: rgba(217, 119, 6, 0.22) !important;
               border: 2.5px solid rgba(217, 119, 6, 0.22) !important;
+            }
+            .voucher-header-row,
+            .voucher-inst-header,
+            .voucher-table,
+            .voucher-notes-box,
+            .voucher-bank-box,
+            .voucher-barcode-container {
+              position: relative !important;
+              z-index: 1 !important;
             }
             .voucher-notes-box {
               margin-bottom: 3px !important;
@@ -8186,7 +8192,9 @@ const FeeManagement = () => {
                         align-items: center !important;
                         justifyContent: center !important;
                         pointer-events: none !important;
-                        z-index: 10 !important;
+                        z-index: 0 !important;
+              background: transparent !important;
+              background-color: transparent !important;
                         overflow: hidden !important;
                       }
                       .voucher-watermark-text {
@@ -8209,6 +8217,15 @@ const FeeManagement = () => {
                         color: rgba(217, 119, 6, 0.22) !important;
                         border: 2.5px solid rgba(217, 119, 6, 0.22) !important;
                       }
+            .voucher-header-row,
+            .voucher-inst-header,
+            .voucher-table,
+            .voucher-notes-box,
+            .voucher-bank-box,
+            .voucher-barcode-container {
+              position: relative !important;
+              z-index: 1 !important;
+            }
                       .voucher-notes-box {
                         margin-bottom: 3px !important;
                         font-size: 5.5pt !important;
@@ -8289,7 +8306,7 @@ const FeeManagement = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             pointerEvents: 'none',
-                            zIndex: 10,
+                            zIndex: 0, background: "transparent !important", bgcolor: "transparent !important",
                             overflow: 'hidden'
                           }}
                         >
@@ -8737,7 +8754,9 @@ const FeeManagement = () => {
                         align-items: center !important;
                         justifyContent: center !important;
                         pointer-events: none !important;
-                        z-index: 10 !important;
+                        z-index: 0 !important;
+              background: transparent !important;
+              background-color: transparent !important;
                         overflow: hidden !important;
                       }
                       .voucher-watermark-text {
@@ -8760,6 +8779,15 @@ const FeeManagement = () => {
                         color: rgba(217, 119, 6, 0.22) !important;
                         border: 2.5px solid rgba(217, 119, 6, 0.22) !important;
                       }
+            .voucher-header-row,
+            .voucher-inst-header,
+            .voucher-table,
+            .voucher-notes-box,
+            .voucher-bank-box,
+            .voucher-barcode-container {
+              position: relative !important;
+              z-index: 1 !important;
+            }
                       .voucher-notes-box {
                         margin-bottom: 3px !important;
                         font-size: 5.5pt !important;
@@ -8841,7 +8869,7 @@ const FeeManagement = () => {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 pointerEvents: 'none',
-                                zIndex: 10,
+                                zIndex: 0, background: "transparent !important", bgcolor: "transparent !important",
                                 overflow: 'hidden'
                               }}
                             >

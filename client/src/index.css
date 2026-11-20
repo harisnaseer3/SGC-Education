@@ -26,7 +26,7 @@ code {
     display: none !important;
   }
 
-  body, #root, main, div {
+  body, #root, main {
     background-color: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
