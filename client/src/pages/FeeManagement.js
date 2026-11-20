@@ -3494,6 +3494,14 @@ const FeeManagement = () => {
       const payableWithinDueDate = currentMonthFeeTotal + arrears;
       const payableAfterDueDate = payableWithinDueDate + lateFeeFine + absentFine;
 
+      let paidAmount = typeof student?.paidAmount === 'number' ? student.paidAmount : 0;
+      if (!paidAmount && feesWithVouchers && feesWithVouchers.length > 0) {
+        paidAmount = feesWithVouchers.reduce((sum, f) => sum + parseFloat(f.paidAmount || 0), 0);
+      }
+      let remainingAmount = typeof student?.remainingAmount === 'number'
+        ? student.remainingAmount
+        : Math.max(0, Math.round((payableWithinDueDate - paidAmount) * 100) / 100);
+
       // Helper to format Date object into local YYYY-MM-DD avoiding UTC day shift
       const toLocalDateString = (d) => {
         if (!d || isNaN(d.getTime())) return '';
@@ -3619,6 +3627,8 @@ const FeeManagement = () => {
           { name: 'Absent Fine', amount: absentFine }
         ],
         arrears: arrears,
+        paidAmount: paidAmount,
+        remainingAmount: remainingAmount,
         lateFeeFine: lateFeeFine,
         absentFine: absentFine,
         payableWithinDueDate: payableWithinDueDate,
@@ -4127,6 +4137,8 @@ const FeeManagement = () => {
     const data = await fetchVoucherData(student, printVoucherFilters.monthYear);
     if (data) {
       data.voucherStatus = student.voucherStatus || '';
+      if (typeof student.paidAmount === 'number') data.paidAmount = student.paidAmount;
+      if (typeof student.remainingAmount === 'number') data.remainingAmount = student.remainingAmount;
       setVoucherData(data);
     }
   };
@@ -4181,7 +4193,11 @@ const FeeManagement = () => {
 
       const voucherPromises = selectedStudents.map(student => 
         fetchVoucherData(student, printVoucherFilters.monthYear).then(data => {
-          if (data) data.voucherStatus = student.voucherStatus || '';
+          if (data) {
+            data.voucherStatus = student.voucherStatus || '';
+            if (typeof student.paidAmount === 'number') data.paidAmount = student.paidAmount;
+            if (typeof student.remainingAmount === 'number') data.remainingAmount = student.remainingAmount;
+          }
           return data;
         })
       );
@@ -8076,14 +8092,43 @@ const FeeManagement = () => {
                               {(voucherData.arrears || 0).toLocaleString()}
                             </td>
                           </tr>
-                          <tr>
-                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
-                              Payable within due date:
-                            </td>
-                            <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
-                              {voucherData.payableWithinDueDate.toLocaleString()}
-                            </td>
-                          </tr>
+                          {voucherData.paidAmount > 0 ? (
+                            <>
+                              <tr>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                                  Total Voucher Amount:
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                                  {voucherData.payableWithinDueDate.toLocaleString()}
+                                </td>
+                              </tr>
+                              <tr>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', color: '#15803d' }}>
+                                  Paid Amount:
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right', color: '#15803d' }}>
+                                  {voucherData.paidAmount.toLocaleString()}
+                                </td>
+                              </tr>
+                              <tr style={{ backgroundColor: '#fff7ed' }}>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                                  Remaining within due date:
+                                </td>
+                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                                  {(voucherData.remainingAmount !== undefined ? voucherData.remainingAmount : Math.max(0, voucherData.payableWithinDueDate - voucherData.paidAmount)).toLocaleString()}
+                                </td>
+                              </tr>
+                            </>
+                          ) : (
+                            <tr>
+                              <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                                Payable within due date:
+                              </td>
+                              <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                                {voucherData.payableWithinDueDate.toLocaleString()}
+                              </td>
+                            </tr>
+                          )}
                           <tr>
                             <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
                               Late fee fine:
@@ -8102,10 +8147,13 @@ const FeeManagement = () => {
                           </tr>
                           <tr>
                             <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
-                              Payable after due date:
+                              {voucherData.paidAmount > 0 ? 'Remaining after due date:' : 'Payable after due date:'}
                             </td>
                             <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
-                              {voucherData.payableAfterDueDate.toLocaleString()}
+                              {((voucherData.paidAmount > 0 
+                                ? (voucherData.remainingAmount !== undefined ? voucherData.remainingAmount : Math.max(0, voucherData.payableWithinDueDate - voucherData.paidAmount))
+                                : voucherData.payableWithinDueDate
+                              ) + (voucherData.lateFeeFine || 0)).toLocaleString()}
                             </td>
                           </tr>
                         </tbody>
@@ -8455,14 +8503,43 @@ const FeeManagement = () => {
                                   {(data.arrears || 0).toLocaleString()}
                                 </td>
                               </tr>
-                              <tr>
-                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
-                                  Payable within due date:
-                                </td>
-                                <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
-                                  {data.payableWithinDueDate.toLocaleString()}
-                                </td>
-                              </tr>
+                              {data.paidAmount > 0 ? (
+                                <>
+                                  <tr>
+                                    <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                                      Total Voucher Amount:
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                                      {data.payableWithinDueDate.toLocaleString()}
+                                    </td>
+                                  </tr>
+                                  <tr>
+                                    <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', color: '#15803d' }}>
+                                      Paid Amount:
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right', color: '#15803d' }}>
+                                      {data.paidAmount.toLocaleString()}
+                                    </td>
+                                  </tr>
+                                  <tr style={{ backgroundColor: '#fff7ed' }}>
+                                    <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                                      Remaining within due date:
+                                    </td>
+                                    <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                                      {(data.remainingAmount !== undefined ? data.remainingAmount : Math.max(0, data.payableWithinDueDate - data.paidAmount)).toLocaleString()}
+                                    </td>
+                                  </tr>
+                                </>
+                              ) : (
+                                <tr>
+                                  <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
+                                    Payable within due date:
+                                  </td>
+                                  <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
+                                    {data.payableWithinDueDate.toLocaleString()}
+                                  </td>
+                                </tr>
+                              )}
                               <tr>
                                 <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
                                   Late fee fine:
@@ -8481,10 +8558,13 @@ const FeeManagement = () => {
                               </tr>
                               <tr>
                                 <td colSpan={2} style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold' }}>
-                                  Payable after due date:
+                                  {data.paidAmount > 0 ? 'Remaining after due date:' : 'Payable after due date:'}
                                 </td>
                                 <td style={{ border: '1px solid #000', padding: '2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
-                                  {data.payableAfterDueDate.toLocaleString()}
+                                  {((data.paidAmount > 0 
+                                    ? (data.remainingAmount !== undefined ? data.remainingAmount : Math.max(0, data.payableWithinDueDate - data.paidAmount))
+                                    : data.payableWithinDueDate
+                                  ) + (data.lateFeeFine || 0)).toLocaleString()}
                                 </td>
                               </tr>
                             </tbody>
