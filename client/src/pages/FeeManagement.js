@@ -7849,7 +7849,7 @@ const FeeManagement = () => {
                       html, body {
                         height: 100% !important;
                         max-height: 100% !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
@@ -7859,6 +7859,13 @@ const FeeManagement = () => {
                       }
                       #voucher-print-area, #voucher-print-area * {
                         visibility: visible !important;
+                      }
+                      /* Ensure MUI Dialog portal containers don't clip the print area */
+                      .MuiDialog-root, .MuiDialog-root *,
+                      .MuiModal-root, .MuiModal-root * {
+                        overflow: visible !important;
+                        position: static !important;
+                        transform: none !important;
                       }
                       #voucher-print-area {
                         position: fixed !important;
@@ -7872,7 +7879,8 @@ const FeeManagement = () => {
                         box-sizing: border-box !important;
                         display: flex !important;
                         flex-direction: column !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
+                        z-index: 999999 !important;
                         page-break-after: avoid !important;
                         page-break-before: avoid !important;
                         page-break-inside: avoid !important;
@@ -7892,6 +7900,7 @@ const FeeManagement = () => {
                       .voucher-copy-box {
                         border: 2px solid #000 !important;
                         box-sizing: border-box !important;
+                        overflow: visible !important;
                       }
                       @page {
                         size: landscape;
@@ -8277,7 +8286,7 @@ const FeeManagement = () => {
                       html, body {
                         height: 100% !important;
                         max-height: 100% !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                         margin: 0 !important;
                         padding: 0 !important;
                         background: #fff !important;
@@ -8288,6 +8297,13 @@ const FeeManagement = () => {
                       #bulk-voucher-print-area, #bulk-voucher-print-area * {
                         visibility: visible !important;
                       }
+                      /* Ensure MUI Dialog portal containers don't clip the print area */
+                      .MuiDialog-root, .MuiDialog-root *,
+                      .MuiModal-root, .MuiModal-root * {
+                        overflow: visible !important;
+                        position: static !important;
+                        transform: none !important;
+                      }
                       #bulk-voucher-print-area {
                         position: absolute !important;
                         left: 0 !important;
@@ -8295,6 +8311,7 @@ const FeeManagement = () => {
                         width: 100% !important;
                         margin: 0 !important;
                         padding: 0 !important;
+                        z-index: 999999 !important;
                       }
                       #bulk-voucher-print-area img {
                         width: 40px !important;
@@ -8316,7 +8333,7 @@ const FeeManagement = () => {
                         border-bottom: none !important;
                         display: flex !important;
                         flex-direction: column !important;
-                        overflow: hidden !important;
+                        overflow: visible !important;
                       }
                       .voucher-page:last-child,
                       .voucher-page:last-of-type {
@@ -8327,6 +8344,7 @@ const FeeManagement = () => {
                       .voucher-copy-box {
                         border: 2px solid #000 !important;
                         box-sizing: border-box !important;
+                        overflow: visible !important;
                       }
                       @page {
                         size: landscape;

@@ -851,6 +851,8 @@ class FeeService {
       }
 
       // Prior arrears calculation (Ledger method)
+      // Arrears = total billed in prior months (non-arrears heads) minus ALL payments against prior month fees
+      // We do NOT filter by payment date — we want the CURRENT outstanding balance, not the snapshot at voucher generation time
       let totalBilledPrev = 0;
       let totalPaidPrev = 0;
       studentFees.forEach(f => {
@@ -863,32 +865,16 @@ class FeeService {
           if (f.feeHead?.name?.toLowerCase() !== 'arrears') {
             totalBilledPrev += Number(f.finalAmount || 0);
           }
+          // Count ALL payments against this prior-period fee (no date filter)
           const fPayments = paymentsByStudentFee.get(f._id?.toString()) || [];
           fPayments.forEach(p => {
-            const pDate = new Date(p.paymentDate || p.createdAt);
-            if (issueDate && pDate <= new Date(issueDate)) {
-              totalPaidPrev += Number(p.amount || 0);
-            }
+            totalPaidPrev += Number(p.amount || 0);
           });
         }
       });
 
-      const calculatedPriorArrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
-
-      const arrearsSnapshot = fees.find(f => f.feeHead?.name?.toLowerCase() === 'arrears');
-      let arrears = 0;
-      if (arrearsSnapshot && Number(arrearsSnapshot.finalAmount || 0) > 0) {
-        // Protect against corrupted snapshot that exceeds total historical billing prior to this voucher
-        if (totalBilledPrev > 0 && Number(arrearsSnapshot.finalAmount || 0) <= totalBilledPrev) {
-          arrears = Number(arrearsSnapshot.finalAmount || 0);
-        } else {
-          arrears = calculatedPriorArrears;
-        }
-      } else if (vData.arrears !== undefined && vData.arrears > 0 && (totalBilledPrev === 0 || vData.arrears <= totalBilledPrev)) {
-        arrears = vData.arrears;
-      } else {
-        arrears = calculatedPriorArrears;
-      }
+      // Always use live-calculated arrears (actual current outstanding from prior months)
+      const arrears = Math.max(0, Math.round((totalBilledPrev - totalPaidPrev) * 100) / 100);
 
       // Find payments associated with this voucher's fee items
       const relatedPayments = [];
