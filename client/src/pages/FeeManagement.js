@@ -4179,15 +4179,17 @@ const FeeManagement = () => {
               flex: 1 1 0% !important;
               width: 32% !important;
               border: 1.5px solid #000 !important;
-              padding: 4px 6px !important;
+              padding: 5px 8px !important;
               font-size: 7.5pt !important;
               position: relative !important;
               background: #fff !important;
               box-sizing: border-box !important;
               display: flex !important;
               flex-direction: column !important;
-              justifyContent: space-between !important;
-              min-height: 185mm !important;
+              justify-content: space-between !important;
+              height: 198mm !important;
+              min-height: 198mm !important;
+              page-break-inside: avoid !important;
             }
             .voucher-header-row {
               display: flex !important;
@@ -4195,49 +4197,50 @@ const FeeManagement = () => {
               justify-content: space-between !important;
               align-items: center !important;
               border-bottom: 1px solid #000 !important;
-              padding-bottom: 2px !important;
-              margin-bottom: 4px !important;
-              font-size: 7pt !important;
+              padding-bottom: 3px !important;
+              margin-bottom: 5px !important;
+              font-size: 7.5pt !important;
               font-weight: bold !important;
             }
             .voucher-inst-header {
               text-align: center !important;
-              margin-bottom: 4px !important;
+              margin-bottom: 5px !important;
             }
             .voucher-logo-img {
-              width: 38px !important;
-              height: 38px !important;
+              width: 44px !important;
+              height: 44px !important;
               border-radius: 50% !important;
               border: 1px solid #000 !important;
               object-fit: cover !important;
-              margin: 0 auto 2px auto !important;
+              margin: 0 auto 3px auto !important;
               display: block !important;
             }
             .voucher-inst-name {
-              font-size: 7.5pt !important;
+              font-size: 8pt !important;
               font-weight: bold !important;
-              line-height: 1.2 !important;
+              line-height: 1.25 !important;
               text-transform: uppercase !important;
               text-align: center !important;
               margin: 0 !important;
+              letter-spacing: 0.02em !important;
             }
             .voucher-inst-city {
-              font-size: 6.5pt !important;
+              font-size: 7pt !important;
               line-height: 1.2 !important;
               text-align: center !important;
               margin: 0 !important;
             }
-            table {
+            table, .voucher-table {
               width: 100% !important;
               border-collapse: collapse !important;
-              margin-bottom: 4px !important;
-              font-size: 6.5pt !important;
+              margin-bottom: 5px !important;
+              font-size: 7pt !important;
               border: 1px solid #000 !important;
             }
-            table td, table th {
+            table td, table th, .voucher-table td, .voucher-table th {
               border: 1px solid #000 !important;
-              padding: 1.5px 3px !important;
-              line-height: 1.15 !important;
+              padding: 2.2px 4px !important;
+              line-height: 1.25 !important;
             }
             .voucher-watermark-overlay {
               position: absolute !important;
@@ -4249,18 +4252,20 @@ const FeeManagement = () => {
               align-items: center !important;
               justify-content: center !important;
               pointer-events: none !important;
-              z-index: 10 !important;
+              z-index: 0 !important;
+              background: transparent !important;
+              background-color: transparent !important;
               overflow: hidden !important;
             }
             .voucher-watermark-text {
-              font-size: 2.2rem !important;
+              font-size: 2.6rem !important;
               font-weight: 900 !important;
               text-transform: uppercase !important;
               letter-spacing: 0.08em !important;
               transform: rotate(-35deg) !important;
               white-space: nowrap !important;
               border-radius: 4px !important;
-              padding: 6px 14px !important;
+              padding: 8px 16px !important;
               user-select: none !important;
               line-height: 1 !important;
             }
@@ -4272,26 +4277,35 @@ const FeeManagement = () => {
               color: rgba(217, 119, 6, 0.22) !important;
               border: 2.5px solid rgba(217, 119, 6, 0.22) !important;
             }
+            .voucher-header-row,
+            .voucher-inst-header,
+            .voucher-table,
+            .voucher-notes-box,
+            .voucher-bank-box,
+            .voucher-barcode-container {
+              position: relative !important;
+              z-index: 1 !important;
+            }
             .voucher-notes-box {
-              margin-bottom: 3px !important;
-              font-size: 5.5pt !important;
-              line-height: 1.25 !important;
+              margin-bottom: 5px !important;
+              font-size: 6pt !important;
+              line-height: 1.35 !important;
             }
             .voucher-bank-box {
-              margin-bottom: 3px !important;
+              margin-bottom: 5px !important;
               text-align: center !important;
-              font-size: 6.5pt !important;
+              font-size: 7pt !important;
               font-weight: bold !important;
-              line-height: 1.25 !important;
+              line-height: 1.35 !important;
             }
             .voucher-barcode-container {
               display: flex !important;
               justify-content: center !important;
-              margin-top: 2px !important;
+              margin-top: 4px !important;
             }
             .voucher-barcode-box {
               width: 100% !important;
-              height: 22px !important;
+              height: 28px !important;
               border: 1px solid #000 !important;
               display: flex !important;
               align-items: center !important;
@@ -4299,10 +4313,10 @@ const FeeManagement = () => {
               background-color: #fff !important;
             }
             .voucher-barcode-text {
-              font-size: 6pt !important;
+              font-size: 7pt !important;
               color: #555 !important;
               font-family: monospace !important;
-              letter-spacing: 1px !important;
+              letter-spacing: 2px !important;
             }
             .no-print {
               display: none !important;
@@ -8110,12 +8124,13 @@ const FeeManagement = () => {
                         width: 32% !important;
                         border: 1.5px solid #000 !important;
                         box-sizing: border-box !important;
-                        padding: 4px 6px !important;
+                        padding: 5px 8px !important;
                         font-size: 7.5pt !important;
                         display: flex !important;
                         flex-direction: column !important;
-                        justifyContent: space-between !important;
-                        min-height: 185mm !important;
+                        justify-content: space-between !important;
+                        height: 198mm !important;
+                        min-height: 198mm !important;
                         position: relative !important;
                         background: #fff !important;
                         page-break-inside: avoid !important;
@@ -8126,34 +8141,35 @@ const FeeManagement = () => {
                         justify-content: space-between !important;
                         align-items: center !important;
                         border-bottom: 1px solid #000 !important;
-                        padding-bottom: 2px !important;
-                        margin-bottom: 4px !important;
-                        font-size: 7pt !important;
+                        padding-bottom: 3px !important;
+                        margin-bottom: 5px !important;
+                        font-size: 7.5pt !important;
                         font-weight: bold !important;
                       }
                       .voucher-inst-header {
                         text-align: center !important;
-                        margin-bottom: 4px !important;
+                        margin-bottom: 5px !important;
                       }
                       .voucher-logo-img {
-                        width: 38px !important;
-                        height: 38px !important;
+                        width: 44px !important;
+                        height: 44px !important;
                         border-radius: 50% !important;
                         border: 1px solid #000 !important;
                         object-fit: cover !important;
-                        margin: 0 auto 2px auto !important;
+                        margin: 0 auto 3px auto !important;
                         display: block !important;
                       }
                       .voucher-inst-name {
-                        font-size: 7.5pt !important;
+                        font-size: 8pt !important;
                         font-weight: bold !important;
-                        line-height: 1.2 !important;
+                        line-height: 1.25 !important;
                         text-transform: uppercase !important;
                         text-align: center !important;
                         margin: 0 !important;
+                        letter-spacing: 0.02em !important;
                       }
                       .voucher-inst-city {
-                        font-size: 6.5pt !important;
+                        font-size: 7pt !important;
                         line-height: 1.2 !important;
                         text-align: center !important;
                         margin: 0 !important;
@@ -8161,15 +8177,15 @@ const FeeManagement = () => {
                       .voucher-table {
                         width: 100% !important;
                         border-collapse: collapse !important;
-                        margin-bottom: 4px !important;
-                        font-size: 6.5pt !important;
+                        margin-bottom: 5px !important;
+                        font-size: 7pt !important;
                         border: 1px solid #000 !important;
                       }
                       .voucher-table td,
                       .voucher-table th {
                         border: 1px solid #000 !important;
-                        padding: 1.5px 3px !important;
-                        line-height: 1.15 !important;
+                        padding: 2.2px 4px !important;
+                        line-height: 1.25 !important;
                       }
                       .voucher-watermark-overlay {
                         position: absolute !important;
@@ -8179,20 +8195,22 @@ const FeeManagement = () => {
                         height: 100% !important;
                         display: flex !important;
                         align-items: center !important;
-                        justifyContent: center !important;
+                        justify-content: center !important;
                         pointer-events: none !important;
-                        z-index: 10 !important;
+                        z-index: 0 !important;
+                        background: transparent !important;
+                        background-color: transparent !important;
                         overflow: hidden !important;
                       }
                       .voucher-watermark-text {
-                        font-size: 2.2rem !important;
+                        font-size: 2.6rem !important;
                         font-weight: 900 !important;
                         text-transform: uppercase !important;
                         letter-spacing: 0.08em !important;
                         transform: rotate(-35deg) !important;
                         white-space: nowrap !important;
                         border-radius: 4px !important;
-                        padding: 6px 14px !important;
+                        padding: 8px 16px !important;
                         user-select: none !important;
                         line-height: 1 !important;
                       }
@@ -8204,37 +8222,46 @@ const FeeManagement = () => {
                         color: rgba(217, 119, 6, 0.22) !important;
                         border: 2.5px solid rgba(217, 119, 6, 0.22) !important;
                       }
+                      .voucher-header-row,
+                      .voucher-inst-header,
+                      .voucher-table,
+                      .voucher-notes-box,
+                      .voucher-bank-box,
+                      .voucher-barcode-container {
+                        position: relative !important;
+                        z-index: 1 !important;
+                      }
                       .voucher-notes-box {
-                        margin-bottom: 3px !important;
-                        font-size: 5.5pt !important;
-                        line-height: 1.25 !important;
+                        margin-bottom: 5px !important;
+                        font-size: 6pt !important;
+                        line-height: 1.35 !important;
                       }
                       .voucher-bank-box {
-                        margin-bottom: 3px !important;
+                        margin-bottom: 5px !important;
                         text-align: center !important;
-                        font-size: 6.5pt !important;
+                        font-size: 7pt !important;
                         font-weight: bold !important;
-                        line-height: 1.25 !important;
+                        line-height: 1.35 !important;
                       }
                       .voucher-barcode-container {
                         display: flex !important;
                         justify-content: center !important;
-                        margin-top: 2px !important;
+                        margin-top: 4px !important;
                       }
                       .voucher-barcode-box {
                         width: 100% !important;
-                        height: 22px !important;
+                        height: 28px !important;
                         border: 1px solid #000 !important;
                         display: flex !important;
                         align-items: center !important;
-                        justifyContent: center !important;
+                        justify-content: center !important;
                         background-color: #fff !important;
                       }
                       .voucher-barcode-text {
-                        font-size: 6pt !important;
+                        font-size: 7pt !important;
                         color: #555 !important;
                         font-family: monospace !important;
-                        letter-spacing: 1px !important;
+                        letter-spacing: 2px !important;
                       }
                     }
                   `}
@@ -8258,7 +8285,7 @@ const FeeManagement = () => {
                       sx={{ 
                         flex: 1,
                         border: '1.5px solid #000',
-                        p: 1,
+                        p: 1.2,
                         fontSize: '7.5pt',
                         position: 'relative',
                         backgroundColor: '#fff',
@@ -8266,7 +8293,7 @@ const FeeManagement = () => {
                         display: 'flex',
                         flexDirection: 'column',
                         justifyContent: 'space-between',
-                        minHeight: { xs: 'auto', md: '560px' },
+                        minHeight: { xs: 'auto', md: '620px' },
                         overflow: 'hidden'
                       }}
                     >
@@ -8284,14 +8311,16 @@ const FeeManagement = () => {
                             alignItems: 'center',
                             justifyContent: 'center',
                             pointerEvents: 'none',
-                            zIndex: 10,
+                            zIndex: 0,
+                            bgcolor: 'transparent',
+                            background: 'transparent',
                             overflow: 'hidden'
                           }}
                         >
                           <Typography 
                             className={`voucher-watermark-text ${voucherData.voucherStatus === 'Paid' ? 'voucher-watermark-paid' : 'voucher-watermark-partial'}`}
                             sx={{
-                              fontSize: '2.2rem',
+                              fontSize: '2.6rem',
                               fontWeight: 900,
                               color: voucherData.voucherStatus === 'Paid' ? 'rgba(21, 128, 61, 0.22)' : 'rgba(217, 119, 6, 0.22)',
                               transform: 'rotate(-35deg)',
@@ -8300,7 +8329,7 @@ const FeeManagement = () => {
                               textTransform: 'uppercase',
                               border: `2.5px solid ${voucherData.voucherStatus === 'Paid' ? 'rgba(21, 128, 61, 0.22)' : 'rgba(217, 119, 6, 0.22)'}`,
                               borderRadius: '4px',
-                              padding: '6px 14px',
+                              padding: '8px 16px',
                               whiteSpace: 'nowrap',
                               lineHeight: 1
                             }}
@@ -8317,14 +8346,14 @@ const FeeManagement = () => {
                           justifyContent: 'space-between',
                           alignItems: 'center',
                           borderBottom: '1px solid #000',
-                          pb: 0.3,
+                          pb: 0.4,
                           mb: 0.8
                         }}
                       >
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
                           Voucher#: {voucherData.voucherNo}
                         </Typography>
-                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold' }}>
+                        <Typography sx={{ fontSize: '0.75rem', fontWeight: 'bold' }}>
                           {copyType}
                         </Typography>
                       </Box>
@@ -8338,78 +8367,78 @@ const FeeManagement = () => {
                           alt="Logo"
                           onError={(e) => { e.target.onerror = null; e.target.src = process.env.PUBLIC_URL + '/logo.png'; }}
                           sx={{
-                            width: 38,
-                            height: 38,
+                            width: 44,
+                            height: 44,
                             borderRadius: '50%',
                             border: '1px solid #000',
                             objectFit: 'cover',
                             mx: 'auto',
                             display: 'block',
-                            mb: 0.3
+                            mb: 0.4
                           }}
                         />
-                        <Typography className="voucher-inst-name" sx={{ fontSize: '0.75rem', fontWeight: 'bold', lineHeight: 1.2, textTransform: 'uppercase' }}>
+                        <Typography className="voucher-inst-name" sx={{ fontSize: '0.8rem', fontWeight: 'bold', lineHeight: 1.25, textTransform: 'uppercase' }}>
                           {voucherData.institution?.name?.toUpperCase() || 'TIGES - RIVER BLISS CAMPUS MUZAFFARABAD'}
                         </Typography>
-                        <Typography className="voucher-inst-city" sx={{ fontSize: '0.65rem', lineHeight: 1.2 }}>
+                        <Typography className="voucher-inst-city" sx={{ fontSize: '0.7rem', lineHeight: 1.2 }}>
                           {voucherData.institution?.address?.city || 'Muzaffarabad'}
                         </Typography>
                       </Box>
 
                       {/* Voucher Details Table */}
-                      <table className="voucher-table" style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '0.65rem' }}>
+                      <table className="voucher-table" style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '0.7rem' }}>
                         <tbody>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', width: '35%' }}>Voucher No:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{voucherData.voucherNo}</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', width: '25%' }}>Roll No:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{voucherData.rollNo}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', width: '35%' }}>Voucher No:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{voucherData.voucherNo}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', width: '25%' }}>Roll No:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{voucherData.rollNo}</td>
                           </tr>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>Fee Month:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{voucherData.feeMonth}</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>Valid Date:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{voucherData.validDate}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>Fee Month:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{voucherData.feeMonth}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>Valid Date:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{voucherData.validDate}</td>
                           </tr>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>Issue Date:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{voucherData.issueDate}</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>Due Date:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{voucherData.dueDate}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>Issue Date:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{voucherData.issueDate}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>Due Date:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{voucherData.dueDate}</td>
                           </tr>
                         </tbody>
                       </table>
 
                       {/* Student Details Table */}
-                      <table className="voucher-table" style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '0.65rem' }}>
+                      <table className="voucher-table" style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '0.7rem' }}>
                         <tbody>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', width: '35%' }}>Student Id:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }} colSpan={3}>{voucherData.studentId}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', width: '35%' }}>Student Id:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }} colSpan={3}>{voucherData.studentId}</td>
                           </tr>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>Adm/Reg #:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }} colSpan={3}>{voucherData.admissionNo}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>Adm/Reg #:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }} colSpan={3}>{voucherData.admissionNo}</td>
                           </tr>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '3px', fontWeight: 'bold', textAlign: 'center', fontSize: '0.72rem' }} colSpan={4}>
+                            <td style={{ border: '1px solid #000', padding: '4px', fontWeight: 'bold', textAlign: 'center', fontSize: '0.8rem' }} colSpan={4}>
                               {voucherData.name}
                             </td>
                           </tr>
                           <tr>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>Class:</td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px' }} colSpan={3}>{voucherData.class}</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>Class:</td>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px' }} colSpan={3}>{voucherData.class}</td>
                           </tr>
                         </tbody>
                       </table>
 
                       {/* Fee Breakdown Table */}
-                      <table className="voucher-table" style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '0.65rem' }}>
+                      <table className="voucher-table" style={{ width: '100%', border: '1px solid #000', borderCollapse: 'collapse', marginBottom: '6px', fontSize: '0.7rem' }}>
                         <thead>
                           <tr style={{ backgroundColor: '#f0f0f0' }}>
-                            <th style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', width: '10%', textAlign: 'left' }}>Sr No.</th>
-                            <th style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'left' }}>Head Name</th>
-                            <th style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right', width: '25%' }}>Amount</th>
+                            <th style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', width: '10%', textAlign: 'left' }}>Sr No.</th>
+                            <th style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'left' }}>Head Name</th>
+                            <th style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right', width: '25%' }}>Amount</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -8417,79 +8446,79 @@ const FeeManagement = () => {
                             .filter(h => !h.name.toLowerCase().includes('arrears') && !h.name.toLowerCase().includes('fine') && h.amount > 0)
                             .map((head, idx) => (
                             <tr key={idx}>
-                              <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{idx + 1}</td>
-                              <td style={{ border: '1px solid #000', padding: '1.5px 3px' }}>{head.name}</td>
-                              <td style={{ border: '1px solid #000', padding: '1.5px 3px', textAlign: 'right' }}>
+                              <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{idx + 1}</td>
+                              <td style={{ border: '1px solid #000', padding: '2.2px 4px' }}>{head.name}</td>
+                              <td style={{ border: '1px solid #000', padding: '2.2px 4px', textAlign: 'right' }}>
                                 {head.amount.toLocaleString()}
                               </td>
                             </tr>
                           ))}
                           <tr>
-                            <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                               Arrears:
                             </td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                               {(voucherData.arrears || 0).toLocaleString()}
                             </td>
                           </tr>
                           {voucherData.paidAmount > 0 ? (
                             <>
                               <tr>
-                                <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                                   Total Voucher Amount:
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                                <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                                   {voucherData.payableWithinDueDate.toLocaleString()}
                                 </td>
                               </tr>
                               <tr>
-                                <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', color: '#15803d' }}>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', color: '#15803d' }}>
                                   Paid Amount:
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right', color: '#15803d' }}>
+                                <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right', color: '#15803d' }}>
                                   {voucherData.paidAmount.toLocaleString()}
                                 </td>
                               </tr>
                               <tr style={{ backgroundColor: '#fff7ed' }}>
-                                <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                                <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                                   Remaining within due date:
                                 </td>
-                                <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                                <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                                   {(voucherData.remainingAmount !== undefined ? voucherData.remainingAmount : Math.max(0, voucherData.payableWithinDueDate - voucherData.paidAmount)).toLocaleString()}
                                 </td>
                               </tr>
                             </>
                           ) : (
                             <tr>
-                              <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                              <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                                 Payable within due date:
                               </td>
-                              <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                              <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                                 {voucherData.payableWithinDueDate.toLocaleString()}
                               </td>
                             </tr>
                           )}
                           <tr>
-                            <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                               Late fee fine:
                             </td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                               {(voucherData.lateFeeFine || 0).toLocaleString()}
                             </td>
                           </tr>
                           <tr>
-                            <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                               Absent Fine:
                             </td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                               0
                             </td>
                           </tr>
                           <tr>
-                            <td colSpan={2} style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold' }}>
+                            <td colSpan={2} style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold' }}>
                               {voucherData.paidAmount > 0 ? 'Remaining after due date:' : 'Payable after due date:'}
                             </td>
-                            <td style={{ border: '1px solid #000', padding: '1.5px 3px', fontWeight: 'bold', textAlign: 'right' }}>
+                            <td style={{ border: '1px solid #000', padding: '2.2px 4px', fontWeight: 'bold', textAlign: 'right' }}>
                               {((voucherData.paidAmount > 0 
                                 ? (voucherData.remainingAmount !== undefined ? voucherData.remainingAmount : Math.max(0, voucherData.payableWithinDueDate - voucherData.paidAmount))
                                 : voucherData.payableWithinDueDate
@@ -8500,9 +8529,9 @@ const FeeManagement = () => {
                       </table>
 
                       {/* Notes Section */}
-                      <Box className="voucher-notes-box" sx={{ mb: 0.6, fontSize: '0.55rem', lineHeight: 1.25 }}>
-                        <Typography sx={{ fontWeight: 'bold', fontSize: '0.6rem', mb: 0.2 }}>Note:</Typography>
-                        <Typography sx={{ fontSize: '0.55rem', mb: 0.2 }}>Payment Terms</Typography>
+                      <Box className="voucher-notes-box" sx={{ mb: 0.8, fontSize: '0.62rem', lineHeight: 1.35 }}>
+                        <Typography sx={{ fontWeight: 'bold', fontSize: '0.68rem', mb: 0.3 }}>Note:</Typography>
+                        <Typography sx={{ fontSize: '0.62rem', mb: 0.3 }}>Payment Terms</Typography>
                         {(voucherData.institution?.voucherNote 
                           ? voucherData.institution.voucherNote.split('\n') 
                           : [
@@ -8511,37 +8540,37 @@ const FeeManagement = () => {
                               'The fee may be deposited at any branch of the designated bank(s) using the prescribed challan form.'
                             ]
                         ).map((noteLine, idx) => (
-                          <Typography key={idx} sx={{ fontSize: '0.55rem', lineHeight: 1.2 }}>
+                          <Typography key={idx} sx={{ fontSize: '0.62rem', lineHeight: 1.35 }}>
                             {noteLine}
                           </Typography>
                         ))}
                       </Box>
 
                       {/* Bank Details */}
-                      <Box className="voucher-bank-box" sx={{ mb: 0.6, fontSize: '0.65rem', textAlign: 'center', fontWeight: 'bold' }}>
-                        <Typography sx={{ fontSize: '0.65rem', fontWeight: 'bold', mb: 0.3 }}>
+                      <Box className="voucher-bank-box" sx={{ mb: 0.8, fontSize: '0.7rem', textAlign: 'center', fontWeight: 'bold' }}>
+                        <Typography sx={{ fontSize: '0.7rem', fontWeight: 'bold', mb: 0.3 }}>
                           Fee Payable At {bankAccounts && bankAccounts.filter(b => b.showOnVoucher !== false).length > 1 ? 'Any Branch of the Following Banks' : 'Any Branch of'}
                         </Typography>
                         {bankAccounts && bankAccounts.filter(b => b.showOnVoucher !== false).length > 0 ? (
                           bankAccounts.filter(b => b.showOnVoucher !== false).map((bank, index) => (
-                            <Typography key={index} sx={{ fontSize: '0.62rem', fontWeight: 'bold' }}>
+                            <Typography key={index} sx={{ fontSize: '0.68rem', fontWeight: 'bold', lineHeight: 1.35 }}>
                               {bank.bankName} - {bank.accountNumber}{bank.accountTitle ? ` - ${bank.accountTitle}` : ''}
                             </Typography>
                           ))
                         ) : (
-                          <Typography sx={{ fontSize: '0.55rem' }}>
+                          <Typography sx={{ fontSize: '0.62rem' }}>
                             Bank details not available
                           </Typography>
                         )}
                       </Box>
 
                       {/* Barcode */}
-                      <Box className="voucher-barcode-container" sx={{ display: 'flex', justifyContent: 'center', mt: 0.5 }}>
+                      <Box className="voucher-barcode-container" sx={{ display: 'flex', justifyContent: 'center', mt: 0.8 }}>
                         <Box
                           className="voucher-barcode-box"
                           sx={{
                             width: '100%',
-                            height: '24px',
+                            height: '28px',
                             border: '1px solid #000',
                             display: 'flex',
                             alignItems: 'center',
@@ -8549,7 +8578,7 @@ const FeeManagement = () => {
                             bgcolor: '#fff'
                           }}
                         >
-                          <Typography className="voucher-barcode-text" sx={{ fontSize: '0.6rem', color: '#555', fontFamily: 'monospace', letterSpacing: '1px' }}>
+                          <Typography className="voucher-barcode-text" sx={{ fontSize: '0.7rem', color: '#555', fontFamily: 'monospace', letterSpacing: '2px' }}>
                             |||||||||||||||||||||||||||
                           </Typography>
                         </Box>
