@@ -818,7 +818,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
       {/* Summary KPI Cards with Grand Totals */}
       {data.length > 0 && (
         <Grid container spacing={2} sx={{ mb: 3 }} className="no-print">
-          <Grid item xs={6} sm={4} md={1.5}>
+          <Grid item xs={6} sm={4} md={2}>
             <Card sx={{ bgcolor: '#f8fafc', border: '1px solid #e2e8f0' }}>
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="text.secondary">Total Vouchers</Typography>
@@ -826,17 +826,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={6} sm={4} md={1.5}>
-            <Card sx={{ bgcolor: '#ecfdf5', border: '1px solid #a7f3d0' }}>
-              <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-                <Typography variant="caption" color="#047857">Paid ({summary.paidCount})</Typography>
-                <Typography variant="body1" fontWeight="bold" color="#065f46">
-                  {summary.totalPaidAmount.toLocaleString()}
-                </Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-          <Grid item xs={6} sm={4} md={1.8}>
+          <Grid item xs={6} sm={4} md={2}>
             <Card sx={{ bgcolor: '#eff6ff', border: '1px solid #bfdbfe' }}>
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="#1d4ed8">Current Fee (Rs.)</Typography>
@@ -846,7 +836,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={6} sm={4} md={1.8}>
+          <Grid item xs={6} sm={4} md={2}>
             <Card sx={{ bgcolor: '#fffbeb', border: '1px solid #fde68a' }}>
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="#b45309">Arrears (Rs.)</Typography>
@@ -856,7 +846,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={6} sm={4} md={1.8}>
+          <Grid item xs={6} sm={4} md={2}>
             <Card sx={{ bgcolor: '#f5f3ff', border: '1px solid #ddd6fe' }}>
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="#6d28d9">Total Due (Rs.)</Typography>
@@ -866,7 +856,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={6} sm={4} md={1.8}>
+          <Grid item xs={6} sm={4} md={2}>
             <Card sx={{ bgcolor: '#f0fdf4', border: '1px solid #bbf7d0' }}>
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="#15803d">Total Paid (Rs.)</Typography>
@@ -876,7 +866,7 @@ const DateRangeVouchersReport = ({ onBack }) => {
               </CardContent>
             </Card>
           </Grid>
-          <Grid item xs={6} sm={4} md={1.8}>
+          <Grid item xs={6} sm={4} md={2}>
             <Card sx={{ bgcolor: '#fff1f2', border: '1px solid #fecdd3' }}>
               <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="#be123c">Total Balance (Rs.)</Typography>
