@@ -901,38 +901,8 @@ const RemainingBalanceReport = ({ onBack }) => {
           <Typography variant="h6" gutterBottom>
             Filters
           </Typography>
-          {/* Filter Mode Toggle & Struck Off Option */}
-          <Box sx={{ mb: 2, p: 1.5, bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, color: '#334155', minWidth: 90 }}>
-                Filter Mode:
-              </Typography>
-              <RadioGroup
-                row
-                value={filters.filterMode}
-                onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
-              >
-                <FormControlLabel
-                  value="voucher"
-                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
-                  label={
-                    <Typography variant="body2" fontWeight={filters.filterMode === 'voucher' ? 700 : 400}>
-                      Month & Year (Voucher Wise)
-                    </Typography>
-                  }
-                />
-                <FormControlLabel
-                  value="dateRange"
-                  control={<Radio size="small" sx={{ color: '#667eea', '&.Mui-checked': { color: '#667eea' } }} />}
-                  label={
-                    <Typography variant="body2" fontWeight={filters.filterMode === 'dateRange' ? 700 : 400}>
-                      Payment Date Range
-                    </Typography>
-                  }
-                />
-              </RadioGroup>
-            </Box>
-
+          {/* Options */}
+          <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap', gap: 2 }}>
             <FormControlLabel
               control={
                 <Checkbox
@@ -949,7 +919,6 @@ const RemainingBalanceReport = ({ onBack }) => {
               }
               sx={{ m: 0 }}
             />
-
           </Box>
 
           <Grid container spacing={2} alignItems="center">
@@ -1030,9 +999,9 @@ const RemainingBalanceReport = ({ onBack }) => {
                 fullWidth
                 select
                 size="small"
-                label="View Type"
-                value={filters.viewType}
-                onChange={(e) => setFilters({ ...filters, viewType: e.target.value })}
+                label="Filter Mode"
+                value={filters.filterMode}
+                onChange={(e) => setFilters({ ...filters, filterMode: e.target.value })}
                 InputLabelProps={{
                   shrink: true
                 }}
@@ -1040,13 +1009,14 @@ const RemainingBalanceReport = ({ onBack }) => {
                   displayEmpty: true
                 }}
               >
-                <MenuItem value="full">Full Summary</MenuItem>
-                <MenuItem value="head-wise">Head-wise</MenuItem>
+                <MenuItem value="voucher">Month Wise</MenuItem>
+                <MenuItem value="dateRange">Date Wise</MenuItem>
               </TextField>
             </Grid>
 
-              {/* Date Filters Row */}
-              <Grid item xs={12} sm={4} md={3}>
+            {/* Date Filters Row */}
+            {filters.filterMode === 'voucher' ? (
+              <Grid item xs={12} sm={6} md={3}>
                 <TextField
                   fullWidth
                   size="small"
@@ -1055,58 +1025,37 @@ const RemainingBalanceReport = ({ onBack }) => {
                   value={filters.monthYear}
                   onChange={(e) => setFilters({ ...filters, monthYear: e.target.value })}
                   InputLabelProps={{ shrink: true }}
-                  disabled={filters.filterMode !== 'voucher'}
-                  sx={{
-                    bgcolor: filters.filterMode !== 'voucher' ? '#f1f5f9' : 'transparent',
-                    '& .MuiInputBase-input.Mui-disabled': {
-                      WebkitTextFillColor: '#94a3b8'
-                    }
-                  }}
-                  helperText={filters.filterMode !== 'voucher' ? 'Disabled in date range mode' : ''}
                 />
               </Grid>
+            ) : (
+              <>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="Payment Date From"
+                    value={filters.dateFrom}
+                    onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
 
-              <Grid item xs={12} sm={4} md={3}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="Payment Date From"
-                  value={filters.dateFrom}
-                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                  disabled={filters.filterMode !== 'dateRange'}
-                  sx={{
-                    bgcolor: filters.filterMode !== 'dateRange' ? '#f1f5f9' : 'transparent',
-                    '& .MuiInputBase-input.Mui-disabled': {
-                      WebkitTextFillColor: '#94a3b8'
-                    }
-                  }}
-                  helperText={filters.filterMode !== 'dateRange' ? 'Disabled in voucher mode' : ''}
-                />
-              </Grid>
+                <Grid item xs={12} sm={6} md={3}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    type="date"
+                    label="Payment Date To"
+                    value={filters.dateTo}
+                    onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </>
+            )}
 
-              <Grid item xs={12} sm={4} md={3}>
-                <TextField
-                  fullWidth
-                  size="small"
-                  type="date"
-                  label="Payment Date To"
-                  value={filters.dateTo}
-                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
-                  InputLabelProps={{ shrink: true }}
-                  disabled={filters.filterMode !== 'dateRange'}
-                  sx={{
-                    bgcolor: filters.filterMode !== 'dateRange' ? '#f1f5f9' : 'transparent',
-                    '& .MuiInputBase-input.Mui-disabled': {
-                      WebkitTextFillColor: '#94a3b8'
-                    }
-                  }}
-                  helperText={filters.filterMode !== 'dateRange' ? 'Disabled in voucher mode' : ''}
-                />
-              </Grid>
-
-              <Grid item xs={12} sm={12} md={3} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1.5 }}>
+            <Grid item xs={12} sm={12} md={filters.filterMode === 'voucher' ? 9 : 6} sx={{ display: 'flex', alignItems: 'center', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 1.5 }}>
                 <Button 
                   variant="contained" 
                   startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Search />}
