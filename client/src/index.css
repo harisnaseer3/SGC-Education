@@ -143,9 +143,26 @@ code {
     margin-right: auto !important;
   }
 
-  /* Prevent sections from breaking awkwardly and overlapping across page boundaries */
-  .MuiBox-root,
-  .MuiPaper-root {
+  /* Prevent sections from breaking awkwardly and overlapping across page boundaries (exclude report containers) */
+  .MuiBox-root:not(.printable-report):not(.printable-report *):not(#report-print-area):not(#report-print-area *):not(.print-area):not(.print-area *),
+  .MuiPaper-root:not(.printable-report *):not(#report-print-area *):not(.print-area *) {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .printable-report,
+  .printable-report *,
+  #report-print-area,
+  #report-print-area *,
+  .print-area,
+  .print-area * {
+    page-break-inside: auto;
+    break-inside: auto;
+  }
+
+  .printable-report tr,
+  #report-print-area tr,
+  .print-area tr {
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }

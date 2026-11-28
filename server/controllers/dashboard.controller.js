@@ -618,6 +618,27 @@ const getDashboardStats = asyncHandler(async (req, res) => {
           paymentsByCampus.set(item._id.toString(), item.totalPaid || 0);
         }
       });
+
+      // Also include unidentified suspense entries so campus collected matches Bank Statement Report total amount
+      const suspenseDateMatch = {
+        institution: { $in: selectedInstitutionIds },
+        status: 'unidentified'
+      };
+      const suspenseDateCond = {};
+      if (parsedPaymentStartDate) suspenseDateCond.$gte = parsedPaymentStartDate;
+      if (parsedPaymentEndDate) suspenseDateCond.$lte = parsedPaymentEndDate;
+      suspenseDateMatch.paymentDate = suspenseDateCond;
+
+      const suspenseAgg = await SuspenseEntry.aggregate([
+        { $match: suspenseDateMatch },
+        { $group: { _id: '$institution', totalSuspense: { $sum: '$amount' } } }
+      ]);
+      suspenseAgg.forEach(item => {
+        if (item._id) {
+          const key = item._id.toString();
+          paymentsByCampus.set(key, (paymentsByCampus.get(key) || 0) + (item.totalSuspense || 0));
+        }
+      });
     }
 
     let totalCollected = overallFinStats.totalCollected || 0;
@@ -626,10 +647,35 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const previousReceivableVal = overallFinStats.totalArrears || 0;
     const recoveryVal = overallFinStats.collectedPaid || 0;
 
+    const suspenseByCampus = new Map();
     if (paymentsByCampus !== null) {
       let filteredSum = 0;
       paymentsByCampus.forEach(amt => { filteredSum += amt; });
       totalCollected = filteredSum;
+      totalOutstanding = Math.max(0, totalBilled - totalCollected);
+    } else {
+      const sMatch = {
+        institution: { $in: selectedInstitutionIds },
+        status: 'unidentified'
+      };
+      if (targetYear && targetMonth) {
+        const sMonthStart = new Date(targetYear, targetMonth - 1, 1, 0, 0, 0, 0);
+        const sMonthEnd = new Date(targetYear, targetMonth, 0, 23, 59, 59, 999);
+        sMatch.paymentDate = { $gte: sMonthStart, $lte: sMonthEnd };
+      }
+      const sAgg = await SuspenseEntry.aggregate([
+        { $match: sMatch },
+        { $group: { _id: '$institution', totalSuspense: { $sum: '$amount' } } }
+      ]);
+      sAgg.forEach(item => {
+        if (item._id) {
+          suspenseByCampus.set(item._id.toString(), item.totalSuspense || 0);
+        }
+      });
+
+      let sSum = 0;
+      suspenseByCampus.forEach(amt => { sSum += amt; });
+      totalCollected += sSum;
       totalOutstanding = Math.max(0, totalBilled - totalCollected);
     }
 
@@ -695,8 +741,12 @@ const getDashboardStats = asyncHandler(async (req, res) => {
       let instCollected = instFinStats.totalCollected || 0;
       if (paymentsByCampus !== null) {
         instCollected = paymentsByCampus.get(instId.toString()) || 0;
+      } else {
+        instCollected += (suspenseByCampus.get(instId.toString()) || 0);
       }
-      const instOutstanding = Math.max(0, totalBilled - instCollected);
+      const instVoucherBalance = instFinStats.totalOutstanding !== undefined 
+        ? instFinStats.totalOutstanding 
+        : Math.max(0, totalBilled - (instFinStats.totalCollected || 0));
       const currentVouchers = Math.max(0, totalBilled - totalArrears);
       // In payment range mode, instFinStats.total covers all-time students (too broad).
       // Always use activeStudentsCount for the student column so it shows enrolled students.
@@ -718,14 +768,14 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         newAdmissions: newAdmissionsCount,
         feesGenerated: totalBilled,
         feesCollected: instCollected,
-        outstandingDues: instOutstanding,
+        outstandingDues: instVoucherBalance,
         previousReceivable: totalArrears,
         recovery: instFinStats.collectedPaid || 0,
         vouchers: currentVouchers,
         arrears: totalArrears,
         grandTotal: totalBilled,
         received: instCollected,
-        balance: instOutstanding
+        balance: instVoucherBalance
       };
     }));
 

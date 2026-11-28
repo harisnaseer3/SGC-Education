@@ -529,6 +529,30 @@ const FinanceDashboard = () => {
     return `Vouchers ${monthName}. ${yearShort}`;
   };
 
+  const isBankReportFilterMatching = () => {
+    if (!bankReportData || !bankReportData.grandTotals?.campusTotals) return false;
+    if (receivableFilterType !== bankFilterType) return false;
+    if (receivableFilterType === 'month') {
+      return (receivableMonth || '') === (bankReportMonth || '');
+    }
+    return (receivablePaymentStart || '') === (bankPaymentStart || '') &&
+           (receivablePaymentEnd || '') === (bankPaymentEnd || '');
+  };
+
+  const getCampusReceived = (campus) => {
+    // If Bank Statement Report data is loaded and filters match, use total amount of Bank Statement Report
+    if (isBankReportFilterMatching()) {
+      const cTotals = bankReportData?.grandTotals?.campusTotals?.[campus._id];
+      if (cTotals !== undefined && cTotals !== null) {
+        const bankTotal = typeof cTotals === 'object' ? cTotals?.total : cTotals;
+        if (bankTotal !== undefined && bankTotal !== null) {
+          return bankTotal;
+        }
+      }
+    }
+    return campus.received ?? (campus.feesCollected || 0);
+  };
+
   const handleExportFinancialReport = () => {
     if (!dashboardData?.campusBreakdown) return;
     const list = selectedCampus === 'all'
@@ -561,8 +585,10 @@ const FinanceDashboard = () => {
       const arrears = c.arrears ?? (c.previousReceivable || 0);
       const vouchers = c.vouchers !== undefined ? c.vouchers : Math.max(0, (c.feesGenerated || 0) - (c.previousReceivable || 0));
       const grandTotal = c.grandTotal ?? (vouchers + arrears);
-      const received = c.received ?? (c.feesCollected || 0);
-      const balance = c.balance ?? Math.max(0, grandTotal - received);
+      const received = getCampusReceived(c);
+      const balance = c.balance !== undefined && c.balance !== null
+        ? c.balance
+        : (c.outstandingDues ?? Math.max(0, grandTotal - (c.feesCollected || 0)));
 
       totalStudents += students;
       totalVouchers += vouchers;
@@ -1384,13 +1410,12 @@ const FinanceDashboard = () => {
               const arr = c.arrears ?? c.previousReceivable ?? 0;
               return sum + (c.grandTotal ?? (v + arr));
             }, 0);
-            const finReceivedGrand = displayCampuses.reduce((sum, c) => sum + (c.received ?? c.feesCollected ?? 0), 0);
+            const finReceivedGrand = displayCampuses.reduce((sum, c) => sum + getCampusReceived(c), 0);
             const finBalanceGrand = displayCampuses.reduce((sum, c) => {
-              const v = c.vouchers !== undefined ? c.vouchers : Math.max(0, (c.feesGenerated || 0) - (c.previousReceivable || 0));
-              const arr = c.arrears ?? c.previousReceivable ?? 0;
-              const gt = c.grandTotal ?? (v + arr);
-              const rec = c.received ?? c.feesCollected ?? 0;
-              return sum + (c.balance ?? Math.max(0, gt - rec));
+              const b = c.balance !== undefined && c.balance !== null
+                ? c.balance
+                : (c.outstandingDues ?? Math.max(0, (c.grandTotal || 0) - (c.feesCollected || 0)));
+              return sum + b;
             }, 0);
 
             return (
@@ -1876,8 +1901,10 @@ const FinanceDashboard = () => {
                                 const arrears = campus.arrears ?? (campus.previousReceivable || 0);
                                 const vouchers = campus.vouchers !== undefined ? campus.vouchers : Math.max(0, (campus.feesGenerated || 0) - (campus.previousReceivable || 0));
                                 const grandTotal = campus.grandTotal ?? (vouchers + arrears);
-                                const received = campus.received ?? (campus.feesCollected || 0);
-                                const balance = campus.balance ?? Math.max(0, grandTotal - received);
+                                const received = getCampusReceived(campus);
+                                const balance = campus.balance !== undefined && campus.balance !== null
+                                  ? campus.balance
+                                  : (campus.outstandingDues ?? Math.max(0, grandTotal - (campus.feesCollected || 0)));
 
                                 return (
                                   <tr 

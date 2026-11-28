@@ -747,15 +747,81 @@ const RemainingBalanceReport = ({ onBack }) => {
                 left: 0;
                 top: 0;
                 width: 100%;
+                margin: 0 !important;
+                padding: 0 !important;
+                page-break-inside: auto !important;
+                break-inside: auto !important;
               }
-              @page { size: landscape; margin: 10mm; }
+              @page { size: landscape; margin: 8mm 10mm; }
               .no-print { display: none !important; }
+
+              /* Ensure containers allow table to paginate across pages without forced breaks */
+              .printable-report .MuiBox-root,
+              .printable-report .MuiPaper-root,
+              .printable-report .MuiTableContainer-root,
+              .printable-report table,
+              .printable-report tbody {
+                page-break-inside: auto !important;
+                break-inside: auto !important;
+                page-break-before: auto !important;
+                break-before: auto !important;
+                overflow: visible !important;
+                box-shadow: none !important;
+                border-radius: 0 !important;
+              }
+
+              /* Keep table rows intact and repeat header across pages */
+              .printable-report tr {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .printable-report thead {
+                display: table-header-group !important;
+              }
+              .printable-report tfoot {
+                display: table-footer-group !important;
+              }
+
+              /* Crisp table formatting for landscape print */
+              .printable-report table {
+                width: 100% !important;
+                border-collapse: collapse !important;
+              }
+              .printable-report th, 
+              .printable-report td {
+                border: 1px solid #ddd !important;
+                padding: 4px 6px !important;
+                font-size: 8.5pt !important;
+              }
+              .printable-report th {
+                background-color: #f5f5f5 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+              }
+              .printable-report .group-header-row td {
+                background-color: #f1f5f9 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-weight: bold !important;
+              }
+              .printable-report .group-total-row td {
+                background-color: #f8fafc !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-weight: bold !important;
+              }
+              .printable-report .grand-total-row td {
+                background-color: #e2e8f0 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                font-weight: bold !important;
+              }
             }
           `}
         </style>
 
         {/* Report Header with Branding */}
-        <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #667eea', pb: 2 }}>
+        <Box sx={{ mb: 2.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '2px solid #667eea', pb: 1.5 }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
             {institutionData?.logo && (
               <Box
@@ -788,7 +854,7 @@ const RemainingBalanceReport = ({ onBack }) => {
           </Box>
         </Box>
 
-        <TableContainer component={Paper} sx={{ border: '1px solid #eee' }}>
+        <TableContainer sx={{ border: '1px solid #eee', overflow: 'visible', boxShadow: 'none' }}>
           <Table size="small">
             <TableHead>
               <TableRow sx={{ bgcolor: '#f5f5f5' }}>
@@ -825,7 +891,7 @@ const RemainingBalanceReport = ({ onBack }) => {
 
                 return (
                   <React.Fragment key={groupKey}>
-                    <TableRow sx={{ bgcolor: 'grey.100' }}>
+                    <TableRow className="group-header-row" sx={{ bgcolor: 'grey.100' }}>
                       <TableCell colSpan={6 + (viewType === 'head-wise' ? feeHeads.length : 5)} sx={{ fontWeight: 'bold', textAlign: 'center' }}>
                         {groupKey}
                       </TableCell>
@@ -865,7 +931,7 @@ const RemainingBalanceReport = ({ onBack }) => {
                       </TableRow>
                     ))}
                     {viewType !== 'head-wise' && (
-                      <TableRow sx={{ bgcolor: 'grey.50' }}>
+                      <TableRow className="group-total-row" sx={{ bgcolor: 'grey.50' }}>
                         <TableCell colSpan={6} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Total</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>{groupSubtotal.p.toLocaleString()}</TableCell>
                         <TableCell sx={{ fontWeight: 'bold' }}>{groupSubtotal.c.toLocaleString()}</TableCell>
@@ -878,7 +944,7 @@ const RemainingBalanceReport = ({ onBack }) => {
                 );
               })}
               {viewType !== 'head-wise' && (
-                <TableRow sx={{ bgcolor: '#eee' }}>
+                <TableRow className="grand-total-row" sx={{ bgcolor: '#eee' }}>
                   <TableCell colSpan={6} sx={{ fontWeight: 'bold', textAlign: 'right' }}>Grand Total</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{summary.totalPBal.toLocaleString()}</TableCell>
                   <TableCell sx={{ fontWeight: 'bold' }}>{summary.totalCBal.toLocaleString()}</TableCell>
